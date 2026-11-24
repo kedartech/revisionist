@@ -718,6 +718,19 @@ class PlaceDecl(Model):
     moves: dict[Label, int] = Field(min_length=1)
 
 
+class ElectionDecl(Model):
+    """An election (ELE), with ``elections`` on: the nation, the chambers it redraws by
+    public support, its day, and optionally the post whose term ends that day; its holder
+    is removed when the mean support of what the post rests on is under the line then."""
+
+    nation: Key
+    """A polity key."""
+    chambers: tuple[Label, ...] = Field(min_length=1, max_length=4)
+    day: date
+    post: Key | None = None
+    """An office asset key, on a ladder with ``rests_on``."""
+
+
 class LockOrderDecl(Model):
     """Which order a lock holds (DCD), in world-file keys: ``form`` a lever's name with
     some of its parameter values as the form takes them, or ``effect`` an effect kind
@@ -1234,6 +1247,10 @@ class WorldFile(Model):
     """The places with political weight, with ``places`` on (PLW): a handful a nation. A
     world with none weighs no place. With the rule off they are checked and left out of
     the game. Written by hand: not offered to a model."""
+    elections: SkipJsonSchema[tuple[ElectionDecl, ...]] = ()
+    """The elections the world lists, with ``elections`` on (ELE). A world with none
+    redraws no chamber. With the rule off they are checked and left out of the game.
+    Written by hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""

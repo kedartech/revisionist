@@ -57,6 +57,7 @@ from revisionist.core.realism import (
     conference,
     detect,
     economy,
+    elections,
     groups,
     locks,
     offers,
@@ -383,10 +384,44 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
         keys = {g.key for g in found.get(place.nation, ())}
         if not set(place.moves) <= keys:
             raise FoldError(f"groups_declared: a place names a group {place.nation} lacks")
+    if p.elections and Rule.ELECTIONS not in state.rules:
+        raise FoldError("groups_declared: elections need the elections rule")
+    for election in p.elections:
+        chambers = {g.chamber for g in found.get(election.nation, ()) if g.seats}
+        if not set(election.chambers) <= chambers:
+            raise FoldError(f"groups_declared: an election names a chamber {election.nation} lacks")
+        if election.post is not None and Rule.OFFICE not in state.rules:
+            raise FoldError("groups_declared: an election names a post; that needs the office rule")
     g = state.groups.model_copy(
-        update={"declared": found, "themes": themes, "classes": classes, "places": p.places}
+        update={
+            "declared": found,
+            "themes": themes,
+            "classes": classes,
+            "places": p.places,
+            "elections": p.elections,
+        }
     )
     return state.model_copy(update={"groups": g})
+
+
+def _seats_redrawn(state: State, p: ev.SeatsRedrawn) -> State:
+    """An election redrew a chamber (ELE): every bloc of it named, the total kept, and each
+    row of a bloc's votes scaled by its new seats over its old."""
+    if not elections.on(state):
+        raise FoldError("seats_redrawn needs the groups and elections rules")
+    held = elections.blocs(state, p.polity, p.chamber)
+    if not held or set(p.seats) != {g.key for g in held}:
+        raise FoldError(f"seats_redrawn: {p.chamber} of {p.polity} has other blocs")
+    if sum(p.seats.values()) != sum(g.seats or 0 for g in held):
+        raise FoldError(f"seats_redrawn: {p.chamber} of {p.polity} changed its total")
+    redrawn = tuple(
+        groups.reseated(g, p.seats[g.key]) if g.key in p.seats and g.chamber == p.chamber else g
+        for g in groups.of(state, p.polity)
+    )
+    declared = {**state.groups.declared, p.polity: redrawn}
+    return state.model_copy(
+        update={"groups": state.groups.model_copy(update={"declared": declared})}
+    )
 
 
 def _piece_stepped(state: State, p: ev.PieceStepped) -> State:
@@ -583,7 +618,7 @@ def _office_question_opened(state: State, p: ev.OfficeQuestionOpened) -> State:
         raise FoldError("office_question_opened needs the office and posts rules")
     q = p.question
     _fresh(state.office_questions, q.question_id, "office question")
-    why = office.refusal(state, q.post, q.opened)
+    why = office.refusal(state, q.post, q.opened, q.cause)
     if why:
         raise FoldError(f"office_question_opened: {q.post}: {why}")
     if posts.holder(state, q.post) != q.holder:
@@ -1206,6 +1241,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OfficeQuestionOpened()
             | ev.OfficeChoiceFiled()
             | ev.OfficeQuestionDecided()
+            | ev.SeatsRedrawn()
             | ev.PieceStepped()
             | ev.AreaHeld()
             | ev.CaptureCounted()
@@ -1667,6 +1703,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _office_choice_filed(state, p)
         case ev.OfficeQuestionDecided():
             return _office_question_decided(state, p)
+        case ev.SeatsRedrawn():
+            return _seats_redrawn(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

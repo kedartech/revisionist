@@ -5811,6 +5811,50 @@
         "title": "EffectsEstimated",
         "type": "object"
       },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
+        "type": "object"
+      },
       "Ending": {
         "enum": [
           "won",
@@ -7437,6 +7481,14 @@
               "$ref": "#/$defs/KindClass"
             },
             "title": "Classes",
+            "type": "array"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
             "type": "array"
           },
           "kind": {
@@ -11948,7 +12000,8 @@
           "base",
           "incident",
           "order",
-          "term"
+          "term",
+          "election"
         ],
         "title": "QuestionCause",
         "type": "string"
@@ -13978,6 +14031,52 @@
           "cause"
         ],
         "title": "SeatStatusSet",
+        "type": "object"
+      },
+      "SeatsRedrawn": {
+        "additionalProperties": false,
+        "description": "An election redrew a nation's chamber (ELE): each of its blocs' seats after it, by\ngroup key, the chamber's total kept; each row of a bloc's votes is scaled by its new\nseats over its old. Public: the seats of a chamber are known to all.",
+        "properties": {
+          "chamber": {
+            "maxLength": 60,
+            "title": "Chamber",
+            "type": "string"
+          },
+          "kind": {
+            "const": "seats_redrawn",
+            "default": "seats_redrawn",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seats": {
+            "additionalProperties": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Seats",
+            "type": "object"
+          }
+        },
+        "required": [
+          "polity",
+          "chamber",
+          "seats",
+          "on"
+        ],
+        "title": "SeatsRedrawn",
         "type": "object"
       },
       "SessionZeroClosed": {
@@ -16178,6 +16277,7 @@
             "seat_created": "#/$defs/SeatCreated",
             "seat_handover": "#/$defs/SeatHandover",
             "seat_status_set": "#/$defs/SeatStatusSet",
+            "seats_redrawn": "#/$defs/SeatsRedrawn",
             "session_zero_closed": "#/$defs/SessionZeroClosed",
             "session_zero_opened": "#/$defs/SessionZeroOpened",
             "settings_set": "#/$defs/SettingsSet",
@@ -16444,6 +16544,9 @@
           },
           {
             "$ref": "#/$defs/OfficeQuestionDecided"
+          },
+          {
+            "$ref": "#/$defs/SeatsRedrawn"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -20101,6 +20204,50 @@
         "title": "EffectKind",
         "type": "string"
       },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
+        "type": "object"
+      },
       "Engagement": {
         "enum": [
           "hold_fire",
@@ -21229,6 +21376,14 @@
             },
             "title": "Declared",
             "type": "object"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
+            "type": "array"
           },
           "held": {
             "default": [],
@@ -24423,7 +24578,8 @@
           "base",
           "incident",
           "order",
-          "term"
+          "term",
+          "election"
         ],
         "title": "QuestionCause",
         "type": "string"
@@ -30915,6 +31071,50 @@
         "title": "EffectKind",
         "type": "string"
       },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
+        "type": "object"
+      },
       "Engagement": {
         "enum": [
           "hold_fire",
@@ -31661,6 +31861,14 @@
             },
             "title": "Declared",
             "type": "object"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
+            "type": "array"
           },
           "held": {
             "default": [],

@@ -21,7 +21,7 @@ AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCal
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
 OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
 OfferSettled, LossesHeld, PostChanged, OfficeQuestionOpened, OfficeChoiceFiled,
-OfficeQuestionDecided``, and
+OfficeQuestionDecided, SeatsRedrawn``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -100,7 +100,14 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import HeldLoss, KindClass, NationGroups, Place, Proposal
+from revisionist.core.realism.groups import (
+    Election,
+    HeldLoss,
+    KindClass,
+    NationGroups,
+    Place,
+    Proposal,
+)
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
@@ -1116,8 +1123,23 @@ class GroupsDeclared(Model):
     places: tuple[Place, ...] = ()
     """With ``places`` on, the places with political weight (PLW), in the world file's
     order."""
+    elections: tuple[Election, ...] = ()
+    """With ``elections`` on, the elections the world lists (ELE), in the world file's
+    order."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"classes", "places"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes", "places", "elections"})
+
+
+class SeatsRedrawn(Model):
+    """An election redrew a nation's chamber (ELE): each of its blocs' seats after it, by
+    group key, the chamber's total kept; each row of a bloc's votes is scaled by its new
+    seats over its old. Public: the seats of a chamber are known to all."""
+
+    kind: Literal["seats_redrawn"] = "seats_redrawn"
+    polity: EntityId
+    chamber: Label
+    seats: dict[Label, Annotated[int, Field(ge=1)]] = Field(min_length=1)
+    on: date
 
 
 class GroupMoved(Model):
@@ -1652,6 +1674,7 @@ Payload = Annotated[
     | OfficeQuestionOpened
     | OfficeChoiceFiled
     | OfficeQuestionDecided
+    | SeatsRedrawn
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1771,6 +1794,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "office_question_opened",
         "office_choice_filed",
         "office_question_decided",
+        "seats_redrawn",
         "piece_stepped",
         "area_held",
         "capture_counted",

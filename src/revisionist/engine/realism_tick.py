@@ -56,6 +56,7 @@ from revisionist.core.realism import (
     contests,
     detect,
     economy,
+    elections,
     groups,
     holders,
     ladder,
@@ -618,6 +619,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         for question_id in office.due(state, day):  # OFQ: a sitting on its day decides
             add(office.sit(state, question_id, day))
         add(office.arising(state, day))  # OFQ: an order's or a term's question opens
+        add(elections.walk(state, day))  # ELE: a post's election told, put, and chambers redrawn
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))

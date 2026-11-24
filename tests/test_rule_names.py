@@ -51,6 +51,7 @@ READ = frozenset(
         "places",
         "posts",
         "office",
+        "elections",
     }
 )
 """The names whose reader has been built: a world that names one is no longer as with it off."""

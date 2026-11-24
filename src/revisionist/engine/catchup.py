@@ -121,6 +121,7 @@ FEED_KINDS: frozenset[str] = frozenset(
         # nation, whoever plays it; its decision public, as news.
         "office_question_opened",
         "office_question_decided",
+        "seats_redrawn",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,

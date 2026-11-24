@@ -180,6 +180,12 @@ happenings:
 places:
   - {territory: norra_plain, nation: norra, moves: {greys: -4, public: -2}}
 
+# Elections, read with the `elections` rule on: each redraws its chambers by support; one
+# that names a post (`post: <office key>`) removes its holder when what the post rests on
+# is under the line that day.
+elections:
+  - {nation: norra, chambers: [assembly], day: 1900-05-01}
+
 # The player's own aim, read with the own_aim rule on: patterns a player may fill to
 # replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
 # as `{name}`; `$nation` and `$person` stand for the person's own nation and the person.

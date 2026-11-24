@@ -76,7 +76,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, SeatId
+from revisionist.core.ids import AssetId, EntityId, SeatId
 from revisionist.core.realism.effect import GROUP_DAY_CAP, ClauseKind, GroupNudge
 from revisionist.core.realism.offers import Price
 
@@ -392,6 +392,17 @@ class HeldLoss(Model):
         return (self.polity, self.group, self.area, self.opened, self.on)
 
 
+class Election(Model):
+    """An election the world lists (ELE), with ``elections`` on: the nation, the chambers
+    it redraws, its day, and the post whose term ends that day, if any. Engine only: the
+    post's day is told by its office question's notice."""
+
+    nation: EntityId
+    chambers: tuple[Label, ...] = Field(min_length=1, max_length=4)
+    day: date
+    post: AssetId | None = None
+
+
 class Groups(Model):
     """Groups' truth. A seat sees its own nation's part only."""
 
@@ -417,9 +428,12 @@ class Groups(Model):
     left: dict[EntityId, dict[EntityId, date]] = Field(default_factory=dict)
     """With ``places`` on, by weighted place, the last day a piece of each nation stepped
     out of it (``piece_stepped``). Engine only."""
+    elections: tuple[Election, ...] = ()
+    """With ``elections`` on, the elections the world lists, in the world file's order
+    (``groups_declared``). Engine only."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"themes", "classes", "held", "places", "left"}
+        {"themes", "classes", "held", "places", "left", "elections"}
     )
 
 
@@ -546,6 +560,29 @@ def bloc_support(state: "State | View", polity: EntityId, chamber: str) -> dict[
     return {
         g.key: support(state, polity, g.key) or 0 for g in of(state, polity) if g.chamber == chamber
     }
+
+
+def _scaled(vote: BlocVote, old: int, new: int) -> BlocVote:
+    voting = min(new, (vote.voting * new + old // 2) // old)
+    return BlocVote(voting=voting, yeas=min(voting, (vote.yeas * new + old // 2) // old))
+
+
+def reseated(bloc: Group, seats: int) -> Group:
+    """A chamber's bloc with ``seats``, each row of its votes scaled by its new seats over
+    its old, to the nearest member, halves up (ELE)."""
+    old = bloc.seats
+    if old is None or old == seats:
+        return bloc
+    return bloc.model_copy(
+        update={
+            "seats": seats,
+            "votes": {
+                m: {v: _scaled(row, old, seats) for v, row in rows.items()}
+                for m, rows in bloc.votes.items()
+            },
+            "vote_default": {v: _scaled(row, old, seats) for v, row in bloc.vote_default.items()},
+        }
+    )
 
 
 def seen_by(state: "State", seat: SeatId) -> Groups:

@@ -282,18 +282,20 @@ def seal_vote(
 
 
 def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, ...]:
-    """The aide never takes an irreversible step without a standing order naming it,
-    never makes or accepts a deal (a deal is the seat's own to strike), and in a battle
-    game never presses, withdraws or changes a contingency (BDC rule 8)."""
+    """Nothing on the aide's bar; no irreversible step without a standing order naming
+    it; no deal of the aide's own (a deal is the seat's own to strike); and in a battle
+    game no press, withdrawal or change of contingency (BDC rule 8)."""
     standing = state.standing.get(seat, STANDING_DEFAULT)
     out: list[Ask] = []
     for a in order:
         if a.effect is None:
             out.append(a)
             continue
-        if isinstance(a.effect, Deal):
+        if detect.barred(a.effect, standing) is not None:
             continue
-        if a.effect.kind in IRREVERSIBLE and a.effect.kind not in standing:
+        if isinstance(a.effect, Deal) and not a.effect.accept:
+            continue
+        if a.effect.kind in IRREVERSIBLE - detect.BAR_RULES and a.effect.kind not in standing:
             continue
         kept = battle.aide_may(state, a.effect)
         kept = None if kept is None else detect.aide_may(kept)

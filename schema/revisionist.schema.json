@@ -13284,7 +13284,10 @@
           "aide_note",
           "peace",
           "post_view",
-          "playable_rule"
+          "playable_rule",
+          "kinds_in_battle",
+          "weather",
+          "raising"
         ],
         "title": "Rule",
         "type": "string"
@@ -26006,7 +26009,10 @@
           "aide_note",
           "peace",
           "post_view",
-          "playable_rule"
+          "playable_rule",
+          "kinds_in_battle",
+          "weather",
+          "raising"
         ],
         "title": "Rule",
         "type": "string"

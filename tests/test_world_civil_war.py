@@ -37,7 +37,14 @@ TEMPLATE = ROOT / "worlds" / "TEMPLATE.md"
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 START = date(1862, 9, 1)
 SIDES = ("usa", "csa")
-UNBUILT = {Rule.AIDE_NOTE, Rule.PEACE, Rule.POST_VIEW}
+UNBUILT = {
+    Rule.AIDE_NOTE,
+    Rule.PEACE,
+    Rule.POST_VIEW,
+    Rule.KINDS_IN_BATTLE,
+    Rule.WEATHER,
+    Rule.RAISING,
+}
 """Rules no code reads yet: a shipped world names a rule only once its reader is built."""
 RULES = set(Rule) - {Rule.PLAYABLE_RULE} - set(MODEL_READ_RULES) - UNBUILT
 """Every rule on except the playable rule, whose report goes to Josh first, the three read

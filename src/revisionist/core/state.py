@@ -145,6 +145,12 @@ class Rule(StrEnum):
     """A commander's view limited to his post (PVW)."""
     PLAYABLE_RULE = "playable_rule"
     """Who can be played comes from a rule over the cards (PBR)."""
+    KINDS_IN_BATTLE = "kinds_in_battle"
+    """A piece's kind and its figures count in a battle and in a sighting (KBA, KRP)."""
+    WEATHER = "weather"
+    """Weather by region and month changes steps, figures and air in the region (KWX)."""
+    RAISING = "raising"
+    """A nation raises a new piece of a kind at a site that can build it (RNC)."""
 
 
 MODEL_READ_RULES = frozenset({Rule.WRITING, Rule.CLAUSE_READER, Rule.WRITTEN_ORDERS})

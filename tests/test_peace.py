@@ -459,6 +459,93 @@ def test_a_peace_made_together_breaks_no_pact(tmp_path: Path) -> None:
     assert not of(out, ev.ClauseJudged)
 
 
+# --- One war, two offers, one day --------------------------------------------------------
+
+
+def two_peace_offers(g: Logged) -> tuple[OrderId, OrderId, date]:
+    """Two offers that each end the war between Norra and Sudland, both accepted by Tomas
+    and due on one day."""
+    first = peace_offer(g, ends_war(), ends_war(SUDLAND, NORRA))
+    second = offer(g, deal(ends_war(), wording="Norra and Sudland are at peace."))
+    for oid in (first, second):
+        answer(g, oid, TOMAS, True)
+    due = process.offer_due(g.state, g.state.routed[first])
+    assert process.offer_due(g.state, g.state.routed[second]) == due
+    return first, second, due
+
+
+def lapsed_whys(out: Sequence[ev.Event]) -> list[str]:
+    return [
+        str(b.value)
+        for p in of(out, ev.DocumentIssued)
+        if p.document.title == "An offer of agreement lapsed"
+        for b in p.document.body
+        if b.label == "Why"
+    ]
+
+
+def test_two_offers_ending_one_war_on_one_day_end_it_once(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    first, second, due = two_peace_offers(g)
+    out = g.walk(day(1), due)
+    (x,) = of(out, ev.AgreementMade)
+    (ended,) = of(out, ev.WarEnded)
+    assert ended.agreement_id == x.agreement.agreement_id
+    assert x.agreement.offer_id in (first, second)
+    assert lapsed_whys(out) == [agreement.WAR_ENDED] * 2
+    assert not at_war(g.state, NORRA, SUDLAND) and len(g.state.ended_wars) == 1
+    out = g.walk(due + timedelta(days=1), due + timedelta(days=3))
+    assert not of(out, ev.AgreementMade) and len(made(g)) == 1
+
+
+def test_two_held_peaces_allowed_on_one_day_end_the_war_once(tmp_path: Path) -> None:
+    g = game(tmp_path, council(3))
+    _, _, due = two_peace_offers(g)
+    out = g.walk(day(1), due)
+    asked = of(out, ev.OrderAsked)
+    assert len(asked) == 2 and not made(g)
+    g.add(
+        [
+            ev.MatterChosen(order_id=a.asked.order_id, seat_id=TOMAS, accept=True, on=due)
+            for a in asked
+        ]
+    )
+    out = g.walk(due + timedelta(days=1), due + timedelta(days=process.ANSWER_DAYS))
+    assert len(of(out, ev.AskAnswered)) == 2
+    (x,) = of(out, ev.AgreementMade)
+    (ended,) = of(out, ev.WarEnded)
+    assert ended.agreement_id == x.agreement.agreement_id
+    assert lapsed_whys(out) == [agreement.WAR_ENDED] * 2
+    ends = sorted(p.end.value for p in of(out, ev.HeldOrderEnded))
+    assert ends == sorted([locks.HeldEnd.LANDED.value, locks.HeldEnd.FAILED.value])
+    assert not g.state.held and not at_war(g.state, NORRA, SUDLAND)
+    out = g.walk(due + timedelta(days=process.ANSWER_DAYS + 1), due + timedelta(days=12))
+    assert not of(out, ev.AgreementMade) and len(made(g)) == 1
+
+
+def test_two_peaces_made_on_one_day_break_no_pact(tmp_path: Path) -> None:
+    g = game(tmp_path, ostmark_at_war)
+    put_in_force(
+        g,
+        clause(ClauseType.NO_SEPARATE_PEACE, binds=NORRA, nation=SUDLAND),
+        clause(ClauseType.NO_SEPARATE_PEACE, binds=OSTMARK, nation=SUDLAND),
+        parties=(NORRA, OSTMARK),
+    )
+    norra = peace_offer(g, ends_war(), ends_war(SUDLAND, NORRA))
+    east = offer(
+        g,
+        deal(ends_war(OSTMARK, SUDLAND), parties=(OSTMARK, SUDLAND), wording="Ostmark's peace."),
+        by=OLAF,
+    )
+    for oid in (norra, east):
+        answer(g, oid, TOMAS, True)
+    due = process.offer_due(g.state, g.state.routed[norra])
+    assert process.offer_due(g.state, g.state.routed[east]) == due
+    out = g.walk(day(1), due)
+    assert len(of(out, ev.WarEnded)) == 2 and len(made(g)) == 3
+    assert not of(out, ev.ClauseJudged)
+
+
 # --- Rule 6: a war ended can be declared again ------------------------------------------
 
 

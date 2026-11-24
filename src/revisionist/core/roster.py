@@ -7,10 +7,11 @@ qualify.
 
 from revisionist.core import contest
 from revisionist.core._base import Model
+from revisionist.core.goals import replacement_aims
 from revisionist.core.ids import ContestId, EntityId
-from revisionist.core.ontology import AssetKind, AssetStatus, EntityKind
+from revisionist.core.ontology import AssetKind, AssetStatus, Controller, EntityKind
 from revisionist.core.realism.card import CardPath
-from revisionist.core.state import State
+from revisionist.core.state import State, controller_after
 
 QUALIFYING_TIER = 2
 QUALIFYING_KINDS = frozenset({AssetKind.FORCE, AssetKind.OFFICE, AssetKind.NETWORK})
@@ -103,6 +104,27 @@ def claimable(state: State) -> tuple[Candidate, ...]:
     and in a realism world a playable card. It reads the state alone, never a seat.
     """
     return tuple(_candidate(state, c) for c in sorted(state.roster, key=lambda c: _order(state, c)))
+
+
+def replacements(state: State, person: EntityId) -> tuple[Candidate, ...]:
+    """The people a seat that can no longer play ``person`` may take in his place (RPL):
+    those ``claimable`` lets a player take, whom nobody plays once the open wake closes,
+    who can act, have not been replaced, and have the two aims a replacement must hold;
+    ``person``'s own nation's first, each group in ``claimable``'s order."""
+    from revisionist.core.realism import posts  # posts reaches the roster through state
+
+    nation = _nation(state, person)
+    found = [
+        c
+        for c in claimable(state)
+        if c.reason is None
+        and c.person != person
+        and controller_after(state, c.person) is Controller.AI
+        and posts.can_act(state, c.person)
+        and c.person not in state.replaced.values()
+        and replacement_aims(state.cards[c.person].aim_rules, len(state.cards[c.person].aims))
+    ]
+    return tuple(sorted(found, key=lambda c: nation is None or c.nation != nation))
 
 
 def _candidate(state: State, entity: EntityId) -> Candidate:

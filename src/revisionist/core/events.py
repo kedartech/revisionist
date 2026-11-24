@@ -1575,11 +1575,15 @@ class SeatHandover(Model):
     """A leader changes hands at the next wake boundary: ``HUMAN`` when a new player
     takes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds
     the change in ``State.handovers`` and applies it when the open wake closes. Sealed to
-    the seat that changes hands: how a seat is run is never shown."""
+    the seat that changes hands: how a seat is run is never shown.
+
+    ``replaces`` names the person a player can no longer play whom ``entity_id`` takes
+    the place of (RPL): his own hand-over to the code lands first, in the same step."""
 
     kind: Literal["seat_handover"] = "seat_handover"
     entity_id: EntityId
     controller: Controller
+    replaces: EntityId | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class OptionsOffered(Model):

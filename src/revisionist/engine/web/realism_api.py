@@ -1654,6 +1654,29 @@ class OfferLine(TypedDict):
     item: str | None
     """An offer before the seat to answer: the id of its "Offer" item on the agenda, which
     the ``answer`` action takes. None once answered on its due day, and for its own offer."""
+    accept: NotRequired["LockCheck"]
+    """With ``peace`` on, for an offer of peace before the seat to answer: what accepting
+    it would do (PER rule 3): ``allowed``, the acceptance stands; ``locked``, it is held
+    for who decides, with the reason the seat would be told; ``beyond``, his nation has no
+    one who may accept a peace, so accepting lapses the offer. Absent otherwise."""
+
+
+class PeaceClause(TypedDict):
+    """One clause of peace the offer builder may add (PER rule 1), with the nations the
+    seat may name in it: those at war with its nation, as its view holds them."""
+
+    type: Literal["armistice", "end_war", "no_separate_peace"]
+    label: str
+    nations: list[WarNation]
+
+
+class ArmisticeLine(TypedDict):
+    """An armistice in force (PER rule 4): the agreement, the two nations, and the world
+    day its days run out."""
+
+    agreement: str
+    nations: list[str]
+    last_day: str
 
 
 class AgreementsBlock(TypedDict):
@@ -1663,6 +1686,11 @@ class AgreementsBlock(TypedDict):
 
     agreements: list[AgreementLine]
     offers: list[OfferLine]
+    peace: NotRequired[list[PeaceClause]]
+    """With ``peace`` on, the clauses of peace the offer builder adds (PER). Absent off."""
+    armistices: NotRequired[list[ArmisticeLine]]
+    """With ``peace`` on, each armistice in force among the agreements the seat sees: its
+    nation's, and once published, every one (PER). Absent off."""
 
 
 class ConferenceVoteLine(TypedDict):
@@ -1755,6 +1783,9 @@ class AskLine(TypedDict):
     """The world day it was asked."""
     forms: list[AskForm]
     """The seat's own forms that would allow it; empty where it has none."""
+    terms: NotRequired["OfferTerms"]
+    """For a nation's held acceptance of an offer of peace, the offer's terms in full, as
+    its parties read them before accepting (PER rule 2). Absent otherwise."""
 
 
 class WaitLine(TypedDict):
@@ -2388,6 +2419,7 @@ __all__ = [
     "AimCheck",
     "AimPatternLine",
     "AimValue",
+    "ArmisticeLine",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -2484,6 +2516,7 @@ __all__ = [
     "OrderTrack",
     "OrderTracker",
     "OwnAimBlock",
+    "PeaceClause",
     "PendingPost",
     "People",
     "PeopleMeter",

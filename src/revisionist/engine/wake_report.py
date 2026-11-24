@@ -34,7 +34,9 @@ them removed the holder and how many kept it: counts only, never a post, a perso
 seat. In a game with ``defiance`` on, each wake also counts the orders sent anyway, the
 orders from above refused, and how each incident was answered, backed, disowned or
 dismissed, and how many of those answers the superior's card gave (DFR): counts only,
-never an order, a commander or a superior.
+never an order, a commander or a superior. In a game with ``peace`` on, each wake also
+counts the armistices agreed and the wars ended by terms while it was the latest wake
+opened (PER): counts only, never a nation or an agreement.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -64,6 +66,7 @@ from revisionist.core.realism import (
     office,
 )
 from revisionist.core.realism.agreement import ClauseStatus
+from revisionist.core.realism.effect import ClauseType
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 from revisionist.engine.store import EventStore
@@ -226,6 +229,16 @@ class Defiance:
 
 
 @dataclass(frozen=True)
+class Peace:
+    """One wake's armistices agreed (the armistice clauses of the agreements made) and
+    wars ended by terms (PER), counted by the latest wake opened when each landed."""
+
+    number: int
+    armistices: int
+    ended: int
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -255,6 +268,8 @@ class Report:
     """One per wake opened, in a game with ``office`` on; else empty."""
     defiance: tuple[Defiance, ...] = ()
     """One per wake opened, in a game with ``defiance`` on; else empty."""
+    peace: tuple[Peace, ...] = ()
+    """One per wake opened, in a game with ``peace`` on; else empty."""
 
 
 @dataclass
@@ -334,6 +349,7 @@ def build(events: Sequence[Event]) -> Report:
         _offers(events, state),
         _questions(events, state),
         _defiance(events, state),
+        _peace(events, state),
     )
 
 
@@ -492,6 +508,28 @@ def _defiance(events: Sequence[Event], state: State) -> tuple[Defiance, ...]:
             counts[number][p.verdict.value] += 1
             counts[number]["by_card"] += int(p.by_card)
     return tuple(Defiance(n, **c) for n, c in sorted(counts.items()))
+
+
+def _peace(events: Sequence[Event], state: State) -> tuple[Peace, ...]:
+    """Each wake's armistices agreed and wars ended, by the latest wake opened when each
+    landed; empty with ``peace`` off."""
+    if not agreement.peace_on(state):
+        return ()
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0])
+        elif number is None:
+            continue
+        elif isinstance(p, ev.AgreementMade):
+            kinds = [c.type for c in p.agreement.clauses]
+            counts[number][0] += kinds.count(ClauseType.ARMISTICE)
+        elif isinstance(p, ev.WarEnded):
+            counts[number][1] += 1
+    return tuple(Peace(n, *c) for n, c in sorted(counts.items()))
 
 
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
@@ -663,6 +701,7 @@ def render(report: Report) -> list[str]:
     offered = {o.number: o for o in report.offers}
     asked = {q.number: q for q in report.questions}
     defied = {d.number: d for d in report.defiance}
+    peace = {x.number: x for x in report.peace}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -697,6 +736,12 @@ def render(report: Report) -> list[str]:
                 f"    defiance: {d.sent} sent anyway, {d.refused} refused; incidents"
                 f" {d.backed} backed, {d.disowned} disowned, {d.dismissed} dismissed,"
                 f" {d.by_card} by card"
+            )  # [proposed]
+        if w.number in peace:
+            x = peace[w.number]
+            lines.append(
+                f"    peace: {_plural(x.armistices, 'armistice')} agreed,"
+                f" {_plural(x.ended, 'war')} ended"
             )  # [proposed]
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
@@ -780,6 +825,7 @@ __all__ = [
     "Fighting",
     "Holding",
     "Locked",
+    "Peace",
     "Report",
     "Return",
     "SeatRow",

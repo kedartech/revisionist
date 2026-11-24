@@ -587,8 +587,8 @@ def _king(*, defy: bool = True) -> tuple[Any, Any]:
     from tests.test_commander_step_actions import _at_king
 
     r, order = _at_king()
-    if defy:
-        r.state = r.state.model_copy(update={"rules": r.state.rules | {Rule.DEFIANCE}})
+    rules = r.state.rules | {Rule.DEFIANCE} if defy else r.state.rules - {Rule.DEFIANCE}
+    r.state = r.state.model_copy(update={"rules": rules})
     return r, order
 
 

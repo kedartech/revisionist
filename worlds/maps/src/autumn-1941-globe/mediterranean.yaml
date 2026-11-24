@@ -258,7 +258,7 @@ territories:
       MLT-5930, MLT-5943, MLT-5944, MLT-5957, MLT-5964, MLT-5969, MLT-5970, MLT-5971, MLT-5967,
       MLT-5961, MLT-5959, MLT-5960, MLT-5965, MLT-5966, MLT-5958, MLT-5938, MLT-5954, MLT-5941,
       MLT-5953, MLT-5955, MLT-5942, MLT-5940, MLT-5951, CYP-3463, CYP-3466, CYP-3464, CYP-3489,
-      CYP-3465
+      CYP-3465, "CYN+00?", ESB-5132, WSB-5133
     ]
 cuts:
   # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
@@ -298,19 +298,21 @@ sea_zones:
     region: mediterranean
     terrain: sea
     polygon: [[11.3, 30.0], [23.0, 30.0], [23.0, 36.0], [23.0, 37.9], [22.0, 38.6], [22.0, 46.0],
-              [10.0, 46.0], [10.0, 38.8], [11.3, 38.0]]
+              [10.0, 46.0], [10.0, 38.8], [11.3, 38.0], [11.3, 34.0], [9.5, 34.0],
+              [9.5, 30.0]]
   - key: eastern_mediterranean
     name: The Eastern Mediterranean
     region: mediterranean
     terrain: sea
-    polygon: [[23.0, 30.4], [36.5, 30.4], [36.5, 37.2], [29.0, 37.2], [29.0, 37.0], [26.0, 35.1],
+    polygon: [[23.0, 30.4], [37.0, 30.4], [37.0, 37.2], [29.0, 37.2], [29.0, 37.0], [26.0, 35.1],
               [24.5, 35.2], [23.0, 36.0]]
   - key: aegean_sea
     name: The Aegean Sea
     region: mediterranean
     terrain: sea
-    polygon: [[23.0, 36.0], [24.5, 35.2], [26.0, 35.1], [29.0, 37.0], [26.1, 40.0], [26.1, 41.0],
-              [22.0, 41.0], [22.0, 38.6], [23.0, 37.9]]
+    polygon: [[23.0, 36.0], [24.5, 35.2], [26.0, 35.1], [29.0, 37.0], [27.4, 39.0], [42.0, 39.0],
+              [42.0, 40.5], [27.3, 41.2], [26.1, 41.2], [22.0, 41.2], [22.0, 38.6],
+              [23.0, 37.9]]
 crossings:
   - {a: gibraltar_approaches, b: western_mediterranean, name: the Strait of Gibraltar, source: "sea-zone line chosen for play, not sourced"}
   - {a: aegean_sea, b: black_sea, name: the Turkish Straits, source: "sea-zone line chosen for play, not sourced"}

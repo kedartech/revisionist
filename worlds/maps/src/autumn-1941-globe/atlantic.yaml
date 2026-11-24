@@ -71,7 +71,7 @@ territories:
       GBR-5699, GBR-2755, GBR-2122, GBR-2756, GBR-2043, GBR-2757, GBR-5672, GBR-5671, GBR-2763,
       GBR-2761, GBR-2058, GBR-5674, GBR-5673, GBR-5675, GBR-5688, GBR-5676, GBR-5678, GBR-5685,
       GBR-5684, GBR-5681, GBR-5680, GBR-5682, GBR-5679, GBR-5695, GBR-5696, GBR-5690, GBR-5691,
-      GBR-5692, GBR-5694, GBR-5693
+      GBR-5692, GBR-5694, GBR-5693, "GIB+00?"
     ]
   - key: britain_north
     name: Scotland and Ulster
@@ -86,7 +86,7 @@ territories:
       GBR-2005, GBR-2008, GBR-2011, GBR-2746, GBR-2745, GBR-2014, GBR-2013, GBR-2012, GBR-2019,
       GBR-2020, GBR-2018, GBR-2021, GBR-2772, GBR-2744, GBR-2747, GBR-2007, GBR-2002, GBR-2004,
       GBR-2003, GBR-2001, GBR-2010, GBR-2093, GBR-2084, GBR-2091, GBR-2088, GBR-2087, GBR-2092,
-      GBR-2090, GBR-2101, GBR-2094, GBR-2103
+      GBR-2090, GBR-2101, GBR-2094, GBR-2103, FRO-1443, "IMN+00?"
     ]
   - key: ireland
     name: Ireland
@@ -127,7 +127,7 @@ territories:
     terrain_gap: true
     terrain_note: "boreal forest and barrens; no source cited"
     provinces: [
-      CAN-686
+      CAN-686, SPM-4866, SPM-4867
     ]
   - key: eastern_canada
     name: Eastern Canada
@@ -137,7 +137,8 @@ territories:
     terrain_note: "the Laurentian forest and the Maritime coast; no source cited"
     sites: [halifax_port, sydney_cb]
     provinces: [
-      CAN-683, CAN-682, CAN-684, CAN-685, CAN-687
+      CAN-683, CAN-682, CAN-684, CAN-685, CAN-687, BMU-5134, BMU-5135, BMU-5136, BMU-5137, BMU-5138,
+      BMU-5139, BMU-5140, BMU-5141, BMU-5142, BMU-5143, BMU-5144
     ]
   - key: us_east
     name: The Eastern United States
@@ -189,7 +190,7 @@ territories:
       PRI-5260, BHS-5038, BHS-5037, BHS-5036, BHS-5035, BHS-5024, BHS-5033, BHS-5032, BHS-5023,
       BHS-5031, BHS-5020, BHS-5021, BHS-5022, BHS-5030, BHS-5009, BHS-5019, BHS-5028, BHS-5027,
       BHS-5029, BHS-5018, BHS-5017, BHS-5010, BHS-5011, BHS-5012, BHS-5015, BHS-5016, BHS-5014,
-      BHS-5039, BHS-5034, BHS-5026, BHS-5025
+      BHS-5039, BHS-5034, BHS-5026, BHS-5025, UMI-5177, "USG+00?"
     ]
 cuts: []
 sea_zones:
@@ -197,12 +198,14 @@ sea_zones:
     name: The English Channel
     region: atlantic
     terrain: sea
-    polygon: [[-10, 48.3], [0, 48.3], [1.5, 51.0], [-5.2, 51.0], [-10, 51.0]]
+    polygon: [[-10, 48.3], [0, 48.3], [2.5, 48.3], [2.5, 51.0], [1.5, 51.0], [0.66, 51.6],
+              [-2.0, 51.6], [-2.0, 51.0], [-5.2, 51.0], [-10, 51.0]]
   - key: western_approaches_area
     name: The Western Approaches
     region: atlantic
     terrain: sea
-    polygon: [[-20, 51.0], [-5.2, 51.0], [-3.0, 52.4], [-2.9, 54.0], [-3.4, 56.0], [-3.4, 58.7], [-1.0, 61.0], [-20, 61.0]]
+    polygon: [[-20, 51.0], [-5.2, 51.0], [-2.0, 51.0], [-2.0, 53.5], [-3.4, 56.0], [-3.4, 58.7],
+              [-1.0, 61.0], [-20, 61.0]]
   - key: mid_ocean_gap
     name: The Mid-Ocean Gap
     region: atlantic
@@ -227,11 +230,14 @@ sea_zones:
     name: The Arctic Route
     region: atlantic
     terrain: sea
-    polygon: [[-25, 61.0], [12.2, 61.0], [12.2, 66.6], [28.0, 66.6], [28.0, 71.5], [-25, 71.5]]
+    polygon: [[-25, 61.0], [15.0, 61.0], [15.0, 66.6], [28.0, 66.6], [28.0, 71.5], [-25, 71.5]]
   - key: caribbean_sea
     name: The Caribbean and the Gulf of Mexico
     region: atlantic
     terrain: sea
-    polygon: [[-98, 10.0], [-60, 10.0], [-60, 28.0], [-82, 28.0], [-82, 31.0], [-98, 31.0]]
+    polygon: [[-98, 18.5], [-95.0, 17.2], [-92.5, 16.0], [-90.0, 15.0], [-88.0, 14.5],
+              [-86.0, 13.0], [-84.5, 10.6], [-83.0, 9.0], [-81.5, 8.6], [-80.5, 8.6],
+              [-79.6, 9.15], [-78.5, 9.0], [-77.4, 8.0], [-76.5, 7.0], [-60, 7.0],
+              [-60, 28.0], [-82, 28.0], [-82, 31.0], [-98, 31.0]]
 crossings:
   - {a: english_channel, b: north_sea, name: the Strait of Dover, source: "sea-zone line chosen for play, not sourced"}

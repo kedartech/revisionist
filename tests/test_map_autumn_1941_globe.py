@@ -41,7 +41,7 @@ AUSTRALASIA = SRC / "australasia.yaml"
 AUSTRALASIA_STAGING = SRC / "australasia.world.yaml"
 AUSTRALASIA_PLACES = SRC / "australasia.places.yaml"
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = AUSTRALASIA_STAGING
+NEWEST = SRC / "southern-seas.world.yaml"
 PACIFIC_STAGING = SRC / "pacific.world.yaml"
 PACIFIC_PLACES = SRC / "pacific.places.yaml"
 START = SRC / "start.yaml"
@@ -50,7 +50,7 @@ EARLIER = tuple(
     SRC / f"{name}.yaml"
     for name in ("eastern-front", "europe", "atlantic", "mediterranean", "pacific")
 )
-RECIPES = (*EARLIER, AMERICAS, AFRICA, INNER_ASIA, AUSTRALASIA)
+RECIPES = (*EARLIER, AMERICAS, AFRICA, INNER_ASIA, AUSTRALASIA, SRC / "southern-seas.yaml")
 STAGINGS = tuple(p.with_suffix(".world.yaml") for p in RECIPES)
 
 # The regions draft's thirteen territories, in the recipe's order.
@@ -287,7 +287,7 @@ INNER_ASIA_RUSSIA = {
     "eastern_siberia": {f"RUS-{n}" for n in (2603, 2402, 2602, 2606, 2612, 2615, 2321, 3468)},
     "mongolia": {"RUS-2605"},
 }  # fmt: skip
-# The Andaman and Nicobar Islands, left unclaimed until the Andaman Sea zone's edge is moved.
+# The Andaman and Nicobar Islands, claimed with Bengal once the Andaman Sea zone's edge was moved.
 ANDAMANS = "IND-2474"
 INNER_ASIA_PART_UNITS = {
     **INNER_ASIA_RUSSIA,
@@ -358,8 +358,8 @@ AUSTRALASIA_WHOLE_COUNTRIES = {
     "FSM": 4, "MHL": 2, "MNP": 4, "FJI": 5, "TON": 5, "WSM": 11, "ASM": 5, "KIR": 2, "TUV": 1,
     "NRU": 14, "COK": 11, "NIU": 1, "WLF": 3, "PYF": 5, "PCN": 1, "NCL": 3, "VUT": 6,
 }  # fmt: skip
-# Guam and the United States' minor islands (Wake, Midway and the rest) stay places in their sea
-# zones, unclaimed (the regions draft); Heard Island waits for the southern seas.
+# Guam and the United States' minor islands (Wake, Midway and the rest), claimed with their holder's
+# territory once the southern seas leave no water to the backdrop, and Heard Island likewise.
 AUSTRALASIA_UNCLAIMED = {
     "GUM+00?", "UMI-5171", "UMI-5172", "UMI-5173", "UMI-5174", "UMI-5176", "UMI-5178", "UMI-5179",
     "HMD+00?",
@@ -426,7 +426,9 @@ def _sha() -> str:
 
 
 def _claims(recipe: Path) -> list[str]:
-    return [str(c) for t in _yaml(recipe)["territories"] for c in t.get("provinces") or []]
+    return [
+        str(c) for t in _yaml(recipe).get("territories") or [] for c in t.get("provinces") or []
+    ]
 
 
 # ---------------------------------------------------------------- the files
@@ -472,7 +474,7 @@ def test_the_americas_region_has_its_territories() -> None:
         assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
 
 
-def test_the_map_is_the_nine_regions_areas_and_no_others() -> None:
+def test_the_map_is_the_ten_regions_areas_and_no_others() -> None:
     keys = {
         str(a["key"])
         for recipe in RECIPES
@@ -494,7 +496,7 @@ def test_the_americas_take_the_units_left_of_a_shared_country(territory: str) ->
     assert PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
 
 
-def test_no_province_is_claimed_twice_across_the_nine_recipes() -> None:
+def test_no_province_is_claimed_twice_across_the_ten_recipes() -> None:
     claims = [c for recipe in RECIPES for c in _claims(recipe)]
     assert len(claims) == len(set(claims))
 
@@ -784,14 +786,14 @@ def test_inner_asia_takes_the_units_of_a_shared_country(territory: str) -> None:
     assert INNER_ASIA_PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
 
 
-def test_russia_is_wholly_claimed_and_india_all_but_the_andamans() -> None:
+def test_russia_and_india_are_wholly_claimed() -> None:
     claims = {c for recipe in RECIPES for c in _claims(recipe)}
     cut = {str(c["province"]) for recipe in RECIPES for c in _yaml(recipe).get("cuts") or []}
     russia = {c for t in INNER_ASIA_RUSSIA.values() for c in t}
     assert russia <= claims
     assert len({c for c in claims | cut if c.startswith("RUS")}) == 86
-    assert len({c for c in _claims(INNER_ASIA) if c.startswith("IND")}) == 35
-    assert ANDAMANS not in claims
+    assert len({c for c in _claims(INNER_ASIA) if c.startswith("IND")}) == 36
+    assert ANDAMANS in claims
 
 
 def test_the_inner_asia_staging_world_lists_the_sites_of_each_territory() -> None:
@@ -918,9 +920,9 @@ def test_australasia_puts_each_unit_in_its_territory(territory: str) -> None:
     assert AUSTRALASIA_PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
 
 
-def test_guam_and_the_united_states_minor_islands_stay_unclaimed() -> None:
+def test_guam_and_the_united_states_minor_islands_are_claimed() -> None:
     claims = {c for recipe in RECIPES for c in _claims(recipe)}
-    assert not AUSTRALASIA_UNCLAIMED & claims
+    assert AUSTRALASIA_UNCLAIMED <= claims
 
 
 def test_new_guinea_has_no_cut_and_its_dutch_half_stays_in_the_indies() -> None:
@@ -978,9 +980,8 @@ def test_the_australasia_staging_blocks_are_the_built_fragments() -> None:
     assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
 
 
-def test_the_australasia_staging_world_is_the_newest() -> None:
-    assert NEWEST == AUSTRALASIA_STAGING
-    report = mc.check_region(AUSTRALASIA_STAGING)
+def test_the_scoped_check_passes_on_the_newest_staging_world_with_australasia_in_scope() -> None:
+    report = mc.check_region(NEWEST)
     assert [str(p) for p in report.problems] == []
     assert not {*AUSTRALASIA_SITES, *AUSTRALASIA_SEA_PLACES} & set(report.out_of_scope)
 

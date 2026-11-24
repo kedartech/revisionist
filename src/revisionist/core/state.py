@@ -508,8 +508,12 @@ class State(_World):
     aim_shut: frozenset[EntityId] = frozenset()
     """With own aims on, each person a player held when a wake closed: his own aim may no
     longer be set (OWC). Engine only."""
+    replaced: dict[EntityId, EntityId] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each replacement person and the person he took the place of
+    (RPL). Engine only: how a seat is run is never shown."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "aim_shut",
+        "replaced",
         "posts",
         "held",
         "asked",

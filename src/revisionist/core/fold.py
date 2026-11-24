@@ -30,6 +30,7 @@ from revisionist.core.goals import (
     aim_rule,
     aims_on,
     goal_kind,
+    replacement_aims,
     season_winners,
 )
 from revisionist.core.ids import AssetId, CampaignId, EntityId, SeatId, derived_id
@@ -2124,7 +2125,11 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
                 if len(after) >= state.settings.max_human_seats:
                     raise FoldError("every human seat is taken")
             handovers = _put(state.handovers, p.entity_id, p.controller)
-            return state.model_copy(update={"handovers": handovers})
+            if p.replaces is None:
+                return state.model_copy(update={"handovers": handovers})
+            _replacement(state, p.entity_id, p.replaces, p.controller)
+            replaced = _put(state.replaced, p.entity_id, p.replaces)
+            return state.model_copy(update={"handovers": handovers, "replaced": replaced})
         case _:
             raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
 
@@ -2152,8 +2157,35 @@ def _aim_goal(state: State, g: Goal, seat: Seat) -> None:
     rule = aim_rule(state, g)
     if rule is None or rule.condition != g.condition:
         raise FoldError(f"goal {g.goal_id}: not an aim on {g.person}'s card")
+    stand_in = g.person in state.replaced
+    if stand_in != (g.source is GoalSource.REPLACEMENT):
+        raise FoldError(
+            f"goal {g.goal_id}: a replacement person's goals, and only his, are replacement"
+        )
+    card = state.cards[seat.embodies]
+    if stand_in and g.aim not in replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"goal {g.goal_id}: aim {g.aim} is not one a replacement person holds")
     if any(o.person == g.person and o.aim == g.aim for o in state.goals.values()):
         raise FoldError(f"goal {g.goal_id}: {g.person}'s aim {g.aim} already has a goal")
+
+
+def _replacement(state: State, person: EntityId, old: EntityId, controller: Controller) -> None:
+    """A player takes ``person`` in place of ``old`` (RPL): ``old`` can no longer act and
+    is already handed to the code, has not himself replaced anyone this season, and
+    ``person`` has the two aims he must hold."""
+    if controller is not Controller.HUMAN:
+        raise FoldError("replaces: only a player takes a replacement")
+    if state.handovers.get(old) is not Controller.AI or not posts.needs_replacement(state, old):
+        raise FoldError(f"replaces: {old} is not a person his player can no longer play")
+    if old in state.replaced:
+        raise FoldError(
+            f"replaces: a seat is replaced once a season, and {old} was its replacement"
+        )
+    if old in state.replaced.values() or person in state.replaced.values():
+        raise FoldError(f"replaces: {old} or {person} has been replaced already")
+    card = state.cards[person]
+    if not replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"replaces: {person} has no two aims he must hold")
 
 
 def _hand_over(state: State) -> State:

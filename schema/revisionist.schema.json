@@ -14175,7 +14175,7 @@
       },
       "SeatHandover": {
         "additionalProperties": false,
-        "description": "A leader changes hands at the next wake boundary: ``HUMAN`` when a new player\ntakes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds\nthe change in ``State.handovers`` and applies it when the open wake closes. Sealed to\nthe seat that changes hands: how a seat is run is never shown.",
+        "description": "A leader changes hands at the next wake boundary: ``HUMAN`` when a new player\ntakes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds\nthe change in ``State.handovers`` and applies it when the open wake closes. Sealed to\nthe seat that changes hands: how a seat is run is never shown.\n\n``replaces`` names the person a player can no longer play whom ``entity_id`` takes\nthe place of (RPL): his own hand-over to the code lands first, in the same step.",
         "properties": {
           "controller": {
             "$ref": "#/$defs/Controller"
@@ -14189,6 +14189,18 @@
             "default": "seat_handover",
             "title": "Kind",
             "type": "string"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replaces"
           }
         },
         "required": [
@@ -28551,6 +28563,13 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "replaced": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Replaced",
         "type": "object"
       },
       "reports": {

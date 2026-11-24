@@ -71,6 +71,8 @@ ACTIONS: dict[str, Barred | str] = {
     "aim-check": HARMLESS,
     "aim-set": OWN_STEP,
     "offer": Barred.BLOC_OFFER,
+    "move": Barred.APPOINT,
+    "office-vote": Barred.OFFICE_VOTE,
     # the game menu
     "pause": OWN_STEP,
     "resume": OWN_STEP,
@@ -115,7 +117,6 @@ KINDS: dict[EffectKind, Barred | str] = {
 
 ACTS_WITH_NO_ACTION = {
     Barred.SEND_HELD: "a held order is sent anyway only by its own seat (defiance.BY_AIDE)",
-    Barred.OFFICE_VOTE: "the aide files no choice at a sitting: the card decides on the day",
     Barred.BREAKAWAY: "no rule lets a seat break away yet",
     Barred.PLOT: "no rule lets a seat launch a plot yet",
     Barred.PURGE: "no rule lets a seat order a purge yet",

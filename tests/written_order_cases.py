@@ -570,7 +570,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "home_fleet_detach",
         {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
         "Send two of the fleet's squadrons on to Reykjavik.",
-        move("home_fleet", "reykjavik"),
+        detail(move("home_fleet", "reykjavik"), strength="2"),
     ),
     # Admiral Dönitz: the moves no lock holds
     f41(
@@ -585,7 +585,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "uboat_detach",
         {"force": "uboat_arm", "to": "lorient", "strength": "2"},
         "Send two of the U-boat flotillas in to Lorient.",
-        move("uboat_arm", "lorient"),
+        detail(move("uboat_arm", "lorient"), strength="2"),
     ),
     # Admiral Yamamoto: the moves no lock holds
     f41(
@@ -600,7 +600,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "combined_fleet_detach",
         {"force": "combined_fleet", "to": "kure", "strength": "2"},
         "Send two of the fleet's divisions in to Kure.",
-        move("combined_fleet", "kure"),
+        detail(move("combined_fleet", "kure"), strength="2"),
     ),
     # Admiral Iachino: the moves no lock holds
     f41(
@@ -615,7 +615,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "battle_fleet_detach",
         {"force": "italian_fleet", "to": "tripoli", "strength": "2"},
         "Send two of the fleet's divisions on to Tripoli.",
-        move("italian_fleet", "tripoli"),
+        detail(move("italian_fleet", "tripoli"), strength="2"),
     ),
     # Marshal Timoshenko: the move no lock holds, and the concealment
     f41(
@@ -749,7 +749,7 @@ SALT_STRAIT: tuple[Case, ...] = (
         "set_watch",
         SALT_WATCH,
         "Put the galleys on watch on the strait.",
-        patrol("varda_galleys"),
+        detail(patrol("varda_galleys"), order="guard", zone="strait"),
     ),
     fsalt(
         "oren_vale",
@@ -770,7 +770,7 @@ SALT_STRAIT: tuple[Case, ...] = (
         "galley_watch",
         SALT_WATCH,
         "Put the galleys on watch on the strait.",
-        patrol("varda_galleys"),
+        detail(patrol("varda_galleys"), order="guard", zone="strait"),
     ),
     fsalt(
         "brask",
@@ -808,7 +808,6 @@ SHIPPING = (
 )
 
 FIXES: dict[str, str] = {
-    "1941.roosevelt.naval_order": SHIPPING,
     "1941.roosevelt.cable_to_churchill": MESSAGE,
     "1941.roosevelt.fly_recon": AUTHORITY,
     "1941.churchill.convoy_orders": SHIPPING,
@@ -843,9 +842,6 @@ FIXES: dict[str, str] = {
     "1941.chiang.appeal_abroad": AUDIENCE,
     "1941.chiang.move_army": AUTHORITY,
     "1941.chiang.send_an_agent": AUTHORITY,
-    "1941.king.fleet_naval_order.western_atlantic": SHIPPING,
-    "1941.king.fleet_naval_order.iceland_route": SHIPPING,
-    "1941.king.fleet_naval_order.war_zone": SHIPPING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

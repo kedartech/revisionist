@@ -68,7 +68,7 @@ territories:
       "MEX+99?", MEX-2706, MEX-2707, MEX-2708, MEX-2709, MEX-2710, MEX-2711, MEX-2712, MEX-2713,
       MEX-2714, MEX-2715, MEX-2716, MEX-2717, MEX-2718, MEX-2719, MEX-2720, MEX-2721, MEX-2722,
       MEX-2723, MEX-2724, MEX-2725, MEX-2726, MEX-2727, MEX-2728, MEX-2729, MEX-2730, MEX-2731,
-      MEX-2732, MEX-2733, MEX-2734, MEX-2735, MEX-2736, MEX-2737
+      MEX-2732, MEX-2733, MEX-2734, MEX-2735, MEX-2736, MEX-2737, "CLP+00?"
     ]
   - key: central_america
     name: Central America
@@ -190,7 +190,7 @@ territories:
     terrain_note: "moorland islands; South Georgia with them; no source cited"
     sites: [port_stanley]
     provinces: [
-      FLK-5152, "SGS+00?"
+      FLK-5152, "SGS+00?", SHN-4865
     ]
   - key: lesser_antilles
     name: The Lesser Antilles and Trinidad

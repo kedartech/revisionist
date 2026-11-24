@@ -1,0 +1,175 @@
+# The 1941 map, tenth region: the southern and polar seas. Built by scripts/map_build.py together with
+# the nine land regions (see worlds/maps/README.md). Every value here is [proposed]: the zone list,
+# the names and every sea zone line.
+#
+# Build it with the other regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml worlds/maps/src/autumn-1941-globe/pacific.yaml \
+#     worlds/maps/src/autumn-1941-globe/americas.yaml worlds/maps/src/autumn-1941-globe/africa.yaml \
+#     worlds/maps/src/autumn-1941-globe/inner-asia.yaml worlds/maps/src/autumn-1941-globe/australasia.yaml \
+#     worlds/maps/src/autumn-1941-globe/southern-seas.yaml --slug autumn-1941-globe
+#
+# The cover. The map says `cover: whole`: with this region every part of the box is land of some
+# territory or water of some sea zone, and the build refuses a gap. Antarctica lies south of the box.
+#
+# Sea zones. Drawn for play and not sourced; each takes the open water no earlier zone took. The
+# zones of the other regions keep their keys and names; where open water met one of them along a
+# coast too narrow for a zone of its own (the Channel's French shore, the Irish Sea, the Gulf of
+# Alaska, the Bosporus and the Dardanelles, the Gulf of Aqaba, the Andaman shore, the Riau and Bangka
+# straits, the Yellow Sea's Chinese shore), that zone's line was moved to the coast, and the
+# Caribbean's line was moved off the Pacific shore of Central America so that the two oceans meet
+# only at Panama. The Caspian Sea and the Greenland and Barents seas are water in the box with no zone
+# before this region, so each has one.
+#
+# Crossings. Where the box's seam at 126 W runs through open sea, the zones on its two sides are joined
+# by a crossing over it. The Suez Canal joins the Eastern Mediterranean and the Red Sea, and the Panama
+# Canal the Caribbean and the American Pacific, each as a plain step; a fleet's passage of either is
+# still barred while its side is at war with the canal's holder by the sea routing's doors.
+#
+# Small islands. The islands earlier regions left out are claimed with the nearest territory of
+# their 1941 holder in start.yaml (Bermuda with Eastern Canada, the Maldives and Chagos with Southern
+# India, Guam with the Philippines, the American Pacific islands with Hawaii, the French southern
+# islands with Madagascar), else of their present-day country, else with the nearest territory.
+map:
+  box: [-126, -60, 234, 84]
+  cover: whole
+regions:
+  - {key: southern_seas, name: The Southern and Polar Seas}
+sea_zones:
+  - key: central_atlantic
+    name: The Central Atlantic
+    region: southern_seas
+    terrain: sea
+    polygon: [[-60, 0], [-10, 0], [-5.6, 8], [-5.6, 30], [-20, 30], [-20, 43], [-45, 43], [-45, 28],
+              [-60, 28]]
+  - key: gulf_of_guinea
+    name: The Gulf of Guinea
+    region: southern_seas
+    terrain: sea
+    polygon: [[-10, -5], [-10, 0], [-5.6, 8], [15, 8], [15, -5]]
+  - key: south_atlantic_west
+    name: The Western South Atlantic
+    region: southern_seas
+    terrain: sea
+    polygon: [[-60, 0], [-20, 0], [-20, -60], [-67.3, -60], [-67.3, -54.5], [-71, -51], [-62, -10]]
+  - key: south_atlantic_east
+    name: The Eastern South Atlantic
+    region: southern_seas
+    terrain: sea
+    polygon: [[-20, 0], [-10, 0], [-10, -5], [15, -5], [17.5, -28], [10, -30], [10, -60], [-20, -60]]
+  - key: cape_waters
+    name: The Cape Waters
+    region: southern_seas
+    terrain: sea
+    polygon: [[10, -60], [10, -30], [17.5, -28], [31.5, -26.5], [40, -32], [40, -60]]
+  - key: western_indian_ocean
+    name: The Western Indian Ocean
+    region: southern_seas
+    terrain: sea
+    polygon: [[42, 0], [80, 0], [80, -60], [40, -60], [40, -32], [31.5, -26.5], [33, -20], [38, -5]]
+  - key: eastern_indian_ocean
+    name: The Eastern Indian Ocean
+    region: southern_seas
+    terrain: sea
+    polygon: [[80, 0], [80.6, 6.5], [95.5, 5.4], [96.5, 4.5], [98.5, 3], [100.5, 1.5], [105, -5],
+              [106, -6.8], [110, -7.3], [114, -8], [115.2, -8.4], [116.3, -8.6], [118, -8.6],
+              [121, -8.6], [124, -9.5], [127, -9], [141, -9.2], [142.5, -11], [146.3, -38],
+              [146.5, -42], [147, -43.6], [147, -60], [80, -60]]
+  - key: arabian_sea
+    name: The Arabian Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[42, 0], [50.8, 11.3], [51, 18], [55, 20], [56.2, 26], [56, 27.5], [62, 27], [78, 22],
+              [78.5, 10], [80.5, 8], [80.6, 6.5], [80, 0]]
+  - key: bay_of_bengal
+    name: The Bay of Bengal
+    region: southern_seas
+    terrain: sea
+    polygon: [[80.6, 6.5], [80.5, 8], [78.5, 10], [78, 22], [92, 26], [95.5, 18], [94.5, 17.5],
+              [93, 16], [92, 10], [94, 6.5], [95.5, 5.4]]
+  - key: red_sea
+    name: The Red Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[50.8, 11.3], [42, 9], [36, 15], [32, 22], [32, 30.4], [37, 30.4], [51, 18]]
+  - key: persian_gulf
+    name: The Gulf
+    region: southern_seas
+    terrain: sea
+    polygon: [[56.2, 26], [56, 27.5], [52, 30], [47, 32], [46, 24], [55, 20]]
+  - key: coral_sea
+    name: The Coral Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[141, -9.2], [141, -2.7], [150, -2.5], [150, 0], [165, 0], [165, -30], [152, -30],
+              [148.5, -23], [145.5, -19.5], [143, -14], [142.5, -11]]
+  - key: tasman_sea
+    name: The Tasman Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[146.3, -38], [152, -30], [165, -30], [172, -30], [172.9, -34.5], [173.9, -35.4],
+              [174.3, -35.9], [174.7, -36.5], [175.3, -37.8], [175.5, -39], [175.2, -41], [173.5, -42],
+              [170.5, -44], [168.6, -45.9], [167.95, -46.95], [167.9, -47.4], [167, -60], [147, -60],
+              [147, -43.6], [146.5, -42]]
+  - key: south_pacific_west
+    name: The Western South Pacific
+    region: southern_seas
+    terrain: sea
+    polygon: [[165, 0], [195, 0], [195, -60], [167, -60], [167.9, -47.4], [167.95, -46.95],
+              [168.6, -45.9], [170.5, -44], [173.5, -42], [175.2, -41], [175.5, -39], [175.3, -37.8],
+              [174.7, -36.5], [174.3, -35.9], [173.9, -35.4], [172.9, -34.5], [172, -30], [165, -30]]
+  - key: south_pacific_central
+    name: The Central South Pacific
+    region: southern_seas
+    terrain: sea
+    polygon: [[195, 0], [210, 0], [210, 10], [234, 10], [234, -60], [195, -60]]
+  - key: south_pacific_east
+    name: The Eastern South Pacific
+    region: southern_seas
+    terrain: sea
+    polygon: [[-126, 0], [-85, 0], [-85, -60], [-126, -60]]
+  - key: chile_peru_waters
+    name: The Waters off Chile and Peru
+    region: southern_seas
+    terrain: sea
+    polygon: [[-85, 0], [-78, 0], [-74.5, -10], [-69, -20], [-71, -51], [-67.3, -54.5], [-67.3, -60],
+              [-85, -60]]
+  - key: american_pacific
+    name: The Pacific off North and Central America
+    region: southern_seas
+    terrain: sea
+    polygon: [[-126, 0], [-78, 0], [-76, 1], [-76.5, 7], [-77.4, 8], [-78.5, 9], [-79.6, 9.15],
+              [-80.5, 8.6], [-81.5, 8.6], [-83, 9], [-84.5, 10.6], [-86, 13], [-88, 14.5], [-90, 15],
+              [-92.5, 16], [-95, 17.2], [-98, 18.5], [-104, 24], [-110, 32], [-118, 40], [-118, 52],
+              [-126, 52]]
+  - key: arctic_off_canada
+    name: The Arctic off Canada
+    region: southern_seas
+    terrain: sea
+    polygon: [[-126, 52], [-118, 52], [-65, 52], [-65, 61], [-45, 61], [-45, 71.5], [-45, 84],
+              [-126, 84]]
+  - key: greenland_sea
+    name: The Greenland Sea and the Barents Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[-45, 71.5], [-25, 71.5], [28, 71.5], [28, 71], [35, 71], [35, 84], [-45, 84]]
+  - key: arctic_off_siberia
+    name: The Arctic off Siberia
+    region: southern_seas
+    terrain: sea
+    polygon: [[35, 71], [52, 71], [52, 66.5], [52, 60], [140, 62], [150, 63], [160, 64], [175, 65],
+              [186.5, 65.5], [194, 65.3], [200, 64.5], [208.5, 61.1], [208.5, 62], [234, 62], [234, 84],
+              [35, 84]]
+  - key: caspian_sea
+    name: The Caspian Sea
+    region: southern_seas
+    terrain: sea
+    polygon: [[44, 36], [56, 36], [56, 48], [44, 48]]
+crossings:
+  - {a: eastern_pacific, b: american_pacific, name: the box's seam at 126 W, source: "sea-zone line chosen for play, not sourced"}
+  - {a: south_pacific_central, b: american_pacific, name: the box's seam at 126 W, source: "sea-zone line chosen for play, not sourced"}
+  - {a: south_pacific_central, b: south_pacific_east, name: the box's seam at 126 W, source: "sea-zone line chosen for play, not sourced"}
+  - {a: arctic_off_siberia, b: arctic_off_canada, name: the box's seam at 126 W, source: "sea-zone line chosen for play, not sourced"}
+  - {a: eastern_mediterranean, b: red_sea, name: the Suez Canal, source: "the canal open in 1941; a plain step [proposed]"}
+  - {a: caribbean_sea, b: american_pacific, name: the Panama Canal, source: "the canal open in 1941; a plain step [proposed]"}

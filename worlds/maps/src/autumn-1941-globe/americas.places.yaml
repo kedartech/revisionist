@@ -1,0 +1,69 @@
+# The places the scoped check reads for the Americas region (americas.world.yaml names this file in
+# `places_of`). The checker reads each in-scope site's coordinates from one world file, and
+# worlds/autumn-1941.yaml lacks the new places and is not edited by the map item. This file is the
+# Pacific places file's entries copied unchanged, then the region's twenty-four new places at the end;
+# each place's coordinates are [proposed], the city's centre to two decimals. When the world file
+# gains the new places, the staging worlds name the world file again and this file goes.
+entities:
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3]}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9]}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0]}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3]}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0]}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6]}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5]}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6]}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2]}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7]}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9]}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5]}
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4]}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5]}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1]}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6]}
+  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2]}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0]}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0]}
+  - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92]}
+  - {key: malta, kind: location, name: Malta, at: [35.9, 14.51]}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98]}
+  - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07]}
+  - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19]}
+  - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24]}
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7]}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6]}
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6]}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0]}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6]}
+  - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97]}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27]}
+  - {key: dutch_harbor, kind: location, name: Dutch Harbor, at: [53.87, -166.53]}
+  - {key: vancouver, kind: location, name: Vancouver, at: [49.28, -123.12]}
+  - {key: winnipeg, kind: location, name: Winnipeg, at: [49.9, -97.14]}
+  - {key: mexico_city, kind: location, name: Mexico City, at: [19.43, -99.13]}
+  - {key: tampico, kind: location, name: Tampico, at: [22.25, -97.86]}
+  - {key: guatemala_city, kind: location, name: Guatemala City, at: [14.63, -90.51]}
+  - {key: balboa, kind: location, name: Balboa, at: [8.96, -79.56]}
+  - {key: maracaibo, kind: location, name: Maracaibo, at: [10.65, -71.64]}
+  - {key: bogota, kind: location, name: Bogota, at: [4.71, -74.07]}
+  - {key: georgetown, kind: location, name: Georgetown, at: [6.8, -58.16]}
+  - {key: paramaribo, kind: location, name: Paramaribo, at: [5.85, -55.2]}
+  - {key: lima, kind: location, name: Lima, at: [-12.05, -77.04]}
+  - {key: guayaquil, kind: location, name: Guayaquil, at: [-2.19, -79.89]}
+  - {key: natal, kind: location, name: Natal, at: [-5.79, -35.21]}
+  - {key: recife, kind: location, name: Recife, at: [-8.05, -34.88]}
+  - {key: rio_de_janeiro, kind: location, name: Rio de Janeiro, at: [-22.91, -43.2]}
+  - {key: santos, kind: location, name: Santos, at: [-23.96, -46.33]}
+  - {key: buenos_aires, kind: location, name: Buenos Aires, at: [-34.62, -58.4]}
+  - {key: montevideo, kind: location, name: Montevideo, at: [-34.9, -56.16]}
+  - {key: valparaiso, kind: location, name: Valparaiso, at: [-33.05, -71.62]}
+  - {key: punta_arenas, kind: location, name: Punta Arenas, at: [-53.14, -70.94]}
+  - {key: port_stanley, kind: location, name: Port Stanley, at: [-51.69, -57.86]}
+  - {key: port_of_spain, kind: location, name: Port of Spain, at: [10.65, -61.51]}
+  - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03]}

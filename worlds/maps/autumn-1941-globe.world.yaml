@@ -1,12 +1,13 @@
 # Built by scripts/map_build.py from the recipe autumn-1941-globe; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: a14b82214f8a80d86ed7e9fe2ffb5e264969dfb656ae6095cd7ac96941269efb, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
   - {key: atlantic, name: The Atlantic}
   - {key: mediterranean, name: The Mediterranean and the Middle East}
   - {key: pacific, name: China}
+  - {key: americas, name: The Americas}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -90,6 +91,19 @@ territories:
   - {key: philippines, name: The Philippines, region: pacific, terrain: forest}
   - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, sites: [pearl_harbor_base]}
   - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest}
+  - {key: alaska, name: Alaska, region: americas, terrain: mountain, sites: [dutch_harbor]}
+  - {key: western_canada, name: Western Canada and the Arctic, region: americas, terrain: forest, sites: [vancouver, winnipeg]}
+  - {key: mexico, name: Mexico, region: americas, terrain: mountain, sites: [mexico_city, tampico]}
+  - {key: central_america, name: Central America, region: americas, terrain: forest, sites: [guatemala_city, balboa]}
+  - {key: colombia_venezuela, name: Colombia and Venezuela, region: americas, terrain: forest, sites: [maracaibo, bogota]}
+  - {key: guianas, name: The Guianas, region: americas, terrain: forest, sites: [georgetown, paramaribo]}
+  - {key: andes, name: The Andes, region: americas, terrain: mountain, sites: [lima, guayaquil]}
+  - {key: brazil_north, name: Northern Brazil, region: americas, terrain: forest, sites: [natal, recife]}
+  - {key: brazil_south, name: Southern Brazil, region: americas, terrain: plain, sites: [rio_de_janeiro, santos]}
+  - {key: river_plate, name: The River Plate, region: americas, terrain: plain, sites: [buenos_aires, montevideo]}
+  - {key: chile, name: Chile, region: americas, terrain: mountain, sites: [valparaiso, punta_arenas]}
+  - {key: falklands, name: The Falkland Islands, region: americas, terrain: plain, sites: [port_stanley]}
+  - {key: lesser_antilles, name: The Lesser Antilles and Trinidad, region: americas, terrain: mountain, sites: [port_of_spain, fort_de_france]}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -126,11 +140,19 @@ adjacency:
   - [aegean_sea, eastern_mediterranean]
   - [aegean_sea, greece]
   - [aegean_sea, turkey]
+  - [alaska, eastern_pacific]
+  - [alaska, north_pacific]
+  - [alaska, western_canada]
   - [andaman_sea, burma]
   - [andaman_sea, dutch_east_indies]
   - [andaman_sea, malaya]
   - [andaman_sea, south_china_sea]
   - [andaman_sea, thailand]
+  - [andes, brazil_north]
+  - [andes, brazil_south]
+  - [andes, chile]
+  - [andes, colombia_venezuela]
+  - [andes, river_plate]
   - [arctic_route_area, denmark_strait]
   - [arctic_route_area, greenland]
   - [arctic_route_area, iceland]
@@ -175,6 +197,10 @@ adjacency:
   - [black_sea, odessa_area]
   - [black_sea, romania]
   - [black_sea, turkey]
+  - [brazil_north, brazil_south]
+  - [brazil_north, colombia_venezuela]
+  - [brazil_north, guianas]
+  - [brazil_south, river_plate]
   - [britain_north, britain_south]
   - [britain_north, ireland]
   - [britain_north, north_sea]
@@ -188,12 +214,18 @@ adjacency:
   - [burma, szechwan]
   - [burma, thailand]
   - [caribbean, caribbean_sea]
+  - [caribbean_sea, central_america]
+  - [caribbean_sea, colombia_venezuela]
+  - [caribbean_sea, lesser_antilles]
+  - [caribbean_sea, mexico]
   - [caribbean_sea, us_central]
   - [caribbean_sea, us_east]
   - [caribbean_sea, western_atlantic]
   - [caucasus, donbas]
   - [caucasus, iran]
   - [caucasus, turkey]
+  - [central_america, colombia_venezuela]
+  - [central_america, mexico]
   - [central_mediterranean, cyrenaica]
   - [central_mediterranean, eastern_mediterranean]
   - [central_mediterranean, greece]
@@ -207,6 +239,8 @@ adjacency:
   - [central_pacific, japan_east]
   - [central_pacific, north_pacific]
   - [central_pacific, philippine_sea]
+  - [chile, river_plate]
+  - [colombia_venezuela, guianas]
   - [crimea, odessa_area]
   - [cyrenaica, eastern_mediterranean]
   - [cyrenaica, egypt]
@@ -247,6 +281,7 @@ adjacency:
   - [eastern_canada, us_central]
   - [eastern_canada, us_east]
   - [eastern_canada, western_atlantic]
+  - [eastern_canada, western_canada]
   - [eastern_mediterranean, egypt]
   - [eastern_mediterranean, greece]
   - [eastern_mediterranean, levant]
@@ -254,6 +289,7 @@ adjacency:
   - [eastern_mediterranean, tobruk_area]
   - [eastern_mediterranean, turkey]
   - [eastern_pacific, north_pacific]
+  - [eastern_pacific, western_canada]
   - [egypt, levant]
   - [english_channel, mid_ocean_gap]
   - [english_channel, occupied_france]
@@ -343,6 +379,7 @@ adjacency:
   - [labrador_sea, mid_ocean_gap]
   - [labrador_sea, newfoundland]
   - [labrador_sea, western_atlantic]
+  - [labrador_sea, western_canada]
   - [leningrad_area, smolensk_area]
   - [leningrad_area, the_north]
   - [levant, syria]
@@ -353,12 +390,15 @@ adjacency:
   - [malaya, thailand]
   - [manchuria, north_china]
   - [manchuria, soviet_far_east]
+  - [mexico, us_central]
+  - [mexico, us_west]
   - [mid_ocean_gap, western_approaches_area]
   - [mid_ocean_gap, western_atlantic]
   - [moscow_area, smolensk_area]
   - [moscow_area, upper_volga]
   - [moscow_area, voronezh]
   - [newfoundland, western_atlantic]
+  - [newfoundland, western_canada]
   - [north_china, northwest_china]
   - [north_china, wuhan_area]
   - [north_pacific, philippine_sea]
@@ -401,8 +441,11 @@ adjacency:
   - [upper_volga, voronezh]
   - [us_central, us_east]
   - [us_central, us_west]
+  - [us_central, western_canada]
   - [us_east, western_atlantic]
+  - [us_west, western_canada]
   - [vichy_france, western_mediterranean]
+  - [western_atlantic, western_canada]
   - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
   - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
   - {a: english_channel, b: north_sea, crossing: the Strait of Dover}

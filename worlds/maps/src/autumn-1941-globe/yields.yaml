@@ -452,6 +452,84 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Havana]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a small republic}
+  - key: alaska
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'Alaska''s works, counted in the United States'' share'}
+    manpower: {amount: 0.07, gap: true, named_source: census_us_1940, basis: 'about 0.07 million people: the Territory of Alaska'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Dutch Harbor]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a territory}
+  - key: western_canada
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the west''s works, counted with Eastern Canada in Britain''s share'}
+    manpower: {amount: 3.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.3 million people: British Columbia, the prairie provinces and the territories'}
+    oil: {amount: 0.3, gap: true, named_source: lon_yearbook_1941, basis: Turner Valley, about 1 million tonnes}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Vancouver, Winnipeg]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a dominion''s provinces'}
+  - key: mexico
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: 'Monterrey''s steel and the refineries'}
+    manpower: {amount: 19.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 19.7 million people: Mexico'}
+    oil: {amount: 2.0, gap: true, named_source: lon_yearbook_1941, basis: the Gulf fields, about 6 million tonnes}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Mexico City, Tampico]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a neutral republic}
+  - key: central_america
+    industry: {amount: 0.02, gap: true, named_source: kennedy_1987, basis: 'the isthmus''s workshops'}
+    manpower: {amount: 7.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 7.0 million people: the five republics, British Honduras and Panama'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Guatemala City, Balboa]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: small republics and the Canal Zone}
+  - key: colombia_venezuela
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: 'the oil camps'' workshops'}
+    manpower: {amount: 12.9, gap: true, named_source: lon_yearbook_1941, basis: 'about 12.9 million people: Colombia and Venezuela'}
+    oil: {amount: 12.2, gap: true, named_source: lon_yearbook_1941, basis: the Maracaibo and Magdalena fields, about 36.5 million tonnes}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Maracaibo, Bogota]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: two neutral republics}
+  - key: guianas
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the bauxite works, counted in Britain''s share'}
+    manpower: {amount: 0.55, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.55 million people: British, Dutch and French Guiana'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Georgetown, Paramaribo]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: three colonies}
+  - key: andes
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: 'the mines'' smelters'}
+    manpower: {amount: 13.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 13.0 million people: Peru, Ecuador and Bolivia'}
+    oil: {amount: 0.6, gap: true, named_source: lon_yearbook_1941, basis: the Talara and Ecuadorian fields, about 1.9 million tonnes}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lima, Guayaquil]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: three neutral republics}
+  - key: brazil_north
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: 'the northeast''s mills'}
+    manpower: {amount: 19.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 19.5 million people: the North, the Northeast and Bahia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Natal, Recife]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a neutral''s provinces'}
+  - key: brazil_south
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: 'Sao Paulo''s and Rio''s works'}
+    manpower: {amount: 21.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 21.7 million people: the centre and the south'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rio de Janeiro, Santos]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: 'a neutral''s capital'}
+  - key: river_plate
+    industry: {amount: 0.4, gap: true, named_source: kennedy_1987, basis: 'Buenos Aires''s works'}
+    manpower: {amount: 17.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 17.3 million people: Argentina, Uruguay and Paraguay'}
+    oil: {amount: 1.1, gap: true, named_source: lon_yearbook_1941, basis: Comodoro Rivadavia, about 3.3 million tonnes}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Buenos Aires, Montevideo]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: 'a neutral''s capital'}
+  - key: chile
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: the copper smelters}
+    manpower: {amount: 5.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 5.0 million people: Chile'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Valparaiso, Punta Arenas]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a neutral republic}
+  - key: falklands
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.0, gap: true, named_source: lon_yearbook_1941, basis: about 2,400 people in the Falklands}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Port Stanley]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a colony}
+  - key: lesser_antilles
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the islands'' refineries, counted in Britain''s share'}
+    manpower: {amount: 1.9, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.9 million people: the islands from the Virgin Islands to Trinidad, with the Dutch islands'}
+    oil: {amount: 1.0, gap: true, named_source: lon_yearbook_1941, basis: 'Trinidad''s fields, about 3 million tonnes'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Port of Spain, Fort-de-France]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
   - key: french_north_africa
     industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Algerian and Moroccan works}
     manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: French Morocco and Algeria'}

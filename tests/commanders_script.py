@@ -7,7 +7,8 @@ to. The commander files the order his nation's lock holds and asks for it; the l
 opens the way that nation decides: the head of state sets the posture the row waits on
 (the United States, Britain, Germany), a single person grants the matter (Italy, the
 Soviet Union, China, Finland), or the Imperial Conference grants it by every member
-agreeing (Japan).
+agreeing (Japan). Britain has a second game for its Commons row: the Prime Minister puts
+the National Service bill to the House, and the order lands once the blocs pass it.
 
 The script files only orders a seat could file: every act is ``realism_tick.file_order``,
 ``ask_order``, ``take_step``, ``choose_matter`` or ``set_own_aim``, or ``wake.commit``.
@@ -83,6 +84,14 @@ NATIONS = (
         order=("home_fleet_detach", {"force": "home_fleet", "to": "liverpool", "strength": "1"}),
         row="home_fleet_to_the_atlantic",
         allow=(("convoy_orders", {"priority": "atlantic", "route": "hx_route"}),),
+    ),
+    Nation(
+        key="uk_commons",
+        commander="tovey",
+        head="churchill",
+        order=("home_fleet_move", {"force": "home_fleet", "to": "reykjavik"}),
+        row="home_fleet_based_at_iceland",
+        allow=(("send_bill", {"bill": "national_service", "urgency": "ordinary"}),),
     ),
     Nation(
         key="germany",
@@ -367,7 +376,8 @@ class Game:
 
     def _steps(self) -> None:
         """What the seats do this wake: the commander takes his step on the head's posture
-        order where it crosses his desk; a played single decider chooses on the matter."""
+        order where it crosses his desk, the head takes his own step on his own order (his
+        bill), and a played single decider chooses on the matter."""
         state, p = self.state, self.played
         for order_id in p.allowed:
             order = state.orders[order_id]
@@ -378,6 +388,13 @@ class Game:
                 and order.held_choice is None
             ):
                 self.step(self.commander, order_id, f"commander:desk:{order_id}")
+            elif (
+                order.status is OrderStatus.MOVING
+                and self.head is not None
+                and state.pipelines[order.pipeline].steps[order.step].person
+                == state.seats[self.head].embodies
+            ):
+                self.step(self.head, order_id, f"head:own-step:{order_id}")
         asked = state.asked.get(p.held)
         if (
             self.head is not None

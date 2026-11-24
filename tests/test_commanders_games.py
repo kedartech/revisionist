@@ -12,9 +12,9 @@ a retry in the middle; a twin world per nation shows the lock's reason carries n
 outside the commander's view; the aide for an absent commander files nothing held and
 asks for nothing.
 
-Britain's Commons row (``home_fleet_based_at_iceland``) is not proved here: it opens when
-the National Service law is in force, and no form on any 1941 card sends that bill, so
-neither a played Prime Minister nor his card can bring it to a vote.
+Britain's Commons row (``home_fleet_based_at_iceland``) opens when the National Service
+law is in force: the played Prime Minister puts the bill to the House, the blocs vote on
+the day it settles, and the order lands once they pass it.
 """
 
 from collections.abc import Callable
@@ -29,9 +29,12 @@ from revisionist.core.ids import CampaignId, EntityId
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
 from revisionist.core.realism import locks
+from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.card import CardPath
+from revisionist.core.realism.pipeline import OrderStatus
 from revisionist.core.realism.process import ANSWER_DAYS
-from revisionist.core.realism.war import polity_of
+from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import NewsTopic, polity_of
 from revisionist.core.state import State
 from revisionist.core.world import WorldFile
 from tests.commanders_script import BY_KEY, NATIONS, PLAY, Game, Nation, Script, world_1941
@@ -199,6 +202,60 @@ def test_japans_council_declines_on_a_seed_where_its_cards_do_not_agree(
     g = _played(BY_KEY["japan"], tmp_path, monkeypatch, campaign=CAMPAIGN)
     assert [a.granted for a in g.logged(ev.AskAnswered)] == [False]
     assert not g.ends()
+
+
+# --- rule 5: Britain's Commons ---------------------------------------------------------
+
+
+COMMONS_VOTING = 330 + 120 + 22
+"""The members the three Commons blocs' rows put to vote on the National Service bill."""
+
+
+def _commons_yeas(bloc: str, yeas: int) -> Callable[[World], None]:
+    def change(w: World) -> None:
+        (uk,) = [n for n in w["groups"] if n["nation"] == "uk"]
+        (row,) = [b for b in uk["groups"] if b["key"] == bloc]
+        row["votes"]["national_service"]["commons"]["yeas"] = yeas
+
+    return change
+
+
+def _quantity(state: State, key: str) -> Quantity:
+    return state.quantities[rs.qid(state, key)]
+
+
+def test_britains_commons_vote_resolves_on_its_date_from_the_blocs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    g = _played(BY_KEY["uk_commons"], tmp_path, monkeypatch, campaign=CAMPAIGN)
+    state = g.state
+    (bill,) = [state.orders[o] for o in g.played.allowed]
+    assert bill.status is OrderStatus.ENACTED
+    day = rs.settled_on(bill)
+    yeas = _quantity(state, "national_service_commons_yeas")
+    nays = _quantity(state, "national_service_commons_nays")
+    passed = _quantity(state, "national_service_passed")
+    assert yeas.as_of == nays.as_of == passed.as_of == day
+    assert yeas.value is not None and nays.value is not None
+    assert yeas.value + nays.value == COMMONS_VOTING
+    assert yeas.value > nays.value and passed.value == 1
+    (end,) = g.ends()
+    assert end.end is locks.HeldEnd.LANDED and end.on >= day
+    assert [n for n in state.news.values() if n.topic is NewsTopic.VOTE and n.on == day]
+
+
+def test_britains_commons_vote_lost_on_its_blocs_leaves_the_order_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = world_1941((_commons_yeas("commons_government", 100),))
+    g = Game(BY_KEY["uk_commons"], tmp_path, monkeypatch, campaign=CAMPAIGN, world=world)
+    g.play(Script(to_season_end=True))
+    state = g.state
+    (bill,) = [state.orders[o] for o in g.played.allowed]
+    assert bill.status is OrderStatus.ENACTED
+    assert _quantity(state, "national_service_passed").value == 0
+    assert not g.ends()
+    assert g.played.held in state.held
 
 
 # --- rule 6: an own aim the season scores ---------------------------------------------

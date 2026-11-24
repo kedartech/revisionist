@@ -7,7 +7,7 @@
 # coordinates copied from it (that file is not edited here). Rebuild the map, then copy the
 # fragment's blocks here; the test pins the hash.
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: a14b82214f8a80d86ed7e9fe2ffb5e264969dfb656ae6095cd7ac96941269efb, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
 territories:

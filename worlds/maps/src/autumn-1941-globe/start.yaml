@@ -95,6 +95,14 @@ entities:
   - {key: thailand_state, kind: polity, name: Thailand}
   - {key: netherlands, kind: polity, name: The Netherlands}
   - {key: cuba, kind: polity, name: Cuba}
+  # The Americas' neutrals, each holding the area its largest state lies in. [proposed]
+  - {key: mexico_state, kind: polity, name: Mexico}
+  - {key: guatemala, kind: polity, name: Guatemala}
+  - {key: venezuela, kind: polity, name: Venezuela}
+  - {key: peru, kind: polity, name: Peru}
+  - {key: brazil, kind: polity, name: Brazil}
+  - {key: argentina, kind: polity, name: Argentina}
+  - {key: chile_state, kind: polity, name: Chile}
 
   # Rule 4: every place of today's world, restated with the area it lies in; a port names its sea zone
   # and a base its sides and domains (the code table in core/realism/bases.py: F sea, A land, R air).
@@ -145,6 +153,32 @@ entities:
   # NFI: Mikkeli, the Finnish Commander-in-Chief's headquarters, a land base for the Finnish Army. [proposed]
   - {key: mikkeli, kind: location, name: Mikkeli, at: [61.7, 27.3], theatre: Northern front, within: finland, base: {sides: [finland_state], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], within: wuhan_area, base: {sides: [japan], domains: [land]}}
+  # The Americas' places, each a land base of the power that held it on 1 September 1941 (Balboa in
+  # the American Canal Zone, Paramaribo Dutch, Fort-de-France Vichy). [proposed]
+  - {key: dutch_harbor, kind: location, name: Dutch Harbor, at: [53.87, -166.53], theatre: Americas, within: alaska, base: {sides: [usa], domains: [land]}}
+  - {key: vancouver, kind: location, name: Vancouver, at: [49.28, -123.12], theatre: Americas, within: western_canada, base: {sides: [uk], domains: [land]}}
+  - {key: winnipeg, kind: location, name: Winnipeg, at: [49.9, -97.14], theatre: Americas, within: western_canada, base: {sides: [uk], domains: [land]}}
+  - {key: mexico_city, kind: location, name: Mexico City, at: [19.43, -99.13], theatre: Americas, within: mexico, base: {sides: [mexico_state], domains: [land]}}
+  - {key: tampico, kind: location, name: Tampico, at: [22.25, -97.86], theatre: Americas, within: mexico, base: {sides: [mexico_state], domains: [land]}}
+  - {key: guatemala_city, kind: location, name: Guatemala City, at: [14.63, -90.51], theatre: Americas, within: central_america, base: {sides: [guatemala], domains: [land]}}
+  - {key: balboa, kind: location, name: Balboa, at: [8.96, -79.56], theatre: Americas, within: central_america, base: {sides: [usa], domains: [land]}}
+  - {key: maracaibo, kind: location, name: Maracaibo, at: [10.65, -71.64], theatre: Americas, within: colombia_venezuela, base: {sides: [venezuela], domains: [land]}}
+  - {key: bogota, kind: location, name: Bogota, at: [4.71, -74.07], theatre: Americas, within: colombia_venezuela, base: {sides: [venezuela], domains: [land]}}
+  - {key: georgetown, kind: location, name: Georgetown, at: [6.8, -58.16], theatre: Americas, within: guianas, base: {sides: [uk], domains: [land]}}
+  - {key: paramaribo, kind: location, name: Paramaribo, at: [5.85, -55.2], theatre: Americas, within: guianas, base: {sides: [netherlands], domains: [land]}}
+  - {key: lima, kind: location, name: Lima, at: [-12.05, -77.04], theatre: Americas, within: andes, base: {sides: [peru], domains: [land]}}
+  - {key: guayaquil, kind: location, name: Guayaquil, at: [-2.19, -79.89], theatre: Americas, within: andes, base: {sides: [peru], domains: [land]}}
+  - {key: natal, kind: location, name: Natal, at: [-5.79, -35.21], theatre: Americas, within: brazil_north, base: {sides: [brazil], domains: [land]}}
+  - {key: recife, kind: location, name: Recife, at: [-8.05, -34.88], theatre: Americas, within: brazil_north, base: {sides: [brazil], domains: [land]}}
+  - {key: rio_de_janeiro, kind: location, name: Rio de Janeiro, at: [-22.91, -43.2], theatre: Americas, within: brazil_south, base: {sides: [brazil], domains: [land]}}
+  - {key: santos, kind: location, name: Santos, at: [-23.96, -46.33], theatre: Americas, within: brazil_south, base: {sides: [brazil], domains: [land]}}
+  - {key: buenos_aires, kind: location, name: Buenos Aires, at: [-34.62, -58.4], theatre: Americas, within: river_plate, base: {sides: [argentina], domains: [land]}}
+  - {key: montevideo, kind: location, name: Montevideo, at: [-34.9, -56.16], theatre: Americas, within: river_plate, base: {sides: [argentina], domains: [land]}}
+  - {key: valparaiso, kind: location, name: Valparaiso, at: [-33.05, -71.62], theatre: Americas, within: chile, base: {sides: [chile_state], domains: [land]}}
+  - {key: punta_arenas, kind: location, name: Punta Arenas, at: [-53.14, -70.94], theatre: Americas, within: chile, base: {sides: [chile_state], domains: [land]}}
+  - {key: port_stanley, kind: location, name: Port Stanley, at: [-51.69, -57.86], theatre: Americas, within: falklands, base: {sides: [uk], domains: [land]}}
+  - {key: port_of_spain, kind: location, name: Port of Spain, at: [10.65, -61.51], theatre: Americas, within: lesser_antilles, base: {sides: [uk], domains: [land]}}
+  - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03], theatre: Americas, within: lesser_antilles, base: {sides: [french_state], domains: [land]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
 holders:
@@ -201,6 +235,22 @@ holders:
   - {territory: us_central, holder: usa, gap: true}
   - {territory: us_west, holder: usa, gap: true}
   - {territory: caribbean, holder: cuba, gap: true}
+  # The Americas: Alaska American; western Canada, the Guianas, the Falklands and the Lesser Antilles on
+  # Britain's side (French Guiana and Martinique under Vichy, Surinam and Curacao Dutch, folded in); the
+  # rest neutral, each area held by its largest state.
+  - {territory: alaska, holder: usa, gap: true}
+  - {territory: western_canada, holder: uk, gap: true}
+  - {territory: mexico, holder: mexico_state, gap: true}
+  - {territory: central_america, holder: guatemala, gap: true}
+  - {territory: colombia_venezuela, holder: venezuela, gap: true}
+  - {territory: guianas, holder: uk, gap: true}
+  - {territory: andes, holder: peru, gap: true}
+  - {territory: brazil_north, holder: brazil, gap: true}
+  - {territory: brazil_south, holder: brazil, gap: true}
+  - {territory: river_plate, holder: argentina, gap: true}
+  - {territory: chile, holder: chile_state, gap: true}
+  - {territory: falklands, holder: uk, gap: true}
+  - {territory: lesser_antilles, holder: uk, gap: true}
   # The Mediterranean and the Middle East: French North Africa and Tunisia under Vichy; Syria and Iraq
   # in British hands after the campaigns of May to July 1941; Iran's own government after the
   # Anglo-Soviet invasion of 25 August.

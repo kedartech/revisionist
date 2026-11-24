@@ -1,0 +1,89 @@
+# The scoped check's staging world for the 1941 map's sixth region (the Americas):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/americas.world.yaml
+# It extends the Pacific region's staging world, which extends the Mediterranean's, the Atlantic's,
+# Europe's and the pilot's, so the check reads all six: the map block here is the newest, the
+# territories, sea zones, adjacency and sites in scope are the six files' lists joined. Its blocks are
+# the build's world fragment (worlds/maps/autumn-1941-globe.world.yaml) as built, this region's
+# territories and every adjacency pair that names one of them; the region adds no sea zone. The sites
+# in scope are the region's twenty-four new places, entered here and in americas.places.yaml, which
+# `places_of` names in place of the world file (the world file is not edited by this item). Rebuild
+# the map, then copy the fragment's blocks into the six staging worlds; the test pins the hash.
+#
+# Dutch Harbor is at -166.53 as written; the map draws Alaska a whole turn east, near 193.5, and the
+# checker reads the place there (worlds/maps/README.md). The Falklands have no neighbour and the
+# Lesser Antilles only the Caribbean Sea until the sea zones of the South Atlantic and the eastern
+# Caribbean are drawn.
+extends: pacific.world.yaml
+places_of: americas.places.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
+regions:
+  - {key: americas, name: The Americas}
+territories:
+  - {key: alaska, name: Alaska, region: americas, terrain: mountain, sites: [dutch_harbor]}
+  - {key: western_canada, name: Western Canada and the Arctic, region: americas, terrain: forest, sites: [vancouver, winnipeg]}
+  - {key: mexico, name: Mexico, region: americas, terrain: mountain, sites: [mexico_city, tampico]}
+  - {key: central_america, name: Central America, region: americas, terrain: forest, sites: [guatemala_city, balboa]}
+  - {key: colombia_venezuela, name: Colombia and Venezuela, region: americas, terrain: forest, sites: [maracaibo, bogota]}
+  - {key: guianas, name: The Guianas, region: americas, terrain: forest, sites: [georgetown, paramaribo]}
+  - {key: andes, name: The Andes, region: americas, terrain: mountain, sites: [lima, guayaquil]}
+  - {key: brazil_north, name: Northern Brazil, region: americas, terrain: forest, sites: [natal, recife]}
+  - {key: brazil_south, name: Southern Brazil, region: americas, terrain: plain, sites: [rio_de_janeiro, santos]}
+  - {key: river_plate, name: The River Plate, region: americas, terrain: plain, sites: [buenos_aires, montevideo]}
+  - {key: chile, name: Chile, region: americas, terrain: mountain, sites: [valparaiso, punta_arenas]}
+  - {key: falklands, name: The Falkland Islands, region: americas, terrain: plain, sites: [port_stanley]}
+  - {key: lesser_antilles, name: The Lesser Antilles and Trinidad, region: americas, terrain: mountain, sites: [port_of_spain, fort_de_france]}
+adjacency:
+  - [alaska, eastern_pacific]
+  - [alaska, north_pacific]
+  - [alaska, western_canada]
+  - [andes, brazil_north]
+  - [andes, brazil_south]
+  - [andes, chile]
+  - [andes, colombia_venezuela]
+  - [andes, river_plate]
+  - [brazil_north, brazil_south]
+  - [brazil_north, colombia_venezuela]
+  - [brazil_north, guianas]
+  - [brazil_south, river_plate]
+  - [caribbean_sea, central_america]
+  - [caribbean_sea, colombia_venezuela]
+  - [caribbean_sea, lesser_antilles]
+  - [caribbean_sea, mexico]
+  - [central_america, colombia_venezuela]
+  - [central_america, mexico]
+  - [chile, river_plate]
+  - [colombia_venezuela, guianas]
+  - [eastern_canada, western_canada]
+  - [eastern_pacific, western_canada]
+  - [labrador_sea, western_canada]
+  - [mexico, us_central]
+  - [mexico, us_west]
+  - [newfoundland, western_canada]
+  - [us_central, western_canada]
+  - [us_west, western_canada]
+  - [western_atlantic, western_canada]
+entities:
+  - {key: dutch_harbor, kind: location, name: Dutch Harbor, at: [53.87, -166.53]}
+  - {key: vancouver, kind: location, name: Vancouver, at: [49.28, -123.12]}
+  - {key: winnipeg, kind: location, name: Winnipeg, at: [49.9, -97.14]}
+  - {key: mexico_city, kind: location, name: Mexico City, at: [19.43, -99.13]}
+  - {key: tampico, kind: location, name: Tampico, at: [22.25, -97.86]}
+  - {key: guatemala_city, kind: location, name: Guatemala City, at: [14.63, -90.51]}
+  - {key: balboa, kind: location, name: Balboa, at: [8.96, -79.56]}
+  - {key: maracaibo, kind: location, name: Maracaibo, at: [10.65, -71.64]}
+  - {key: bogota, kind: location, name: Bogota, at: [4.71, -74.07]}
+  - {key: georgetown, kind: location, name: Georgetown, at: [6.8, -58.16]}
+  - {key: paramaribo, kind: location, name: Paramaribo, at: [5.85, -55.2]}
+  - {key: lima, kind: location, name: Lima, at: [-12.05, -77.04]}
+  - {key: guayaquil, kind: location, name: Guayaquil, at: [-2.19, -79.89]}
+  - {key: natal, kind: location, name: Natal, at: [-5.79, -35.21]}
+  - {key: recife, kind: location, name: Recife, at: [-8.05, -34.88]}
+  - {key: rio_de_janeiro, kind: location, name: Rio de Janeiro, at: [-22.91, -43.2]}
+  - {key: santos, kind: location, name: Santos, at: [-23.96, -46.33]}
+  - {key: buenos_aires, kind: location, name: Buenos Aires, at: [-34.62, -58.4]}
+  - {key: montevideo, kind: location, name: Montevideo, at: [-34.9, -56.16]}
+  - {key: valparaiso, kind: location, name: Valparaiso, at: [-33.05, -71.62]}
+  - {key: punta_arenas, kind: location, name: Punta Arenas, at: [-53.14, -70.94]}
+  - {key: port_stanley, kind: location, name: Port Stanley, at: [-51.69, -57.86]}
+  - {key: port_of_spain, kind: location, name: Port of Spain, at: [10.65, -61.51]}
+  - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03]}

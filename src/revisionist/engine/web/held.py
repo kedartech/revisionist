@@ -99,12 +99,15 @@ def _rows(store: EventStore, sql: str, args: tuple[Any, ...]) -> list[tuple[Any,
 def closing(store: EventStore, campaign_id: CampaignId) -> bool:
     """A close of the campaign's wake is running: some session holds its mark
     (``marking_close``). A leave, a join or a scheduler pass that closes nothing holds
-    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing."""
+    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing; only
+    this database's marks count, since ``pg_locks`` lists the whole cluster's and a
+    campaign id may recur in another database."""
     conn = _conn(store)
     if conn is None:
         return False
     row = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted"
+        " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"
         " AND classid = %s::oid AND objid = hashtext(%s)::oid AND objsubid = 2)",
         (CLOSE_CLASS, campaign_id),
     ).fetchone()

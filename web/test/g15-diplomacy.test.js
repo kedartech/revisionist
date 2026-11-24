@@ -505,3 +505,94 @@ test('a conference vote line opens the Diplomacy sheet', async () => {
   act.click();
   assert.equal(root().querySelector('.rl-over').getAttribute('data-sheet'), 'diplomacy');
 });
+
+// --- Peace on screen ---------------------------------------------------------------------------
+
+const PEACE_OFFER = '4CB1HQP7RTP4J38MKTKDBK08VG';
+const offerOf = (el, item) => el.querySelectorAll('.rl-dp-offer').find((li) => li.getAttribute('data-item') === item);
+const addTypes = (el) => el.querySelector('select.rl-dp-addtype').querySelectorAll('option').map((o) => o.value);
+
+/** The builder over `rv`, redrawn as the room does; every `act` recorded. */
+function builder(rv) {
+  const draft = dpl.freshOffer();
+  const rec = recorder();
+  const b = { draft, ...rec, el: null };
+  const draw = () => { b.el = dpl.offerBuilder(rv, draft, { act: rec.act, redraw: draw }); };
+  draw();
+  return b;
+}
+
+test('the offer builder offers the clauses of peace the server lists, in its words', () => {
+  const { el } = builder(seat());
+  assert.deepEqual(addTypes(el), ['no_war', 'no_attack', 'defend', 'aid', 'armistice', 'end_war', 'no_separate_peace']);
+  const labels = el.querySelector('select.rl-dp-addtype').querySelectorAll('option').map(words).slice(4);
+  assert.deepEqual(labels, ['Armistice with a nation', 'End the war with a nation', 'No separate peace with a nation']);
+  const off = builder(seat((x) => { delete x.agreements.peace; }));
+  assert.deepEqual(addTypes(off.el), ['no_war', 'no_attack', 'defend', 'aid'], 'peace off: no clause of peace');
+});
+
+test('a clause of peace the server did not list is not offered', () => {
+  const { el } = builder(seat((x) => { x.agreements.peace = x.agreements.peace.filter((c) => c.type === 'armistice'); }));
+  assert.deepEqual(addTypes(el).slice(4), ['armistice']);
+  const none = builder(seat((x) => { x.agreements.peace[1].nations = []; }));
+  assert.ok(!addTypes(none.el).includes('end_war'), 'no nation it may name: not offered');
+});
+
+test('an armistice names only the nations the server lists for it, and its days, and is sent as typed', () => {
+  const b = builder(seat((x) => { x.agreements.peace[0].nations.push({ key: 'ostmark', name: 'Ostmark' }); }));
+  const sud = b.el.querySelectorAll('input[type="checkbox"]').find((i) => i.value === SUDLAND);
+  sud.checked = true;
+  fire(sud, 'change');
+  b.el.querySelector('select.rl-dp-addtype').value = 'armistice';
+  buttons(b.el, 'Add the clause')[0].click();
+  const row = b.el.querySelector('.rl-dp-clause');
+  assert.match(words(row), /Clause 1: Armistice with a nation/);
+  const field = (name) => row.querySelectorAll('select, input').find((f) => f.getAttribute('name') === name);
+  assert.deepEqual(field('nation').querySelectorAll('option').map((o) => o.value), ['sudland', 'ostmark']);
+  assert.deepEqual(field('binds').querySelectorAll('option').map((o) => o.value), [NORRA], 'it binds the seat\'s own nation');
+  field('days').value = '10';
+  fire(field('days'), 'input');
+  buttons(b.el, 'Read the terms')[0].click();
+  assert.deepEqual(b.calls[0].body.clauses, [{ type: 'armistice', binds: NORRA, nation: 'sudland', days: 10 }]);
+});
+
+test('an acceptance that would be held says who decides it, before Accept is pressed', () => {
+  const el = dpl.agreementsSection(seat().agreements, recorder());
+  const offer = offerOf(el, PEACE_OFFER);
+  const line = offer.querySelector('.rl-dp-accept');
+  assert.ok(line, 'the line on what accepting would do');
+  assert.equal(line.getAttribute('data-check'), 'locked');
+  assert.match(words(line), /the council under Ilse Varg decides it/);
+  assert.match(words(line), /Held until the council under Ilse Varg allows it\./);
+  const order = offer.querySelectorAll('.rl-dp-accept, button');
+  assert.equal(order[0], line, 'said before the Accept button');
+  assert.equal(offerOf(el, OFFER_ID).querySelector('.rl-dp-accept'), null, 'no check sent: no line');
+});
+
+test('an acceptance beyond the seat\'s post says so in the server\'s words; one that stands says it stands', () => {
+  const beyond = seat((x) => { x.agreements.offers.find((o) => o.item === PEACE_OFFER).accept = { check: 'beyond', who: null, reason: 'No one in Norra may accept a peace.' }; });
+  let line = offerOf(dpl.agreementsSection(beyond.agreements, recorder()), PEACE_OFFER).querySelector('.rl-dp-accept');
+  assert.ok(line, 'the line on what accepting would do');
+  assert.equal(line.getAttribute('data-check'), 'beyond');
+  assert.match(words(line), /No one in Norra may accept a peace\./);
+  const allowed = seat((x) => { x.agreements.offers.find((o) => o.item === PEACE_OFFER).accept = { check: 'allowed', who: null, reason: '' }; });
+  line = offerOf(dpl.agreementsSection(allowed.agreements, recorder()), PEACE_OFFER).querySelector('.rl-dp-accept');
+  assert.ok(line, 'the line on what accepting would do');
+  assert.equal(line.getAttribute('data-check'), 'allowed');
+  assert.match(words(line), /Your acceptance stands as you file it/);
+});
+
+test('an armistice in force is a line on the sheet with its last day', () => {
+  const el = dpl.agreementsSection(seat().agreements, recorder());
+  const lines = el.querySelectorAll('.rl-dp-armistice').map(words);
+  assert.deepEqual(lines, ['Norra and Ostmark: an armistice, in force to 12 April 1900']);
+  assert.equal(el.querySelector('.rl-dp-armistice').getAttribute('data-agreement'), 'agr-1');
+  const none = dpl.agreementsSection(seat((x) => { x.agreements.armistices = []; }).agreements, recorder());
+  assert.equal(none.querySelector('.rl-dp-armistices'), null, 'none in force: no list');
+});
+
+test('the diplomatic layer\'s key names each armistice in force as a quiet border with its last day', () => {
+  const key = dpl.diplomacyKey(seat());
+  assert.deepEqual(key.querySelectorAll('.rl-dp-quiet li').map(words), ['Norra and Ostmark: quiet to 12 April 1900']);
+  assert.equal(dpl.diplomacyKey(seat((x) => { delete x.agreements.armistices; })).querySelector('.rl-dp-quiet'), null);
+});

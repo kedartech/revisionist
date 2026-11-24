@@ -5089,5 +5089,141 @@
     "stands": true,
     "text": "Take The Isle for Norra.",
     "reasons": []
-  }
+  },
+  "capitals": [
+    {
+      "nation": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "questions": [
+        {
+          "kind": "measure",
+          "title": "Levy act",
+          "day": null,
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.chambers",
+          "ref": "FJ608FQ7RMYERTFBREDWSDM5C8"
+        },
+        {
+          "kind": "offer",
+          "title": "Offers to the blocs on The Barge Act",
+          "day": null,
+          "decider": {
+            "shape": "body",
+            "who": "the voters",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.offers",
+          "ref": "barge_act"
+        },
+        {
+          "kind": "office",
+          "title": "General of the Norra Levy",
+          "day": "1900-04-12",
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.office",
+          "ref": "N41Q8WCZYVYASX886VRKB7XXA8"
+        },
+        {
+          "kind": "election",
+          "title": "Chancellor of Norra",
+          "day": "1900-05-01",
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "assembly"
+            ]
+          },
+          "at": "home.elections",
+          "ref": "1900-05-01"
+        },
+        {
+          "kind": "held",
+          "title": "March (Force Norra levy, To Isle)",
+          "day": null,
+          "decider": {
+            "shape": "person",
+            "who": "Ilse Varg",
+            "members": [
+              "Ilse Varg"
+            ]
+          },
+          "at": "locks.held",
+          "ref": "01M7YNVKSY384MG2G9E0YC4RXY"
+        },
+        {
+          "kind": "ask",
+          "title": "March (Force Norra levy, To Isle)",
+          "day": null,
+          "decider": {
+            "shape": "council",
+            "who": "the council under Ilse Varg",
+            "members": [
+              "Ilse Varg",
+              "Kara Lind"
+            ]
+          },
+          "at": "locks.asks",
+          "ref": "MPPQKYR3D1W0FFVZ1QMH4YPXNQ"
+        },
+        {
+          "kind": "peace",
+          "title": "Peace offered by Sudland",
+          "day": "1900-04-06",
+          "decider": {
+            "shape": "person",
+            "who": "Ilse Varg",
+            "members": [
+              "Ilse Varg"
+            ]
+          },
+          "at": "agreements.offers",
+          "ref": "4CB1HQP7RTP4J38MKTKDBK08VG"
+        }
+      ]
+    },
+    {
+      "nation": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland",
+        "relation": "enemy"
+      },
+      "questions": [
+        {
+          "kind": "result",
+          "title": "Marshal of Sudland",
+          "day": "1900-04-09",
+          "decider": {
+            "shape": "person",
+            "who": "Tomas Brand",
+            "members": [
+              "Tomas Brand"
+            ]
+          },
+          "at": "news",
+          "ref": "R6T2Q0Y8M1V4K7C3H9J5D0B2NA"
+        }
+      ]
+    }
+  ]
 }

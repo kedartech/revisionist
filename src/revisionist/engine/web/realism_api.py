@@ -1370,6 +1370,66 @@ class HomeBlock(TypedDict):
     """With ``elections`` on: each election of the seat's nation ahead, by day."""
 
 
+CapitalShape = Literal["body", "council", "person"]
+"""The shape of who decides a capital's question, so the client draws a track of blocs, a
+table of members or one person."""
+
+
+class CapitalDecider(TypedDict):
+    """Who decides a question in a capital: a body (its blocs or chambers), a council (its
+    members) or one person (``members`` that person alone)."""
+
+    shape: CapitalShape
+    who: str
+    members: list[str]
+
+
+CapitalKind = Literal[
+    "measure", "offer", "office", "election", "held", "ask", "peace", "agreement", "vote", "result"
+]
+"""What a capital's question is: in the seat's own nation, a measure on its way, offers to
+its blocs on one, a sitting on an office, an election ahead, an order held for a decider,
+an ask or matter before the seat, a peace before it to answer; in another, a published
+agreement, a reported vote, a public sitting's result."""
+
+CapitalAt = Literal[
+    "home.chambers",
+    "home.offers",
+    "home.office",
+    "home.elections",
+    "locks.held",
+    "locks.asks",
+    "agreements.offers",
+    "agreements.agreements",
+    "conferences.conferences",
+    "news",
+]
+"""Where the question's own data already sits in the seat's payload; ``news`` is the
+public news of a sitting's result."""
+
+
+class CapitalQuestion(TypedDict):
+    """One live question of a capital: nothing in it the seat is not already sent."""
+
+    kind: CapitalKind
+    title: str
+    day: str | None
+    """The world day it falls on, sits, lapses or was decided; None for none."""
+    decider: CapitalDecider
+    at: CapitalAt
+    ref: str
+    """The key of the line at ``at``: an order id, a measure key, a question id, an
+    election's day, an ask's token, an offer's item, an agreement's id, a conference's key."""
+
+
+class CapitalLine(TypedDict):
+    """A nation's capital as the seat may know it: its own nation's live questions, or
+    only what another nation's public record gives."""
+
+    nation: MapNation
+    questions: list[CapitalQuestion]
+
+
 class BattleRoundLine(TypedDict):
     """One round of a battle as the seat's own report of it gives it (BTD)."""
 

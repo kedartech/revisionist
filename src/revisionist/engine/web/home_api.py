@@ -22,11 +22,17 @@ lists one line a group, heaviest net change first. Each vote of a measure on its
 carries the count the votes rule gave it on the log as it stood at that commit, beside
 today's. Each place of political weight of the nation is listed with the holder and the
 threat its area shows on the seat's map.
+
+A capital's live questions: ``capitals`` lists every nation's capital, the seat's own
+first. Its own holds one line a live question of its nation, each naming the shape of who
+decides it (a body, a council, one person), its day and where its data already sits in the
+payload; another nation's holds only what its public record gives. The list is read from
+what the seat is sent and the public news, so it carries nothing new.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, timedelta
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
@@ -34,14 +40,20 @@ from revisionist.core.fold import replay
 from revisionist.core.ids import EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import elections, groups, offers, office, posts
+from revisionist.core.realism import elections, groups, locks, offers, office, posts
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import resolver_for, votes
-from revisionist.core.state import QuestionCause, RemovalWay, State, View
+from revisionist.core.state import QuestionCause, Removal, RemovalWay, State, View
 from revisionist.engine.web import economy_api
 from revisionist.engine.web.realism_api import (
     BaseUnder,
     BlocCount,
+    CapitalAt,
+    CapitalDecider,
+    CapitalKind,
+    CapitalLine,
+    CapitalQuestion,
+    CapitalShape,
     ElectionAhead,
     ElectionBloc,
     ElectionChamber,
@@ -684,3 +696,185 @@ def block(
     if elections.on(state):
         out["elections"] = _elections(state, own, today)
     return out
+
+
+# --- A capital's live questions --------------------------------------------------------
+
+AGREEMENT_TITLE = "Agreement of {parties}"  # [proposed]
+VOTE_TITLE = "Vote called by {nation}"  # [proposed]
+PEACE_TITLE = "Peace offered by {nation}"  # [proposed]
+OFFERS_TITLE = "Offers to the blocs on {title}"  # [proposed]
+ELECTION_TITLE = "Election"  # [proposed]
+THE_COUNCIL = "the council"  # [proposed]
+THE_VOTERS = "the voters"  # [proposed]
+
+
+def capitals(
+    state: State, view: View, sent: Mapping[str, Any], events: Iterable[Event] = ()
+) -> list[CapitalLine]:
+    """Every nation's capital as the seat may know it, its own first: for its own nation
+    each live question in the payload ``sent`` (its measures on their way, the offers to
+    its blocs, its sittings, its elections ahead, the orders it holds for a decider, the
+    asks before it and a peace before it to answer); for another nation only its public
+    record: a published agreement, a reported public vote, a sitting's result that is
+    news. Each line points at data the seat is already sent, so the list adds nothing."""
+    own = economy_api.own_nation(view)
+    polities = [k for k, e in state.entities.items() if e.kind is EntityKind.POLITY]
+    nations = sorted(
+        (economy_api.nation(state, own, p) for p in polities),
+        key=lambda n: (n["relation"] != "own", n["name"], n["key"]),
+    )
+    keys = {economy_api.nation(state, own, p)["key"]: p for p in polities}
+    log = list(events)
+    out: list[CapitalLine] = []
+    for n in nations:
+        polity = keys[n["key"]]
+        found = _own_questions(state, view, sent) if polity == own else []
+        found += _public_questions(state, sent, log, polity, n["name"])
+        out.append(CapitalLine(nation=n, questions=found))
+    return out
+
+
+def _decider(shape: CapitalShape, who: str, members: Sequence[str]) -> CapitalDecider:
+    return CapitalDecider(shape=shape, who=who, members=list(members))
+
+
+def _lock_decider(state: State, view: View, decider: locks.Decider) -> CapitalDecider:
+    from revisionist.engine.web import locks_api
+
+    who = locks_api.who(view, decider)
+    if decider.person is not None:
+        return _decider("person", who, [who])
+    if decider.council is not None:
+        names = [_named(state, m) for m in decider.council.members]
+        return _decider("council", who, names)
+    return _decider("body", who, [c.replace("_", " ") for c in decider.chambers])
+
+
+def _named(state: State, entity: EntityId) -> str:
+    found = state.entities.get(entity)
+    return found.name if found is not None else str(entity)
+
+
+def _blocs(home: Mapping[str, Any] | None, chamber: str | None) -> list[str]:
+    for c in (home or {}).get("chambers", []):
+        if c["key"] == chamber:
+            return [b["name"] for b in c["blocs"]]
+    return []
+
+
+def _own_questions(state: State, view: View, sent: Mapping[str, Any]) -> list[CapitalQuestion]:
+    home: Mapping[str, Any] = sent.get("home") or {}
+    out: list[CapitalQuestion] = []
+    for c in home.get("chambers", []):
+        body = _decider("body", c["key"].replace("_", " "), _blocs(home, c["key"]))
+        for m in c["measures"]:
+            out.append(_q("measure", m["title"], None, body, "home.chambers", m["order_id"]))
+    for o in home.get("offers", []):
+        blocs = _decider("body", THE_VOTERS, [b["name"] for b in o["blocs"]])
+        title = OFFERS_TITLE.format(title=o["title"])
+        out.append(_q("offer", title, None, blocs, "home.offers", o["key"]))
+    for q in home.get("office", []):
+        out.append(
+            _q("office", q["office"], q["sits"], _sitting(home, q), "home.office", q["question_id"])
+        )
+    for e in home.get("elections", []):
+        chambers = [c["key"].replace("_", " ") for c in e["chambers"]]
+        voters = _decider("body", " and ".join(chambers) or THE_VOTERS, chambers)
+        title = e["office"] or ELECTION_TITLE
+        out.append(_q("election", title, e["day"], voters, "home.elections", e["day"]))
+    out += _locked(state, view, sent)
+    return out
+
+
+def _sitting(home: Mapping[str, Any], q: Mapping[str, Any]) -> CapitalDecider:
+    if q["way"] == "vote":
+        return _decider("body", (q["chamber"] or "").replace("_", " "), _blocs(home, q["chamber"]))
+    if q["way"] == "council":
+        return _decider("council", THE_COUNCIL, q["deciders"])
+    if q["way"] == "person" and q["deciders"]:
+        return _decider("person", q["deciders"][0], q["deciders"][:1])
+    return _decider("body", THE_VOTERS, [])
+
+
+def _locked(state: State, view: View, sent: Mapping[str, Any]) -> list[CapitalQuestion]:
+    from revisionist.engine.web import locks_api
+
+    out: list[CapitalQuestion] = []
+    held_lines = {h["id"]: h for h in (sent.get("locks") or {}).get("held", [])}
+    for h in sorted(view.held.values(), key=lambda h: (h.filed, h.order_id)):
+        if h.order_id in held_lines:
+            who = _lock_decider(state, view, h.decider)
+            out.append(
+                _q("held", held_lines[h.order_id]["words"], None, who, "locks.held", h.order_id)
+            )
+    asks = {a["id"]: a for a in (sent.get("locks") or {}).get("asks", [])}
+    for a in sorted(view.asked.values(), key=lambda a: (a.on, a.order_id)):
+        line = asks.get(locks_api.ask_id(state.campaign_id, a.order_id))
+        if line is None:
+            continue
+        held = state.held.get(a.order_id)
+        if held is not None:
+            who = _lock_decider(state, view, held.decider)
+        else:
+            who = _decider("person", _named(state, a.to), [_named(state, a.to)])
+        out.append(_q("ask", a.words, None, who, "locks.asks", line["id"]))
+    nation = economy_api.own_nation(view)
+    for o in (sent.get("agreements") or {}).get("offers", []):
+        if "accept" not in o or o["item"] is None:
+            continue
+        row = locks.peace_row(state, nation) if nation is not None else None
+        if row is not None:
+            who = _lock_decider(state, view, row.decider)
+        else:
+            me = _named(state, view.me.embodies)
+            who = _decider("person", me, [me])
+        title = PEACE_TITLE.format(nation=o["by"])
+        out.append(_q("peace", title, o["expires"], who, "agreements.offers", o["item"]))
+    return out
+
+
+def _public_questions(
+    state: State, sent: Mapping[str, Any], log: Sequence[Event], polity: EntityId, name: str
+) -> list[CapitalQuestion]:
+    out: list[CapitalQuestion] = []
+    for a in (sent.get("agreements") or {}).get("agreements", []):
+        if a["published"] is not None and name in a["parties"]:
+            parties = " and ".join(a["parties"])
+            who = _decider("council", parties, a["parties"])
+            title = AGREEMENT_TITLE.format(parties=parties)
+            out.append(
+                _q("agreement", title, a["published"], who, "agreements.agreements", a["id"])
+            )
+    for c in (sent.get("conferences") or {}).get("conferences", []):
+        if c["public"] and c["tallied"] is not None and name in c["invited"]:
+            who = _decider("council", " and ".join(c["invited"]), c["invited"])
+            title = VOTE_TITLE.format(nation=c["called_by"])
+            out.append(_q("vote", title, c["tallied"], who, "conferences.conferences", c["key"]))
+    for e in log:
+        p = e.payload
+        if not isinstance(p, ev.OfficeQuestionDecided) or e.scope.visibility.value != "public":
+            continue
+        if p.post not in state.assets or office.nation(state, p.post) != polity:
+            continue
+        way = office.removal(state, p.post)
+        who = _removal_decider(state, way)
+        title = state.assets[p.post].name
+        out.append(_q("result", title, p.on.isoformat(), who, "news", p.question_id))
+    return out
+
+
+def _removal_decider(state: State, way: Removal | None) -> CapitalDecider:
+    if way is not None and way.way is RemovalWay.COUNCIL:
+        return _decider("council", THE_COUNCIL, [_named(state, m) for m in way.members])
+    if way is not None and way.way is RemovalWay.PERSON and way.person is not None:
+        name = _named(state, way.person)
+        return _decider("person", name, [name])
+    chamber = way.chamber if way is not None and way.chamber is not None else THE_VOTERS
+    return _decider("body", chamber.replace("_", " "), [])
+
+
+def _q(
+    kind: CapitalKind, title: str, day: str | None, who: CapitalDecider, at: CapitalAt, ref: str
+) -> CapitalQuestion:
+    return CapitalQuestion(kind=kind, title=title, day=day, decider=who, at=at, ref=ref)

@@ -646,6 +646,34 @@ def aim_rule(state: State, goal: Goal) -> AimRule | None:
     return card.aim_rules[goal.aim - 1]
 
 
+def post_sees(condition: WinCondition, sees: tuple[Exposure, ...]) -> tuple[Exposure, ...]:
+    """``sees`` as a commander held to his post reads it (PVW): a leaf on his own nation's
+    facts is hidden from him, unless it is a regard he is party to; public leaves stay
+    public. ``sees`` is returned as given when it does not match ``condition``."""
+    found = leaves(condition)
+    if len(sees) != len(found):
+        return sees
+    return tuple(
+        Exposure.HIDDEN if e is Exposure.OWN and not isinstance(leaf, RegardAt) else e
+        for leaf, e in zip(found, sees, strict=True)
+    )
+
+
+def at_post(goal: Goal, rule: AimRule | None) -> Goal:
+    """``goal`` as a commander held to his post holds it (PVW): where a leaf he no longer
+    sees could decide it, whether it holds and the tick it was met are not his to know.
+    A goal not made from an aim is returned as it is."""
+    if goal.person is None:
+        return goal
+    if rule is None or len(rule.sees) != len(leaves(goal.condition)):
+        hidden = True
+    else:
+        hidden = post_sees(goal.condition, rule.sees) != rule.sees
+    if not hidden:
+        return goal
+    return goal.model_copy(update={"holding": False, "met_tick": None})
+
+
 def judged(state: State, goal: Goal) -> bool:
     """Whether an aim's goal is checked today: inside its period, from its opening day
     to its deadline. A legacy goal is always checked."""

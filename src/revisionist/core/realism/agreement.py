@@ -303,16 +303,36 @@ def render_terms(state: "State", agreement: Agreement | AgreementOffer) -> str:
     return " ".join(f"{label}: {text}" for label, text in term_rows(state, agreement))
 
 
-def seen_by(state: "State", seat: SeatId) -> Agreements:
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> Agreements:
     """What ``seat`` sees: the offers and agreements its nation is a party to, and every
-    published agreement."""
+    published agreement. With ``post`` (a commander held to his post, PVW): the published
+    agreements and any naming a force he commands, no offers."""
     own = _nation(state, seat)
     a = state.agreements
+    if post:
+        return Agreements(
+            made={
+                k: x
+                for k, x in a.made.items()
+                if x.public or (own is not None and _names_his_force(state, seat, own, x))
+            }
+        )
     return Agreements(
         offers={k: o for k, o in a.offers.items() if own is not None and own in o.parties},
         made={
             k: x for k, x in a.made.items() if x.public or (own is not None and own in x.parties)
         },
+    )
+
+
+def _names_his_force(state: "State", seat: SeatId, own: EntityId, agreement: Agreement) -> bool:
+    """Whether a clause of ``agreement`` binding ``own`` names a force ``seat`` commands."""
+    from revisionist.core.realism.war_rules import commanders
+
+    return any(
+        c.force is not None and seat in {s for s, _ in commanders(state, c.force)}
+        for c in agreement.clauses
+        if c.binds == own
     )
 
 

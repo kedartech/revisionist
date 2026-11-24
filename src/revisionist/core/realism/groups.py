@@ -585,10 +585,12 @@ def reseated(bloc: Group, seats: int) -> Group:
     )
 
 
-def seen_by(state: "State", seat: SeatId) -> Groups:
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> Groups:
     """What ``seat`` sees of the groups: its own nation's groups, support and spent
     points, and the classes of happenings; no writing in waiting. Nothing for a seat of
-    no nation."""
+    no nation. With ``post`` (a commander held to his post, PVW): the classes of
+    happenings and its nation's places only; no group, theme, support or spent points,
+    since a group's declared start is its support until it first moves."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
@@ -596,6 +598,8 @@ def seen_by(state: "State", seat: SeatId) -> Groups:
     if own is None:
         return Groups()
     g = state.groups
+    if post:
+        return Groups(classes=g.classes, places=tuple(p for p in g.places if p.nation == own))
     return Groups(
         declared={k: v for k, v in g.declared.items() if k == own},
         support={k: v for k, v in g.support.items() if k == own},

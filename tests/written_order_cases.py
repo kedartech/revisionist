@@ -111,6 +111,17 @@ def bill(key: str) -> Effect:
     return HISTORICAL[key].model_dump(mode="json")
 
 
+NATIONAL_SERVICE: Effect = {
+    "kind": "measure",
+    "title": "National Service",
+    "clauses": [
+        {"kind": "power", "subject": "call up unmarried women and men to fifty-one", "amount": None}
+    ],
+}
+"""Britain's law as a written bill: the code table has no row for it, so the Commons' blocs count it
+by the key its title's words make."""
+
+
 def approach(target: str) -> Effect:
     return {"target": target}
 
@@ -289,6 +300,13 @@ NINETEEN_41: tuple[Case, ...] = (
         {"intel": "codebreaking"},
         "Fund Bletchley Park.",
         codes("uk"),
+    ),
+    f41(
+        "churchill",
+        "send_bill",
+        {"bill": "national_service", "urgency": "ordinary"},
+        "Put the National Service bill to the Commons.",
+        NATIONAL_SERVICE,
     ),
     # Stalin
     f41(

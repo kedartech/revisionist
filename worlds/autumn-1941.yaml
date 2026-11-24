@@ -1886,6 +1886,13 @@ pipelines:
     steps:
       - {person: uk_cipher_clerk, kind: clerical, days: 1, assumed: true}
       - {person: roosevelt, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, leak, refuse]}
+  # The Prime Minister led the House himself in 1941; announced 2 Dec, Royal Assent 18 Dec.
+  # The division is the votes resolver's, not a step.
+  - key: bill_through_commons
+    name: A bill through the Commons
+    source: national_service_1941
+    steps:
+      - {person: churchill, kind: decision, days: 16, allowed: [pass, refuse]}
   - key: press_broadcast
     name: A broadcast to the nation
     gap: true
@@ -2355,6 +2362,14 @@ cards:
         summary: "Give Bletchley Park what it asks for: 'Action this day'."
         params:
           - {name: intel, kind: enum, choices: [codebreaking]}
+      - name: send_bill  # source: national_service_1941
+        pipeline: bill_through_commons
+        resolver: votes
+        label: "Put a bill to the Commons"
+        summary: "Bring a government bill before the House of Commons; it becomes law if the House passes it."
+        params:
+          - {name: bill, kind: enum, choices: [national_service], label: "Which bill", choice_labels: ["National Service"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How hard to press", choice_labels: ["In the ordinary way", "As a matter of urgency"]}
     inner_circle:
       - {person: roosevelt, channel: cable}
       - {person: eden, channel: in_person}
@@ -2363,7 +2378,7 @@ cards:
       - {person: halifax, channel: cable}
       - {person: stalin, channel: cable}
     feeds: [admiralty_reports]
-    pipelines: [cos_directive, cable_to_roosevelt, press_broadcast]
+    pipelines: [cos_directive, cable_to_roosevelt, press_broadcast, bill_through_commons]
     constraints:
       - keeps the confidence of the Commons
       - orders go through the Chiefs of Staff Committee

@@ -1,6 +1,6 @@
 # Built by scripts/map_build.py from the recipe autumn-1941-globe; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: afcd257ffb932123481e0908773bc33cc5da12305d9493506fe59fcd69e1b9df, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 4cec6c8f44764ce8152e4bce84b8a599e1927a71e18055e7378e9d567190f3f9, box: [-126, -60, 234, 84]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
@@ -10,6 +10,7 @@ regions:
   - {key: americas, name: The Americas}
   - {key: africa, name: Africa and Arabia}
   - {key: inner_asia, name: India}
+  - {key: australasia, name: Australasia and the Pacific Islands}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -142,6 +143,13 @@ territories:
   - {key: tibet_nepal, name: 'Tibet, Nepal and Bhutan', region: inner_asia, terrain: mountain, sites: [lhasa]}
   - {key: sinkiang, name: Sinkiang, region: inner_asia, terrain: mountain, sites: [urumchi, hami]}
   - {key: mongolia, name: Mongolia and Tannu Tuva, region: inner_asia, terrain: plain, sites: [ulan_bator, kyzyl]}
+  - {key: australia_west, name: Western Australia and the North, region: australasia, terrain: plain, sites: [darwin, perth]}
+  - {key: australia_east, name: Eastern Australia, region: australasia, terrain: plain, sites: [sydney, melbourne, brisbane]}
+  - {key: new_zealand, name: New Zealand, region: australasia, terrain: mountain, sites: [wellington, auckland]}
+  - {key: new_guinea, name: New Guinea and the Solomons, region: australasia, terrain: forest, sites: [port_moresby, rabaul, tulagi]}
+  - {key: japanese_mandate, name: The Japanese Mandate, region: australasia, terrain: forest, sites: [saipan, koror]}
+  - {key: south_pacific, name: The South Pacific Islands, region: australasia, terrain: mountain, sites: [suva, pago_pago, papeete]}
+  - {key: new_caledonia, name: New Caledonia and the New Hebrides, region: australasia, terrain: mountain, sites: [noumea, espiritu_santo]}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -211,6 +219,7 @@ adjacency:
   - [arctic_route_area, norway]
   - [arctic_route_area, western_approaches_area]
   - [arctic_route_area, white_sea]
+  - [australia_east, australia_west]
   - [azores_madeira, gibraltar_approaches]
   - [balkans, black_sea]
   - [balkans, central_mediterranean]
@@ -303,8 +312,10 @@ adjacency:
   - [central_pacific, eastern_pacific]
   - [central_pacific, hawaii]
   - [central_pacific, japan_east]
+  - [central_pacific, japanese_mandate]
   - [central_pacific, north_pacific]
   - [central_pacific, philippine_sea]
+  - [central_pacific, south_pacific]
   - [chile, river_plate]
   - [colombia_venezuela, guianas]
   - [crimea, odessa_area]
@@ -331,6 +342,7 @@ adjacency:
   - [donbas, voronezh]
   - [dutch_east_indies, java_sea]
   - [dutch_east_indies, malaya]
+  - [dutch_east_indies, new_guinea]
   - [dutch_east_indies, philippine_sea]
   - [dutch_east_indies, south_china_sea]
   - [east_china_sea, formosa]
@@ -455,6 +467,7 @@ adjacency:
   - [japan_east, soviet_far_east]
   - [japan_west, philippine_sea]
   - [japan_west, sea_of_japan]
+  - [japanese_mandate, philippine_sea]
   - [java_sea, malaya]
   - [java_sea, philippine_sea]
   - [java_sea, philippines]
@@ -513,6 +526,7 @@ adjacency:
   - [moscow_area, voronezh]
   - [mozambique, rhodesias]
   - [mozambique, south_africa]
+  - [new_guinea, philippine_sea]
   - [newfoundland, western_atlantic]
   - [newfoundland, western_canada]
   - [north_china, northwest_china]

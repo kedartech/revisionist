@@ -1,0 +1,53 @@
+# The scoped check's staging world for the 1941 map's ninth region (Australasia and the Pacific
+# islands):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/australasia.world.yaml
+# It extends the inner Asia region's staging world, which extends the Africa, the Americas', the
+# Pacific's, the Mediterranean's, the Atlantic's, Europe's and the pilot's, so the check reads all
+# nine: the map block here is the newest, the territories, sea zones, adjacency and sites in scope are
+# the nine files' lists joined. Its blocks are the build's world fragment
+# (worlds/maps/autumn-1941-globe.world.yaml) as built, this region's territories and every adjacency
+# pair that names one of them; the region adds no sea zone. The sites in scope are the region's 20 new
+# places, entered here and in australasia.places.yaml, which `places_of` names in place of the world
+# file (the world file is not edited by this item). Rebuild the map, then copy the fragment's blocks
+# into the nine staging worlds; the test pins the hash.
+extends: inner-asia.world.yaml
+places_of: australasia.places.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 4cec6c8f44764ce8152e4bce84b8a599e1927a71e18055e7378e9d567190f3f9, box: [-126, -60, 234, 84]}
+regions:
+  - {key: australasia, name: Australasia and the Pacific Islands}
+territories:
+  - {key: australia_west, name: Western Australia and the North, region: australasia, terrain: plain, sites: [darwin, perth]}
+  - {key: australia_east, name: Eastern Australia, region: australasia, terrain: plain, sites: [sydney, melbourne, brisbane]}
+  - {key: new_zealand, name: New Zealand, region: australasia, terrain: mountain, sites: [wellington, auckland]}
+  - {key: new_guinea, name: New Guinea and the Solomons, region: australasia, terrain: forest, sites: [port_moresby, rabaul, tulagi]}
+  - {key: japanese_mandate, name: The Japanese Mandate, region: australasia, terrain: forest, sites: [saipan, koror]}
+  - {key: south_pacific, name: The South Pacific Islands, region: australasia, terrain: mountain, sites: [suva, pago_pago, papeete]}
+  - {key: new_caledonia, name: New Caledonia and the New Hebrides, region: australasia, terrain: mountain, sites: [noumea, espiritu_santo]}
+adjacency:
+  - [australia_east, australia_west]
+  - [central_pacific, japanese_mandate]
+  - [central_pacific, south_pacific]
+  - [dutch_east_indies, new_guinea]
+  - [japanese_mandate, philippine_sea]
+  - [new_guinea, philippine_sea]
+entities:
+  - {key: darwin, kind: location, name: Darwin, at: [-12.42, 130.88]}
+  - {key: perth, kind: location, name: Perth, at: [-31.95, 115.86]}
+  - {key: sydney, kind: location, name: Sydney, at: [-33.87, 151.21]}
+  - {key: melbourne, kind: location, name: Melbourne, at: [-37.81, 144.96]}
+  - {key: brisbane, kind: location, name: Brisbane, at: [-27.47, 153.03]}
+  - {key: wellington, kind: location, name: Wellington, at: [-41.28, 174.75]}
+  - {key: auckland, kind: location, name: Auckland, at: [-36.85, 174.76]}
+  - {key: port_moresby, kind: location, name: Port Moresby, at: [-9.44, 147.18]}
+  - {key: rabaul, kind: location, name: Rabaul, at: [-4.2, 152.18]}
+  - {key: tulagi, kind: location, name: Tulagi, at: [-9.06, 160.17]}
+  - {key: saipan, kind: location, name: Saipan, at: [15.18, 145.75]}
+  - {key: koror, kind: location, name: Koror, at: [7.34, 134.48]}
+  - {key: suva, kind: location, name: Suva, at: [-18.14, 178.44]}
+  - {key: pago_pago, kind: location, name: Pago Pago, at: [-14.3, -170.74]}
+  - {key: papeete, kind: location, name: Papeete, at: [-17.54, -149.57]}
+  - {key: noumea, kind: location, name: Nouméa, at: [-22.27, 166.44]}
+  - {key: espiritu_santo, kind: location, name: Espiritu Santo, at: [-15.51, 167.18]}
+  - {key: truk, kind: location, name: Truk, at: [7.45, 151.85]}
+  - {key: kwajalein, kind: location, name: Kwajalein, at: [8.72, 167.73]}
+  - {key: wake, kind: location, name: Wake Island, at: [19.28, 166.65]}

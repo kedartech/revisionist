@@ -1,0 +1,138 @@
+# The 1941 map, ninth region: Australasia and the Pacific islands. Built by scripts/map_build.py
+# together with the earlier regions (see worlds/maps/README.md); the provinces are Natural Earth 1:10m
+# admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and names,
+# which provinces make each territory and every terrain. The list is the regions draft's seven
+# territories at its grain.
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml worlds/maps/src/autumn-1941-globe/pacific.yaml \
+#     worlds/maps/src/autumn-1941-globe/americas.yaml worlds/maps/src/autumn-1941-globe/africa.yaml \
+#     worlds/maps/src/autumn-1941-globe/inner-asia.yaml worlds/maps/src/autumn-1941-globe/australasia.yaml \
+#     --slug autumn-1941-globe
+#
+# What it claims. Australia whole, in two (the west with the Northern Territory, Ashmore and Cartier
+# and the Indian Ocean Territories; the east with the other states, the capital territories, Lord Howe,
+# Macquarie, Norfolk Island and the Coral Sea Islands); New Zealand whole with its outlying islands and
+# Tokelau, which the data puts inside it; Papua New Guinea with the Solomon Islands; Palau, the
+# Federated States of Micronesia, the Marshall Islands and the Northern Mariana Islands as the Japanese
+# mandate; New Caledonia with Vanuatu; and Fiji, Tonga, Samoa, American Samoa, Kiribati, Tuvalu,
+# Nauru, the Cook Islands, Niue, Wallis and Futuna, French Polynesia and the Pitcairn Islands as the
+# South Pacific islands. Guam and the United States Minor Outlying Islands (Wake, Midway, Johnston,
+# Palmyra, Howland, Baker and Jarvis) stay unclaimed: the regions draft makes each a place in its sea
+# zone, held by the United States, not a part of a territory another power holds. Heard Island stays
+# unclaimed too, for the southern seas. Norfolk Island, the Coral Sea Islands, Ashmore and Cartier and
+# the Indian Ocean Territories, which the draft makes sites, are claimed with their Australian
+# territory instead, so no land of the region is left to the backdrop.
+#
+# The mandate is drawn. The draft asked whether its islands, each under the checker's minimum area,
+# can make a territory: the minimum is read per area, not per island, and the mandate's islands
+# together pass it, so the mandate is a territory and not a set of sites. Truk and Kwajalein are
+# atolls the simplified coast does not keep, so each is a place in the Central Pacific, as the draft
+# puts Wake; Guam and Midway lie in water no sea zone takes yet and wait for the southern-seas item.
+#
+# Cut lines. None. The Dutch half of New Guinea is already in the Dutch East Indies (all of Indonesia's
+# provinces, pacific.yaml), and the data's Indonesia-Papua New Guinea line is the line of 1941 (the
+# 141st meridian with the Fly River bend, fixed by the Anglo-Dutch treaty of 1895), so no cut is drawn
+# (MAC rule 3: none where the line does not differ). Gap: the line is read from the data, with no
+# evidence record. The Japanese mandate's Northern Marianas leave out Guam, which the data keeps apart.
+#
+# One area, several holders. The South Pacific islands fold British colonies (Fiji, the Gilbert and
+# Ellice Islands, Tonga under protection, Pitcairn), New Zealand's Western Samoa and Cook Islands, the
+# United States' American Samoa, Free French Polynesia and Wallis and Futuna (Vichy until 1942) into
+# one holder in start.yaml, a gap. New Caledonia with the New Hebrides (an Anglo-French condominium)
+# has the Free French holder, a gap for the New Hebrides. New Guinea with the Solomons is the United
+# Kingdom's: the Australian mandate and Papua and the British Solomons protectorate, held as the world
+# holds a dominion.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: australasia, name: Australasia and the Pacific Islands}
+territories:
+  - key: australia_west
+    name: Western Australia and the North
+    region: australasia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the western plateau, the deserts and the tropical north; no source cited"
+    sites: [darwin, perth]
+    provinces: [
+      AUS-2650, AUS-2651, "ATC+00?", IOA-1928, IOA-2652
+    ]
+  - key: australia_east
+    name: Eastern Australia
+    region: australasia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Great Dividing Range over the coastal plain and the Murray basin; no source cited"
+    sites: [sydney, melbourne, brisbane]
+    provinces: [
+      AUS-2653, AUS-2654, AUS-2655, AUS-2656, AUS-2657, AUS-2659, AUS-2660, AUS-1932, "AUS+00?",
+      "NFK+00?", "CSI+00?"
+    ]
+  - key: new_zealand
+    name: New Zealand
+    region: australasia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Southern Alps and the volcanic plateau of the North Island; no source cited"
+    sites: [wellington, auckland]
+    provinces: [
+      NZL-3334, NZL-3396, NZL-3397, NZL-3398, NZL-3399, NZL-3400, NZL-3401, NZL-3402, NZL-3403,
+      NZL-3404, NZL-3405, NZL-3406, NZL-3407, NZL-3408, NZL-5468, NZL-5469, NZL-5470, NZL-5471,
+      NZL-5472, NZL-5476, NZL-5477, NZL-5478, NZL-5479, NZL-5480
+    ]
+  - key: new_guinea
+    name: New Guinea and the Solomons
+    region: australasia
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the rain forest and the central ranges; no source cited"
+    sites: [port_moresby, rabaul, tulagi]
+    provinces: [
+      PNG-1238, PNG-1239, PNG-1240, PNG-1241, PNG-1242, PNG-1243, PNG-1244, PNG-1245, PNG-1246,
+      PNG-1247, PNG-1248, PNG-1249, PNG-1250, PNG-1251, PNG-1252, PNG-1253, PNG-1254, PNG-1255,
+      PNG-1256, PNG-1257, SLB-1260, SLB-1261, SLB-1262, SLB-1263, SLB-1264, SLB-1934, SLB-3507,
+      SLB-3508, SLB-3509, SLB-5130
+    ]
+  - key: japanese_mandate
+    name: The Japanese Mandate
+    region: australasia
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "coral atolls and high volcanic islands; no source cited"
+    sites: [saipan, koror]
+    provinces: [
+      PLW-5244, PLW-5245, PLW-5246, PLW-5247, PLW-5248, PLW-5249, PLW-5250, PLW-5251, PLW-5252,
+      PLW-5253, PLW-5254, PLW-5255, PLW-5256, PLW-5257, PLW-5258, PLW-5259, FSM-4941, FSM-4942,
+      FSM-4943, FSM-4944, MHL-4968, MHL-4969, MNP-4937, MNP-4938, MNP-4939, MNP-4940
+    ]
+  - key: south_pacific
+    name: The South Pacific Islands
+    region: australasia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "volcanic high islands and coral atolls; no source cited"
+    sites: [suva, pago_pago, papeete]
+    provinces: [
+      FJI-2617, FJI-2618, FJI-2619, FJI-2620, FJI-2658, TON-4945, TON-4946, TON-4947, TON-4948,
+      TON-4949, WSM-4984, WSM-4985, WSM-4986, WSM-4987, WSM-4988, WSM-4989, WSM-4990, WSM-4991,
+      WSM-4992, WSM-4993, WSM-4994, ASM-4998, ASM-4999, ASM-5000, ASM-5001, ASM-5002, "KIR+00?",
+      "KIR+99?", "TUV+00?", NRU-4970, NRU-4971, NRU-4972, NRU-4973, NRU-4974, NRU-4975, NRU-4976,
+      NRU-4977, NRU-4978, NRU-4979, NRU-4980, NRU-4981, NRU-4982, NRU-4983, COK-4950, COK-4951,
+      COK-4952, COK-4953, COK-4954, COK-4955, COK-4956, COK-4959, COK-4960, COK-4961, COK-4962,
+      NIU-5481, WLF-4995, WLF-4996, WLF-4997, PYF-4963, PYF-4964, PYF-4965, PYF-4966, PYF-4967,
+      "PCN+00?"
+    ]
+  - key: new_caledonia
+    name: New Caledonia and the New Hebrides
+    region: australasia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the New Caledonian range and the volcanic New Hebrides; no source cited"
+    sites: [noumea, espiritu_santo]
+    provinces: [
+      NCL-1258, NCL-1259, NCL-559, VUT-560, VUT-561, VUT-562, VUT-563, VUT-564, VUT-565
+    ]
+cuts: []

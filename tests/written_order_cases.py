@@ -616,11 +616,41 @@ NINETEEN_41: tuple[Case, ...] = (
         "Hide the Ninth War Area's armies.",
         hide("ninth_war_area"),
     ),
+    # President Ryti: the army order and the agent, both through the Commander-in-Chief
+    f41(
+        "ryti",
+        "finnish_army_order",
+        {"force": "finnish_army", "to": "helsinki"},
+        "The Finnish Army is to stand at Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "ryti",
+        "finnish_agent",
+        {"intel": "agent", "area": "leningrad_area"},
+        "Put an agent behind the lines at Leningrad.",
+        agent("leningrad_area"),
+    ),
+    # Marshal Mannerheim: the move no lock holds, and the concealment
+    f41(
+        "mannerheim",
+        "finnish_army_move",
+        {"force": "finnish_army", "to": "helsinki"},
+        "Move the Finnish Army to Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "mannerheim",
+        "finnish_army_conceal",
+        {"intel": "conceal", "piece": "finnish_army", "concealed": "yes"},
+        "Hide the Finnish Army.",
+        hide("finnish_army"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
 each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
-Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two and General Xue's two where no
-lock holds them."""
+Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two, General Xue's two and
+Marshal Mannerheim's two where no lock holds them, and President Ryti's two."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------

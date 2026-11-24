@@ -1,0 +1,81 @@
+# Public dossier text for the civil-war-1862 world: read-only, served to every player.
+# Each person's source names the key of a source in worlds/civil-war-1862.yaml; the post
+# each held on 1 September 1862 is all that is said of them. Portraits stay null until
+# their licence is cleared.
+world: civil-war-1862
+setting:
+  situation: September 1862. The Confederate army has just beaten the Union army at Second Manassas,
+    and a second Confederate army is marching north into Kentucky. Britain and France are weighing
+    whether to recognise the Confederacy.
+  sides:
+  - The United States, holding the North, the border states and the West
+  - The Confederate States, eleven states that left the Union in 1860 and 1861
+  facts:
+  - Britain and France proclaimed neutrality in 1861 and recognised the Confederacy as a belligerent.
+  - The Union Navy blockades the Confederate coast.
+  dates:
+  - 'on': 1862-08-30
+    what: The Second Battle of Manassas ends in a Confederate victory.
+  - 'on': 1862-08-28
+    what: Bragg's army leaves Chattanooga for Kentucky.
+people:
+  lincoln:
+    fact: President of the United States since 4 March 1861.
+    source: mcpherson_1988
+  hamlin:
+    fact: Vice President of the United States.
+    source: mcpherson_1988
+  seward:
+    fact: Secretary of State.
+    source: mcpherson_1988
+  chase:
+    fact: Secretary of the Treasury.
+    source: mcpherson_1988
+  stanton:
+    fact: Secretary of War since January 1862.
+    source: mcpherson_1988
+  welles:
+    fact: Secretary of the Navy.
+    source: mcpherson_1988
+  halleck:
+    fact: General-in-Chief of the Union armies since July 1862.
+    source: mcpherson_1988
+  mcclellan:
+    fact: Commander of the Army of the Potomac.
+    source: mcpherson_1988
+  buell:
+    fact: Commander of the Army of the Ohio.
+    source: mcpherson_1988
+  farragut:
+    fact: Commander of the West Gulf Blockading Squadron.
+    source: ors_navies
+  du_pont:
+    fact: Commander of the South Atlantic Blockading Squadron.
+    source: ors_navies
+  davis:
+    fact: President of the Confederate States.
+    source: mcpherson_1988
+  stephens:
+    fact: Vice President of the Confederate States.
+    source: mcpherson_1988
+  benjamin:
+    fact: Confederate Secretary of State since March 1862.
+    source: mcpherson_1988
+  randolph:
+    fact: Confederate Secretary of War since March 1862.
+    source: mcpherson_1988
+  mallory:
+    fact: Confederate Secretary of the Navy.
+    source: mcpherson_1988
+  memminger:
+    fact: Confederate Secretary of the Treasury.
+    source: mcpherson_1988
+  lee:
+    fact: Commander of the Army of Northern Virginia since June 1862.
+    source: mcpherson_1988
+  bragg:
+    fact: Commander of the Confederate army that marched from Chattanooga into Kentucky.
+    source: mcpherson_1988
+  kirby_smith:
+    fact: Commander of the Confederate column that took Lexington, Kentucky.
+    source: mcpherson_1988

@@ -566,10 +566,11 @@ NEW = {
     "afrika_korps": ("germany", "army", "bardia", "cyrenaica"),
     "ninth_war_area": ("china", "army", "changsha", "hunan"),
     "eleventh_army": ("japan", "army", "wuhan", "wuhan_area"),
+    "finnish_army": ("finland_state", "army", "mikkeli", "finland"),
 }
 
 
-def test_the_seven_new_forces(start: dict[str, Any], world: dict[str, Any]) -> None:
+def test_the_eight_new_forces(start: dict[str, Any], world: dict[str, Any]) -> None:
     features = {f.key: f for f in map(FeatureDecl.model_validate, start["features"])}
     assert set(features) == set(NEW)
     taken = {str(f["key"]) for f in world["features"]}

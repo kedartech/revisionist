@@ -304,6 +304,13 @@ def file_one(
             realism_tick.make_offer(
                 store, campaign_id, seat, args["bloc"], args["measure"], args["price"]
             )
+        elif action == "send-anyway":
+            realism_tick.send_anyway(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "answer" and "verdict" in args:  # an incident (DFR)
+            done = agenda_api.answer_incident(
+                store, campaign_id, seat, args["item"], args["verdict"]
+            )
+            return done["reply"] if done["refused"] else None
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

@@ -271,3 +271,26 @@ above:
 4. **A holder that is a person or a faction** (part 3): parked. Today a territory's holder must
    be a polity: the compiler refuses any other kind of entity
    (`src/revisionist/core/world_compile.py`, the check of each territory's holder).
+
+## The second scenario's filling, written in
+
+The second scenario's world, a civil war joined a year and more before its start date, was
+filled from the rows above with no rule change. What it could not say with the keys that exist:
+
+1. **Occupation inside a territory.** One side's armies held cities and districts inside
+   territories the other side held. A territory has one holder (part 2), so each keeps its holder
+   of the start date and the occupying forces are left out.
+2. **A territory that joins the lands of several holders.** A coarse map territory far from the
+   fighting can cover several nations of the start date. It stands with no holder; a holder per
+   part of a territory is not a row.
+3. **Forces raised by the states.** Part 6, "who raised each force", is parked: every force is
+   the centre's.
+4. **A nation that broke in two.** Part 3, "what the nation may break into", is parked: the
+   world states the two nations as they stood on the start date, the break already made.
+5. **Ports on a coarse coastline.** A port at its true coordinates can fall in the sea or river
+   zone of a coarse map. The world moves it inland until it lies in its territory and says so in
+   a comment; no row says how far a place may be moved.
+
+The three lines the paper test said this world cannot stress (armies paid by their commander, a
+world with no press, a seat that moves with a person) are absent from it on purpose: the check
+prints each as absent.

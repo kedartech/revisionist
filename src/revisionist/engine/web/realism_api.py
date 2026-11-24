@@ -1728,6 +1728,10 @@ class HeldLine(TypedDict):
     piece: str | None
     """The map key of the seat's own piece the held form order moves, as the seat's map
     keys that piece; None for a written order or a form that moves no piece."""
+    price: NotRequired[str]
+    """With ``defiance`` on, for an order its seat may send anyway (the ``send-anyway``
+    action), the price in plain words: the incident, who will be asked to back or disown
+    it, and that he may be relieved. Absent otherwise (DFR)."""
 
 
 class AskForm(TypedDict):
@@ -1753,12 +1757,50 @@ class AskLine(TypedDict):
     """The seat's own forms that would allow it; empty where it has none."""
 
 
+class WaitLine(TypedDict):
+    """One line of the aide's note of what waits (ABN): something the seat left alone
+    while away, read from its own view at the moment it reads the note."""
+
+    kind: str
+    """``held`` (its own held order not asked for), ``bloc`` (a bloc that would take an
+    offer on a measure on its way), ``aim`` (its own aim still open), or a due kind's
+    name (``agenda_api.DUE_KINDS``)."""
+    what: str
+    """The line in plain words."""
+    who: str | None
+    """Who it is from or who can allow it, by name; None where no one is named."""
+    day: str
+    """Its day: the world day it was held, the day it falls due, or a phrase such as
+    "at this wake's close"."""
+
+
 class LocksBlock(TypedDict):
     """The seat's locks, with ``locks`` on: its own held orders and the asks put
     before it. Absent with the rule off."""
 
     held: list[HeldLine]
     asks: list[AskLine]
+    incidents: NotRequired[list["IncidentLine"]]
+    """With ``defiance`` on, each incident the seat is party to, as commander or as the
+    superior who answers it (DFR). Absent with the rule off."""
+
+
+class IncidentLine(TypedDict):
+    """An incident in the seat's list (DFR), read from its own view: before the superior,
+    a matter with three answers until it is answered; to the commander, what he is told
+    of it and then its answer."""
+
+    id: str
+    """The incident's id, which the ``answer`` action takes as ``item``."""
+    words: str
+    """The incident in plain words, from the seat's own view."""
+    due: str
+    """The world day it is to be answered by; the superior's card answers after it."""
+    verdict: str | None
+    """``backed``, ``disowned`` or ``dismissed`` once answered; None while open."""
+    answers: list[str]
+    """The answers the seat may file now: the three for the superior while it is open;
+    empty otherwise."""
 
 
 class LockCheck(TypedDict):
@@ -1773,6 +1815,9 @@ class LockCheck(TypedDict):
     reason: str
     """For ``locked`` and ``question``, what the seat would be told; for ``beyond``,
     today's refusal."""
+    price: NotRequired[str]
+    """With ``defiance`` on, for a ``locked`` order its seat could then send anyway, the
+    price in plain words, as the held line will give it (DFR). Absent otherwise."""
 
 
 class PostName(TypedDict):
@@ -2496,6 +2541,7 @@ __all__ = [
     "Threat",
     "Through",
     "TimelinePoint",
+    "WaitLine",
     "WakeHeader",
     "WarNation",
 ]

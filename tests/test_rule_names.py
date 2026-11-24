@@ -76,6 +76,22 @@ SHIPPED_ON: dict[str, frozenset[str]] = {
             "defiance",
         }
     ),
+    "civil-war-1862": frozenset(
+        {
+            "laws",
+            "ask_answers",
+            "deciders",
+            "own_aim",
+            "offers",
+            "classes",
+            "losses",
+            "places",
+            "posts",
+            "office",
+            "elections",
+            "defiance",
+        }
+    ),
 }
 """The names a shipped world's own lane has switched on, by world; each one whose reader
 has been built."""

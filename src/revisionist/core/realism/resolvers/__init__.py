@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import QuantityId
 from revisionist.core.ontology import Fact, Relationship
-from revisionist.core.realism import groups
+from revisionist.core.realism import groups, laws
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange, ResolverKey
@@ -48,12 +48,14 @@ Change = (
     | ev.CodebreakingSet
     | ev.BattleDecided
     | ev.GroupMoved
+    | ev.GroupProposed
 )
 """A quantity's new value, a feature as it now stands, a war declared, a public news
 event, a fact asserted, a relationship as it now stands, a nation's pools as they now
 stand, a paper issued, part of a yield moved, a matter put on a seat's agenda, a trade
 line cut or reopened, a nation's agent or codebreaking level set, a battle decision
-taken by an order's posture, or a group at home moved by a measure passed."""
+taken by an order's posture, a group at home moved by a measure passed, or a form's
+theme proposed to the day's batch."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -65,7 +67,8 @@ def _votes(state: State, order: Order) -> tuple[Change, ...]:
     historical bill of the same title, else the novel reference. With ``groups`` on, the
     bill or measure is tallied by the issuer's nation's blocs under its own key
     (``votes.by_groups``); what it does once passed is unchanged, and it moves the groups
-    that name a measure passed."""
+    that name a measure passed. With ``laws`` on as well, what it does is the declared law's
+    whose flag it set, and no code table is read."""
     measure = order.measure
     if groups.on(state):
         bill = order.params.get("bill")
@@ -76,9 +79,15 @@ def _votes(state: State, order: Order) -> tuple[Change, ...]:
             else votes.resolve(state, order)
         )
         flag = _flagged(changes, qid(state, f"{key}_passed"))
+        if laws.on(state):
+            return (
+                *changes,
+                *votes.passed_by_groups(state, order, key, measure),
+                *votes.law_effects(state, None, flag),
+            )
         law = measure if measure is not None else votes.HISTORICAL.get(key)
-        laws = votes.law_effects(state, law, flag) if law is not None else ()
-        return (*changes, *votes.passed_by_groups(state, order, key, measure), *laws)
+        effects = votes.law_effects(state, law, flag) if law is not None else ()
+        return (*changes, *votes.passed_by_groups(state, order, key, measure), *effects)
     if measure is None:
         changes = votes.resolve(state, order)
         known = votes.HISTORICAL.get(str(order.params.get("bill")))
@@ -207,7 +216,8 @@ def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]
             | ev.AgentSet
             | ev.CodebreakingSet
             | ev.BattleDecided
-            | ev.GroupMoved,
+            | ev.GroupMoved
+            | ev.GroupProposed,
         ):
             out.append(c)
         else:

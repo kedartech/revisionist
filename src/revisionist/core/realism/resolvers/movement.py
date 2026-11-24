@@ -312,10 +312,12 @@ def _pool_by_id(state: State, pool: QuantityId, delta: int, on: date) -> Quantit
 def _piece_order(
     state: State, order: Order, piece: Feature
 ) -> tuple[tuple[Feature, ...], QuantityChange | None]:
-    """An order to a piece with ``territories`` on: re-planned from the area it is in."""
+    """An order to a piece with ``territories`` on: re-planned from the area it is in. One
+    that names a strength sends that much of the piece on the course as a detachment, and
+    the rest stays (``detachments.split``)."""
     cid = state.campaign_id
     to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
-    if piece.side is None or not in_play(piece) or STRENGTH in order.params:
+    if piece.side is None or not in_play(piece):
         return (), None
     if to is None or to.kind is not EntityKind.LOCATION:
         return (), None
@@ -327,6 +329,10 @@ def _piece_order(
     set_out = max(rs.settled_on(order), piece.as_of)
     dest = course.path[-1] if course.path else piece.places[0]
     sent = _set_on(piece, course, dest, set_out)
+    if STRENGTH in order.params:
+        if territory.lifted(state, sent):
+            return (), None
+        return split(state, piece, str(order.params.get(FORCE)), order.params[STRENGTH], sent), None
     if territory.lifted(state, sent) and not territory.lifted(state, piece):
         drawn = _lift_change(state, piece, sent, set_out)
         return ((sent,), drawn) if drawn is not None else ((), None)

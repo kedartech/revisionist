@@ -244,7 +244,11 @@ def check(world: WorldFile, rows: Iterable[Row]) -> list[Line]:
             gaps = sum(seen.values())
             status = "gap" if gaps else "answered"
             lines.append(Line(row, status, found=len(seen), gaps=gaps))
-        elif row.needed is not None and (row.needed == () or on.intersection(row.needed)):
+        elif (
+            row.needed is not None
+            and row.standing == "on main"
+            and (row.needed == () or on.intersection(row.needed))
+        ):
             lines.append(Line(row, "required"))
         else:
             lines.append(Line(row, "absent"))

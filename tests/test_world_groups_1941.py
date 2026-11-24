@@ -9,6 +9,11 @@ bloc at its baseline each bill's tally is the recorded vote. The themes the nati
 already names (the address form's choices, the standing orders' statements) each move
 groups, every group lists what moves it, and the American public starts at the Gallup figure
 the world cites.
+
+With ``offers`` on, each bloc of the two chambers and of the Commons carries two to
+four prices, each sourced or ``gap: true`` (a comment on the price's ``- key:`` line), each a
+condition holding a check an act changes, and sized like a written statement. The scripted
+run makes no offer, so its digest is the baseline with ``offers`` on and with it taken out.
 """
 
 import re
@@ -18,11 +23,17 @@ from typing import Any
 import pytest
 import yaml
 
+from revisionist.core.goals import AtWar
 from revisionist.core.ids import EntityId, OrderId, derived_id
-from revisionist.core.realism import groups
+from revisionist.core.realism import groups, offers
 from revisionist.core.realism.resolvers import opinion, votes
 from revisionist.core.state import Rule
+from revisionist.core.world_compile import WorldError, compile_world
+from revisionist.engine import campaign as cmp
+from tests import test_world_locks_1941 as locks_1941
 from tests.test_realism_resolvers import Rig
+from tests.test_rule_names import BASELINE_1941
+from tests.test_territory_model import CAMPAIGN
 
 WORLD = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
 SEVEN = ("usa", "uk", "ussr", "germany", "japan", "italy", "china")
@@ -95,7 +106,7 @@ def test_each_of_the_seven_nations_declares_its_groups_once() -> None:
 
 def test_every_group_carries_a_source_or_a_gap() -> None:
     sources = {s["key"] for s in raw()["sources"]}
-    entries = [ln for ln in section("groups") if re.match(r"\s+- key: ", ln)]
+    entries = [ln for ln in section("groups") if re.match(r"      - key: ", ln)]
     assert len(entries) == sum(len(d["groups"]) for d in declared().values())
     assert [ln.strip() for ln in entries if not cited(ln, sources)] == []
 
@@ -233,3 +244,99 @@ def test_a_statement_names_its_own_theme_not_a_shorter_one(rig: Rig) -> None:
     uk = EntityId(rig.ids["uk"])
     found = groups.named_theme(rig.state, uk, "a warning to Japan over Malaya")
     assert found is not None and "malaya" in found.key
+
+
+# --- each bloc's price list ----------------------------------------------------------------
+
+
+def chamber_blocs() -> dict[tuple[str, str], dict[str, Any]]:
+    """Each bloc of a chamber, by its nation and key, as written."""
+    return {
+        (nation, g["key"]): g
+        for nation, d in declared().items()
+        for g in d["groups"]
+        if "chamber" in g
+    }
+
+
+def test_the_world_switches_on_offers(rig: Rig) -> None:
+    assert "offers" in raw()["rules"]
+    assert Rule.OFFERS in rig.state.rules
+
+
+def test_the_blocs_with_prices_are_the_two_chambers_and_the_commons() -> None:
+    blocs = chamber_blocs()
+    assert {k for k in blocs if k[0] == "usa"} == {("usa", k) for k in BLOCS}
+    assert {k for k in blocs if k[0] == "uk"} == {
+        ("uk", k) for k in ("commons_government", "commons_labour", "commons_others")
+    }
+    for nation, d in declared().items():
+        for g in d["groups"]:
+            assert ("chamber" in g) == bool(g.get("prices")), (nation, g["key"])
+
+
+def test_each_bloc_has_two_to_four_prices() -> None:
+    for key, g in chamber_blocs().items():
+        assert 2 <= len(g["prices"]) <= 4, key
+
+
+def test_every_price_carries_a_source_or_a_gap() -> None:
+    sources = {s["key"] for s in raw()["sources"]}
+    entries = [ln for ln in section("groups") if re.match(r"          - key: ", ln)]
+    assert len(entries) == sum(len(g["prices"]) for g in chamber_blocs().values())
+    assert [ln.strip() for ln in entries if not cited(ln, sources)] == []
+
+
+def test_every_price_is_sized_like_a_written_statement() -> None:
+    """Points of at most 3, like a written statement's cap of 3 a day; a loss larger than the
+    points and no larger than twice the kept promise's gain plus the points."""
+    for key, g in chamber_blocs().items():
+        for p in g["prices"]:
+            at = (*key, p["key"])
+            assert 1 <= p["points"] <= 3, at
+            assert p["points"] < p["loss"] <= p["points"] + 2 * offers.KEPT_POINTS, at
+            assert 7 <= p["days"] <= 60, at
+
+
+def test_every_price_is_compiled_into_its_bloc_with_a_check_an_act_changes(rig: Rig) -> None:
+    for (nation, key), g in chamber_blocs().items():
+        bloc = groups.group(rig.state, EntityId(rig.ids[nation]), key)
+        assert bloc is not None
+        assert [p.key for p in bloc.prices] == [p["key"] for p in g["prices"]], key
+        assert all(offers.acted_on(p) for p in bloc.prices), key
+
+
+def test_a_price_whose_condition_no_act_changes_is_refused() -> None:
+    world = locks_1941._world()
+    us = next(i for i, d in enumerate(world.groups) if d.nation == "usa")
+    decl = world.groups[us]
+    bloc = next(i for i, g in enumerate(decl.groups) if g.prices)
+    unacted = AtWar(a=EntityId("usa"), b=EntityId("germany"), war=False)
+    price = decl.groups[bloc].prices[0].model_copy(update={"condition": unacted})
+    changed = decl.groups[bloc].model_copy(
+        update={"prices": (price, *decl.groups[bloc].prices[1:])}
+    )
+    blocs = (*decl.groups[:bloc], changed, *decl.groups[bloc + 1 :])
+    decls = list(world.groups)
+    decls[us] = decl.model_copy(update={"groups": blocs})
+    with pytest.raises(WorldError) as caught:
+        compile_world(world.model_copy(update={"groups": tuple(decls)}), CAMPAIGN, cmp.versions())
+    assert any(
+        f"price {price.key}: its condition holds nothing an act changes" in p
+        for p in caught.value.problems
+    )
+
+
+def test_the_scripted_run_with_offers_taken_out_is_the_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    world = locks_1941._world()
+    assert Rule.OFFERS in world.rules
+    out = world.model_copy(update={"rules": tuple(r for r in world.rules if r != Rule.OFFERS)})
+    assert locks_1941.run_digest(out, monkeypatch) == BASELINE_1941
+
+
+def test_the_scripted_run_with_offers_on_makes_no_offer_and_is_the_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert locks_1941.run_digest(locks_1941._world(), monkeypatch) == BASELINE_1941

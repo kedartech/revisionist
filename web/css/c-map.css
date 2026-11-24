@@ -125,6 +125,17 @@
 .rl-tmap .rl-filter { min-height: 44px; min-width: 44px; }
 @media (max-width: 767px) {
   .rl-tm-svg { height: 55vh; min-height: 50vh; }
+  /* the map-first room's map (MFS): the regions and the layers fold into one control each, and
+     Full screen is its mark alone, its name still read */
+  .rl-tm-overlay .rl-tm-wide { display: none; }
+  .rl-tm-overlay .rl-tm-fold { display: inline-block; }
+  .rl-tm-overlay .rl-tm-tools-end .rl-filters > [aria-pressed="true"] { display: none; }
+  /* the board switch shares the first row with the layers, and the regions the second with Threats */
+  .rl-tm-overlay .rl-board-switch button { min-width: 44px; padding: 0 var(--space-2); }
+  .rl-tm-overlay .rl-tm-fold-region { max-width: 8rem; }
+  .rl-tm-stage { padding-left: var(--space-2); padding-right: calc(var(--tm-side) + 44px + var(--space-3)); }
+  .rl-tm-stage > :not(.rl-map-figure):not(.rl-tm-corner) { width: 100%; }
+  .rl-tm-full span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 
 /* pieces that slide and stack (SLD): strength as pips, posture as a word, stacks closed or fanned */
@@ -142,6 +153,37 @@
 .rl-tm-ghost .rl-mk-shape { fill: var(--surface); stroke-dasharray: 3 2; }
 .rl-tm-path { fill: none; }
 @media (prefers-reduced-motion: reduce) { .rl-tm-slide { animation: none; transition: none; } }
+
+/* the map full screen, with its controls on the map (MFS): in the map-first room the map's
+   controls sit over its corners, a sheet or the chip floats over its foot, and the room can give
+   it the whole viewport. A corner lets a press through to the map between its controls. */
+.rl-tmap { --tm-foot: 0px; --tm-side: 0px; --tm-lift: 0px; }
+/* the stage takes the room it is given and never grows with what floats in it (contain) */
+.rl-tm-stage { position: relative; flex: 1; min-height: 320px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: var(--space-2); padding: 112px calc(var(--tm-side) + 44px + var(--space-4)) calc(var(--tm-foot) + var(--space-3)); box-sizing: border-box; contain: size; overflow: hidden; }
+.rl-tm-stage > .rl-map-figure { position: absolute; inset: 0; border: 0; border-radius: 0; }
+.rl-tm-stage .rl-tm-svg { height: 100%; min-height: 0; max-height: none; }
+.rl-tm-stage > :not(.rl-map-figure):not(.rl-tm-corner) { position: relative; z-index: 2; box-sizing: border-box; width: min(100%, 560px); flex: 0 0 auto; max-height: 45%; overflow-y: auto; margin: 0; box-shadow: 0 8px 30px var(--backdrop); }
+.rl-tm-stage > .rl-pup:empty { display: none; }
+.rl-tm-stage .rl-pup-chip { margin: 0; }
+.rl-tm-stage > .rl-area-sheet, .rl-tm-stage > .rl-rp-sheet { padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--radius); }
+.rl-tm-corner { position: absolute; z-index: 3; display: flex; gap: var(--space-2); pointer-events: none; }
+.rl-tm-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); pointer-events: none; }
+.rl-tm-corner > :not(.rl-tm-tools), .rl-tm-tools > * { pointer-events: auto; }
+.rl-tm-top { top: var(--space-2); left: var(--space-2); right: calc(var(--tm-side) + var(--space-2)); justify-content: space-between; align-items: flex-start; }
+.rl-tm-tools-start { flex: 1 1 auto; min-width: 0; }
+.rl-tm-tools-end { flex: none; justify-content: flex-end; }
+.rl-tm-zoomcorner { right: calc(var(--tm-side) + var(--space-2)); bottom: calc(var(--tm-foot) + var(--tm-lift) + var(--space-2)); }
+.rl-tm-zoomcorner .rl-tm-zoom { flex-direction: column; }
+.rl-tm-overlay .rl-filters { flex-wrap: wrap; }
+.rl-tm-overlay .rl-filter, .rl-tm-fold { background: var(--surface); box-shadow: 0 2px 10px var(--backdrop); }
+.rl-tm-overlay .rl-filter[aria-pressed="true"] { background: var(--surface-3); }
+.rl-tm-fold { display: none; min-height: 44px; max-width: 7rem; padding: 0 var(--space-2); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.3 var(--font-chrome); }
+.rl-tm-fold-region { max-width: 12rem; }
+.rl-tm-full { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.rl-tm-full-glyph path { fill: none; stroke: currentColor; stroke-width: 1.8px; }
+.rl-tm-full .rl-tm-full-out { display: none; }
+.rl-full .rl-tm-full .rl-tm-full-in { display: none; }
+.rl-full .rl-tm-full .rl-tm-full-out { display: inline; }
 
 /* holders and the front line (FRL): each standing is a tint and a pattern, a front is a wide stroke; the words say it too */
 .rl-hold-own { --hold: var(--info); }

@@ -30,7 +30,16 @@ from revisionist.core.aim_patterns import OwnAim
 from revisionist.core.goals import sees_goal
 from revisionist.core.ids import AssetId, DocumentId, EntityId, ScheduledEventId, SeatId
 from revisionist.core.ontology import Asset, Controller, ScheduledEvent, ScheduleSource, Seat
-from revisionist.core.realism import agreement, conference, detect, economy, groups, offers
+from revisionist.core.realism import (
+    agreement,
+    answering,
+    conference,
+    defiance,
+    detect,
+    economy,
+    groups,
+    offers,
+)
 from revisionist.core.realism.card import CardFace, SeatCard
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.war import polity_of
@@ -113,6 +122,7 @@ def project(state: State, seat: SeatId) -> View:
         goals={k: g for k, g in state.goals.items() if sees_goal(state, g, seat)},
         mandates=_visible(state.mandates, seat),
         wars=dict(state.wars),
+        ended_wars=state.ended_wars,
         map=state.map,
         kinds=state.kinds,
         locks=state.locks,
@@ -151,7 +161,12 @@ def project(state: State, seat: SeatId) -> View:
         },
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
         held={k: h for k, h in state.held.items() if h.issuer == seat},
-        asked={k: a for k, a in state.asked.items() if seat in (a.asker, a.seat, *a.seats)},
+        asked={
+            k: answering.as_asked(state, a, seat)
+            for k, a in state.asked.items()
+            if seat in (a.asker, a.seat, *a.seats)
+        },
+        incidents=defiance.as_seen(state.incidents, seat),
         style=state.styles.get(seat),
         reports={
             **detect.seen_by(state, polity_of(state, me.embodies)),

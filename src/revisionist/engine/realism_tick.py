@@ -54,13 +54,17 @@ from revisionist.core.realism import (
     battle,
     conference,
     contests,
+    defiance,
     detect,
     economy,
+    elections,
     groups,
     holders,
+    ladder,
     locks,
     mandates,
     offers,
+    office,
     opponents,
     posts,
     process,
@@ -105,7 +109,7 @@ from revisionist.core.realism.route import NOBODY, due_executions, held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
-from revisionist.core.state import State
+from revisionist.core.state import QuestionCause, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
@@ -402,6 +406,14 @@ def _feed_documents(em: Emitter, today: date) -> list[Event]:
 
 
 def _scope_of(state: State, payload: ev.Payload) -> Scope:
+    if isinstance(payload, ev.PostMoveOrdered):
+        return ladder.scope_of(state, payload.move.seat)  # LDR: the person moved's seat
+    if isinstance(payload, ev.PostMoveSettled):
+        return ladder.scope_of(state, payload.seat)
+    if isinstance(payload, ev.OfficeQuestionOpened):
+        return office.scope_of(state, payload.question)  # OFQ: the holder's nation's seats
+    if isinstance(payload, ev.OfficeChoiceFiled):
+        return office.choice_scope(payload.seat_id)  # OFQ: sealed to the seat that chose
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
     if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
@@ -420,6 +432,15 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _asked_scope(payload.asked)
     if isinstance(payload, ev.AskAnswered):
         return private_to(payload.asker)
+    if isinstance(payload, ev.OrderDefied):
+        return private_to(payload.defied.issuer)
+    if isinstance(payload, ev.IncidentOpened | ev.IncidentAnswered):
+        seats = payload.incident.seats if isinstance(payload, ev.IncidentOpened) else payload.seats
+        return (
+            Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(seats))
+            if seats
+            else (ladder.scope_of(state, None))
+        )
     if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
         seat = actors.seat_of(state, payload.figure)
         return private_to(seat) if seat is not None else PUBLIC
@@ -436,8 +457,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.OfferSettled):
         settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
         return _nation_scope(state, settled.nation)
-    if isinstance(payload, ev.GroupProposed):
-        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+    if isinstance(payload, ev.GroupProposed | ev.LossesHeld):
+        # Engine only: the writing in waiting, the battle losses held (LSS).
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.ContestMoved | ev.ContestDecided):
@@ -584,7 +605,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
-    add(actors.unseated(state, answering.answerers(state)))
+    add(actors.unseated(state, [*answering.answerers(state), *answering.askable(state)]))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
@@ -603,10 +624,24 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        for move_id in ladder.due(state):  # LDR: changes ordered a wake ago land
+            add(ladder.land(state, move_id, day))
+        for question_id in office.due(state, day):  # OFQ: a sitting on its day decides
+            add(office.sit(state, question_id, day))
+        add(office.arising(state, day))  # OFQ: an order's or a term's question opens
+        add(elections.walk(state, day))  # ELE: a post's election told, put, and chambers redrawn
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
+        for incident in defiance.due(state, day):  # DFY: an incident unanswered, by the card
+            found = state.incidents[incident]
+            add(
+                defiance.answer(
+                    state, found, defiance.card_verdict(state, found), day, by_card=True
+                )
+            )
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
+        add(defiance.arising(state, steps, day))  # DFY: a step from above refused
         settled = history.settle(state, day)
         add(settled)
         add(history.news(state, settled, day))
@@ -614,7 +649,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(drawn)
         add(history.news(state, drawn, day))
         add(apply.developed(state, drawn, day))
-        add(due_executions(state, day))
+        executed = due_executions(state, day)
+        add(executed)
+        add(defiance.arising(state, executed, day))  # DFY: an order sent anyway, carried out
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))
         add(agreement.offers_due(state, day))  # AGR: before a part's effect could land
@@ -643,8 +680,11 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         today = [e.payload for e in out[day_mark:]]
         add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.places(state, day_from, today, day))  # PLW: weighted places changed hands
+        add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        add(office.turning(state, day))  # TUR: a base under its line warns, then asks
         add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
         read = [e.payload for e in out[walk_mark:]]
         add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON
@@ -671,14 +711,15 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
         while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
             add(matter)
-        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
         while answer := answering.answer_ask(state, day):
             add(answer)
+        add(agreement.peace_due(state, day))  # PEA: a held peace, allowed or declined
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
     close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
     closing = [e.payload for e in out[close_mark:]]
     add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
+    add(groups.places(state, close_from, closing, until))  # PLW: a capital that fell
     add(contests.moves(state, walk_from, [e.payload for e in out[walk_mark:]], until, until))
     return out
 
@@ -690,6 +731,8 @@ def _unlocked(state: State, day: date) -> list[ev.Payload]:
     An ask plays no part."""
     out: list[ev.Payload] = []
     for h in sorted(state.held.values(), key=lambda h: h.order_id):
+        if agreement.is_peace_hold(state, h):
+            continue  # PEA: a held acceptance of peace ends with its offer, never lands
         if not locks.open_now(state, h) or _locked_still(state, h, day):
             continue
         landed_id = OrderId(derived_id(state.campaign_id, "landed", h.order_id))
@@ -772,6 +815,70 @@ def ask_order(
     return asked
 
 
+def send_anyway(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
+) -> ev.OrderDefied:
+    """The seat sends its own held order anyway, once (DFY): when every act it does is on
+    its post's list, it is re-checked against today's refusals and lands as an ordinary
+    order dated today, marked defiant. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    h = state.held.get(order_id) if locks.on(state) else None
+    if today is None or h is None or h.issuer != seat or seat not in state.seats:
+        raise ValueError(locks.NOT_HELD)
+    if order_id in state.aide_orders:
+        raise ValueError(defiance.BY_AIDE)
+    acts = defiance.may_send(state, seat, h)
+    landed_id = OrderId(derived_id(state.campaign_id, "defied", order_id))
+    landing, refusal = _relanded(state, h, landed_id, today)
+    if landing is None:
+        raise ValueError(refusal[:300] or NOBODY)
+    sent = ev.OrderDefied(
+        defied=defiance.Defied(
+            order_id=order_id,
+            landed=landed_id,
+            issuer=seat,
+            acts=acts,
+            on=today,
+            superior=defiance.superior(h),
+            abroad=defiance.abroad(state, seat, h.asks),
+            kept=defiance.kept(state, h.asks),
+        )
+    )
+    end = ev.HeldOrderEnded(
+        order_id=order_id, issuer=seat, on=today, end=locks.HeldEnd.LANDED, by=landed_id
+    )
+    _append_all(store, state, [(p, _scope_of(state, p)) for p in (sent, landing, end)], seat)
+    return sent
+
+
+def answer_incident(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, incident_id: str, verdict: str
+) -> ev.IncidentAnswered:
+    """The superior's seat answers an open incident before its due day passes (DFY):
+    backed, disowned or dismissed. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    found = state.incidents.get(incident_id) if defiance.on(state) else None
+    if (
+        today is None
+        or found is None
+        or found.verdict is not None
+        or seat not in state.seats
+        or state.seats[seat].embodies != found.superior
+    ):
+        raise ValueError(defiance.NOT_YOURS)
+    try:
+        chosen = defiance.Verdict(verdict)
+    except ValueError:
+        raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
+    landed = defiance.answer(state, found, chosen, max(today, found.opened), by_card=False)
+    _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    first = landed[0]
+    assert isinstance(first, ev.IncidentAnswered)
+    return first
+
+
 def choose_matter(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId, accept: bool
 ) -> None:
@@ -785,6 +892,52 @@ def choose_matter(
     locks.may_choose(state, seat, order_id)
     chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
     _append_all(store, state, [(chosen, private_to(seat))], seat)
+
+
+def choose_office(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, question_id: str, remove: bool
+) -> None:
+    """The seat's sealed choice on an office question before its sitting (OFQ): True to
+    remove the holder, dated today; a later choice replaces it. Raises ``ValueError`` with
+    the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(office.NOT_OPEN)
+    chosen = office.choose(state, seat, question_id, remove, today)
+    _append_all(store, state, [(chosen, office.choice_scope(seat))], seat)
+
+
+def open_office_question(
+    store: EventStore, campaign_id: CampaignId, post: AssetId, cause: QuestionCause
+) -> ev.OfficeQuestionOpened:
+    """Open an office question on ``post`` today for ``cause`` (OFQ), told to every seat of
+    its holder's nation, in one batch checked by the fold first. Raises ``ValueError``
+    with the reason one may not open."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(office.NOT_ON)
+    made = office.open_question(state, post, cause, today)
+    versions = cmp.versions()
+    batch = [
+        Event(
+            event_id=EventId(new_id()),
+            campaign_id=campaign_id,
+            seq=state.last_seq + i,
+            tick=state.tick,
+            actor=None,
+            scope=_scope_of(state, p),
+            payload=p,
+            versions=versions,
+        )
+        for i, p in enumerate(made, start=1)
+    ]
+    replay(batch, initial=state)
+    store.append_all(batch)
+    opened = made[0]
+    assert isinstance(opened, ev.OfficeQuestionOpened)
+    return opened
 
 
 def make_offer(

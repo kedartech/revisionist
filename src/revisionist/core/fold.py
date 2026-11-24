@@ -30,9 +30,10 @@ from revisionist.core.goals import (
     aim_rule,
     aims_on,
     goal_kind,
+    replacement_aims,
     season_winners,
 )
-from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
+from revisionist.core.ids import AssetId, CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -57,9 +58,11 @@ from revisionist.core.realism import (
     conference,
     detect,
     economy,
+    elections,
     groups,
     locks,
     offers,
+    office,
     posts,
     trade,
 )
@@ -101,8 +104,16 @@ from revisionist.core.realism.pipeline import (
     StepKind,
 )
 from revisionist.core.realism.territory import holder as territory_holder
-from revisionist.core.realism.war import at_war, polity_of
-from revisionist.core.state import Rule, State, Wake, controller_after, seat_of_person
+from revisionist.core.realism.war import WarEnd, at_war, polity_of
+from revisionist.core.state import (
+    Ladder,
+    QuestionCause,
+    Rule,
+    State,
+    Wake,
+    controller_after,
+    seat_of_person,
+)
 from revisionist.core.visibility import PUBLIC, Scope
 
 
@@ -139,10 +150,11 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
         raise FoldError("locks_declared: a row is named twice")
     for r in p.rows:
         posture = r.when.zone if isinstance(r.when, PostureNotSet) else None
-        for who in (r.decider.person, r.decider.nation, r.decider.head, r.order.zone, posture):
+        zone = r.order.zone if r.order is not None else None
+        for who in (r.decider.person, r.decider.nation, r.decider.head, zone, posture):
             if who is not None:
                 _need(state.entities, who, "entity")
-        if r.order.force is not None:
+        if r.order is not None and r.order.force is not None:
             _need(state.features, r.order.force, "feature")
     return state.model_copy(update={"locks": p.rows})
 
@@ -304,6 +316,51 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
 
 
+def _order_defied(state: State, p: ev.OrderDefied) -> State:
+    """A seat sends its own held order anyway, once, with ``defiance`` on (DFY). The order
+    it lands as and the held order's end follow it."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("order_defied needs the defiance rule")
+    d = p.defied
+    h = _need(state.held, d.order_id, "held order")
+    if h.issuer != d.issuer:
+        raise FoldError(f"held order {d.order_id} is not that seat's")
+    if d.landed in state.defied or d.landed in state.routed:
+        raise FoldError(f"order {d.landed} is sent already")
+    if d.on < h.filed:
+        raise FoldError(f"held order {d.order_id} is sent before it was held")
+    if d.order_id in state.aide_orders:
+        raise FoldError(f"held order {d.order_id} is the aide's: the aide never sends one anyway")
+    return state.model_copy(update={"defied": {**state.defied, d.landed: d}})
+
+
+def _incident_opened(state: State, p: ev.IncidentOpened) -> State:
+    """An incident opens, once per order, with ``defiance`` on (DFY)."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("incident_opened needs the defiance rule")
+    i = p.incident
+    if i.verdict is not None or i.answered is not None:
+        raise FoldError(f"incident {i.incident_id} opens answered")
+    if i.incident_id in state.incidents or any(
+        o.order_id == i.order_id for o in state.incidents.values()
+    ):
+        raise FoldError(f"order {i.order_id} has an incident already")
+    _need(state.entities, i.commander, "entity")
+    _need(state.entities, i.superior, "entity")
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: i}})
+
+
+def _incident_answered(state: State, p: ev.IncidentAnswered) -> State:
+    """The superior's answer to an open incident, once (DFY)."""
+    i = _need(state.incidents, p.incident_id, "incident")
+    if i.verdict is not None:
+        raise FoldError(f"incident {i.incident_id} is answered already")
+    if p.on < i.opened:
+        raise FoldError(f"incident {i.incident_id} is answered before it opened")
+    done = i.model_copy(update={"verdict": p.verdict, "answered": p.on, "by_card": p.by_card})
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: done}})
+
+
 def _ask_answered(state: State, p: ev.AskAnswered) -> State:
     """The card's answer to an ask, once, with ``ask_answers`` on, for a person no seat
     with a desk holds (AAK); or, with ``deciders`` on, a matter's answer on its due day
@@ -363,8 +420,88 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     for c in p.classes:
         _fresh(classes, c.kind, "class of happening")
         classes[c.kind] = c
-    g = state.groups.model_copy(update={"declared": found, "themes": themes, "classes": classes})
+    if p.places and not groups.places_on(state):
+        raise FoldError("groups_declared: places need the places rule")
+    weighed: set[tuple[EntityId, EntityId]] = set()
+    for place in p.places:
+        if (place.territory, place.nation) in weighed:
+            raise FoldError(f"groups_declared: {place.territory} weighed twice")
+        weighed.add((place.territory, place.nation))
+        _need(state.entities, place.territory, "entity")
+        keys = {g.key for g in found.get(place.nation, ())}
+        if not set(place.moves) <= keys:
+            raise FoldError(f"groups_declared: a place names a group {place.nation} lacks")
+    if p.elections and Rule.ELECTIONS not in state.rules:
+        raise FoldError("groups_declared: elections need the elections rule")
+    for election in p.elections:
+        chambers = {g.chamber for g in found.get(election.nation, ()) if g.seats}
+        if not set(election.chambers) <= chambers:
+            raise FoldError(f"groups_declared: an election names a chamber {election.nation} lacks")
+        if election.post is not None and Rule.OFFICE not in state.rules:
+            raise FoldError("groups_declared: an election names a post; that needs the office rule")
+    g = state.groups.model_copy(
+        update={
+            "declared": found,
+            "themes": themes,
+            "classes": classes,
+            "places": p.places,
+            "elections": p.elections,
+        }
+    )
     return state.model_copy(update={"groups": g})
+
+
+def _seats_redrawn(state: State, p: ev.SeatsRedrawn) -> State:
+    """An election redrew a chamber (ELE): every bloc of it named, the total kept, and each
+    row of a bloc's votes scaled by its new seats over its old."""
+    if not elections.on(state):
+        raise FoldError("seats_redrawn needs the groups and elections rules")
+    held = elections.blocs(state, p.polity, p.chamber)
+    if not held or set(p.seats) != {g.key for g in held}:
+        raise FoldError(f"seats_redrawn: {p.chamber} of {p.polity} has other blocs")
+    if sum(p.seats.values()) != sum(g.seats or 0 for g in held):
+        raise FoldError(f"seats_redrawn: {p.chamber} of {p.polity} changed its total")
+    redrawn = tuple(
+        groups.reseated(g, p.seats[g.key]) if g.key in p.seats and g.chamber == p.chamber else g
+        for g in groups.of(state, p.polity)
+    )
+    declared = {**state.groups.declared, p.polity: redrawn}
+    return state.model_copy(
+        update={"groups": state.groups.model_copy(update={"declared": declared})}
+    )
+
+
+def _piece_stepped(state: State, p: ev.PieceStepped) -> State:
+    """With ``places`` on, a step out of a weighted place kept as the day the nation's
+    piece left it (PLW); any other step changes nothing here."""
+    weighted = {place.territory for place in state.groups.places}
+    if not groups.places_on(state) or p.left not in weighted:
+        return state
+    g = state.groups
+    by = _put(g.left.get(p.left, {}), p.nation, p.on)
+    return state.model_copy(
+        update={"groups": g.model_copy(update={"left": _put(g.left, p.left, by)})}
+    )
+
+
+def _losses_held(state: State, p: ev.LossesHeld) -> State:
+    """Battle losses held, added or replaced by their nation, group, battle and day; those
+    whose battle has ended and whose felt share has landed by the event's day dropped."""
+    if not groups.on(state) or not groups.losses_on(state):
+        raise FoldError("losses_held needs the groups and losses rules")
+    held = {h.key(): h for h in state.groups.held}
+    for h in p.held:
+        if groups.group(state, h.polity, h.group) is None:
+            raise FoldError(f"losses_held: {h.polity} has no group {h.group}")
+        if h.on < h.opened:
+            raise FoldError(f"losses_held: losses at {h.area} before its battle opened")
+        held[h.key()] = h
+    kept = tuple(
+        h
+        for _, h in sorted(held.items())
+        if not (h.ended and (p.on - h.on).days >= groups.FELT_DAYS)
+    )
+    return state.model_copy(update={"groups": state.groups.model_copy(update={"held": kept})})
 
 
 def _group_moved(state: State, p: ev.GroupMoved) -> State:
@@ -454,6 +591,140 @@ def _card_post(state: State, cards: Mapping[EntityId, SeatCard], c: SeatCard) ->
         raise FoldError(f"card {c.person}: {c.post} is another card's post")
 
 
+def _office(state: State, post: AssetId, what: str) -> None:
+    asset = _need(state.assets, post, "asset")
+    if asset.kind is not AssetKind.OFFICE:
+        raise FoldError(f"{what}: {post} is not an office")
+
+
+def _on_a_ladder(state: State, post: AssetId) -> bool:
+    """Whether the world names ``post`` in a ladder, as a post or a rung (LDR)."""
+    return any(post == lad.post or post in lad.ladder for lad in state.ladders.values())
+
+
+def _ladders_declared(state: State, p: ev.LaddersDeclared) -> State:
+    """Each post's ladder, once, with ``posts`` on: every post, rung and mover an office,
+    each post once, no post on its own ladder (LDR)."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError("ladders_declared needs the posts rule")
+    if state.ladders:
+        raise FoldError("the ladders are declared once")
+    out: dict[AssetId, Ladder] = {}
+    for ladder in p.ladders:
+        _fresh(out, ladder.post, "ladder")
+        for post in (ladder.post, *ladder.ladder, *ladder.moved_by):
+            _office(state, post, "ladders_declared")
+        if ladder.post in ladder.ladder or len(set(ladder.ladder)) < len(ladder.ladder):
+            raise FoldError(f"ladders_declared: {ladder.post}'s ladder repeats a post")
+        if ladder.post in ladder.moved_by:
+            raise FoldError(f"ladders_declared: {ladder.post} may not move itself")
+        if (ladder.rests_on or ladder.removed_by) and Rule.OFFICE not in state.rules:
+            raise FoldError("ladders_declared: what a post rests on needs the office rule")
+        way = ladder.removed_by
+        for person in (
+            *(way.members if way else ()),
+            *([way.person] if way and way.person else []),
+        ):
+            _need(state.entities, person, "entity")
+        out[ladder.post] = ladder
+    return state.model_copy(update={"ladders": out})
+
+
+def _post_move_ordered(state: State, p: ev.PostMoveOrdered) -> State:
+    """A pending change of post, with ``posts`` on: its id once, its person a card, its
+    post an office (LDR)."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError("post_move_ordered needs the posts rule")
+    m = p.move
+    _fresh(state.post_moves, m.move_id, "post move")
+    _need(state.cards, m.person, "card")
+    _need(state.entities, m.by, "entity")
+    _office(state, m.post, "post_move_ordered")
+    seat = seat_of_person(state, m.person)
+    if m.seat != (seat.seat_id if seat is not None else None):
+        raise FoldError(f"post_move_ordered: {m.move_id} names a seat its person has not")
+    return state.model_copy(update={"post_moves": _put(state.post_moves, m.move_id, m)})
+
+
+def _post_move_settled(state: State, p: ev.PostMoveSettled) -> State:
+    """The pending change ends (LDR); one that stands as the office question's cause is
+    not settled by a wake."""
+    _need(state.post_moves, p.move_id, "post move")
+    if p.seat != state.post_moves[p.move_id].seat:
+        raise FoldError(f"post_move_settled: {p.move_id} names another seat")
+    moves = dict(state.post_moves)
+    del moves[p.move_id]
+    return state.model_copy(update={"post_moves": moves})
+
+
+def _office_question_opened(state: State, p: ev.OfficeQuestionOpened) -> State:
+    """An office question opens, with ``office`` on (OFQ): its id once, one open on a
+    post at a time, its holder holding the post, its post one a holder may be removed
+    from, not inside a kept holder's rest, its sitting dated ahead."""
+    if not office.on(state):
+        raise FoldError("office_question_opened needs the office and posts rules")
+    q = p.question
+    _fresh(state.office_questions, q.question_id, "office question")
+    why = office.refusal(state, q.post, q.opened, q.cause)
+    if why:
+        raise FoldError(f"office_question_opened: {q.post}: {why}")
+    if posts.holder(state, q.post) != q.holder:
+        raise FoldError(f"office_question_opened: {q.holder} does not hold {q.post}")
+    if q.sits < q.opened + timedelta(days=office.SITTING_DAYS):
+        raise FoldError(f"office_question_opened: {q.question_id} sits too soon")
+    if q.tick not in (office.first_wake(state, False), office.first_wake(state, True)):
+        raise FoldError(f"office_question_opened: {q.question_id} names another tick")
+    update: dict[str, object] = {"office_questions": _put(state.office_questions, q.question_id, q)}
+    if q.cause is QuestionCause.BASE and q.post in state.office_base_fell:
+        update["office_base_fell"] = _put(
+            state.office_base_fell, q.post, q.opened + timedelta(days=1)
+        )
+    return state.model_copy(update=update)
+
+
+def _rebased(state: State, day: date | None) -> State:
+    """The day each post's base fell under its line, read again after what it rests on
+    moved (TUR): kept while it stays under, cleared at or above the line."""
+    if day is None or not office.on(state):
+        return state
+    fell = office.base_fell(state, day)
+    if fell == state.office_base_fell:
+        return state
+    return state.model_copy(update={"office_base_fell": fell})
+
+
+def _office_choice_filed(state: State, p: ev.OfficeChoiceFiled) -> State:
+    """A member's sealed choice on an open office question (OFQ); a later one replaces it."""
+    try:
+        office.may_choose(state, p.seat_id, p.question_id)
+    except ValueError as exc:
+        raise FoldError(f"office_choice_filed: {p.seat_id} on {p.question_id}: {exc}") from exc
+    kept = _put(state.office_choices.get(p.question_id, {}), p.seat_id, p.remove)
+    return state.model_copy(
+        update={"office_choices": _put(state.office_choices, p.question_id, kept)}
+    )
+
+
+def _office_question_decided(state: State, p: ev.OfficeQuestionDecided) -> State:
+    """The sitting decides the question (OFQ): never before its day, and once; a holder
+    kept rests until ``rests_until``."""
+    q = _need(state.office_questions, p.question_id, "office question")
+    if (p.post, p.holder) != (q.post, q.holder):
+        raise FoldError(f"office_question_decided: {p.question_id} names another post or holder")
+    if not office.sits(state, q, p.on):
+        raise FoldError(f"office_question_decided: {p.question_id} is decided before its day")
+    if p.removed == (p.rests_until is not None):
+        raise FoldError("office_question_decided: a holder kept rests, and only he")
+    open_now = {k: v for k, v in state.office_questions.items() if k != p.question_id}
+    choices = {k: v for k, v in state.office_choices.items() if k != p.question_id}
+    rests = dict(state.office_rests)
+    if p.rests_until is not None:
+        rests[p.post] = p.rests_until
+    return state.model_copy(
+        update={"office_questions": open_now, "office_choices": choices, "office_rests": rests}
+    )
+
+
 def _post_changed(state: State, p: ev.PostChanged) -> State:
     """The post moves (PPP): the old holder's card is left with his own, the new holder's
     takes the post's part over his own, and every step, executor and command part not yet
@@ -472,6 +743,8 @@ def _post_changed(state: State, p: ev.PostChanged) -> State:
         part = kept.part
     elif current is not None:
         part = post_part(cards[current])
+    elif _on_a_ladder(state, p.post):
+        part = PostPart()  # LDR: a lesser post no card named starts with no part
     else:
         raise FoldError(f"post_changed: {p.post} is no card's post")
     if current is not None:
@@ -995,6 +1268,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.QuantitySet()
             | ev.FeatureSet()
             | ev.WarDeclared()
+            | ev.WarEnded()
             | ev.MapDeclared()
             | ev.KindsDeclared()
             | ev.LocksDeclared()
@@ -1005,10 +1279,21 @@ def _mutate(state: State, event: Event) -> State:
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
             | ev.AskAnswered()
+            | ev.OrderDefied()
+            | ev.IncidentOpened()
+            | ev.IncidentAnswered()
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
             | ev.PostChanged()
+            | ev.LaddersDeclared()
+            | ev.PostMoveOrdered()
+            | ev.PostMoveSettled()
+            | ev.OfficeQuestionOpened()
+            | ev.OfficeChoiceFiled()
+            | ev.OfficeQuestionDecided()
+            | ev.SeatsRedrawn()
+            | ev.PieceStepped()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1025,6 +1310,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.GroupsDeclared()
             | ev.GroupMoved()
             | ev.GroupProposed()
+            | ev.LossesHeld()
             | ev.AgreementOffered()
             | ev.AgreementMade()
             | ev.ClauseJudged()
@@ -1327,6 +1613,19 @@ def _realism(state: State, p: ev.Payload) -> State:
             if at_war(state, w.a, w.b):
                 raise FoldError(f"{w.a} and {w.b} are already at war")
             return state.model_copy(update={"wars": _put(state.wars, w.war_id, w)})
+        case ev.WarEnded():
+            if Rule.PEACE not in state.rules:
+                raise FoldError("war_ended needs the peace rule")
+            ended = state.wars.get(p.war_id)
+            if ended is None:
+                raise FoldError(f"{p.war_id}: not at war")
+            if p.on < ended.since:
+                raise FoldError(f"{p.war_id}: a war ends after it began")
+            wars = {k: v for k, v in state.wars.items() if k != p.war_id}
+            record = WarEnd(war=ended, on=p.on, agreement_id=p.agreement_id)
+            return state.model_copy(
+                update={"wars": wars, "ended_wars": (*state.ended_wars, record)}
+            )
         case ev.MapDeclared():
             if state.map is not None:
                 raise FoldError("the map is declared once")
@@ -1448,6 +1747,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _order_asked(state, p)
         case ev.AskAnswered():
             return _ask_answered(state, p)
+        case ev.OrderDefied():
+            return _order_defied(state, p)
+        case ev.IncidentOpened():
+            return _incident_opened(state, p)
+        case ev.IncidentAnswered():
+            return _incident_answered(state, p)
         case ev.MatterChosen():
             return _matter_chosen(state, p)
         case ev.OfferMade():
@@ -1456,6 +1761,20 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _offer_settled(state, p)
         case ev.PostChanged():
             return _post_changed(state, p)
+        case ev.LaddersDeclared():
+            return _rebased(_ladders_declared(state, p), state.in_world_date)
+        case ev.PostMoveOrdered():
+            return _post_move_ordered(state, p)
+        case ev.PostMoveSettled():
+            return _post_move_settled(state, p)
+        case ev.OfficeQuestionOpened():
+            return _office_question_opened(state, p)
+        case ev.OfficeChoiceFiled():
+            return _office_choice_filed(state, p)
+        case ev.OfficeQuestionDecided():
+            return _office_question_decided(state, p)
+        case ev.SeatsRedrawn():
+            return _seats_redrawn(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")
@@ -1501,9 +1820,11 @@ def _realism(state: State, p: ev.Payload) -> State:
                 update={"intelligence": _put(state.intelligence, p.nation, intel)}
             )
         case ev.GroupsDeclared():
-            return _groups_declared(state, p)
+            return _rebased(_groups_declared(state, p), state.in_world_date)
+        case ev.PieceStepped():
+            return _piece_stepped(state, p)
         case ev.GroupMoved():
-            return _group_moved(state, p)
+            return _rebased(_group_moved(state, p), p.on)
         case ev.GroupProposed():
             wrote = p.proposal
             if not groups.on(state):
@@ -1513,6 +1834,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                 raise FoldError(f"group_proposed: {wrote.polity} has no group {wrote.group}")
             g = state.groups.model_copy(update={"proposed": (*state.groups.proposed, wrote)})
             return state.model_copy(update={"groups": g})
+        case ev.LossesHeld():
+            return _losses_held(state, p)
         case (
             ev.AgreementOffered() | ev.AgreementMade() | ev.ClauseJudged() | ev.AgreementPublished()
         ):
@@ -1817,7 +2140,11 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
                 if len(after) >= state.settings.max_human_seats:
                     raise FoldError("every human seat is taken")
             handovers = _put(state.handovers, p.entity_id, p.controller)
-            return state.model_copy(update={"handovers": handovers})
+            if p.replaces is None:
+                return state.model_copy(update={"handovers": handovers})
+            _replacement(state, p.entity_id, p.replaces, p.controller)
+            replaced = _put(state.replaced, p.entity_id, p.replaces)
+            return state.model_copy(update={"handovers": handovers, "replaced": replaced})
         case _:
             raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
 
@@ -1845,8 +2172,35 @@ def _aim_goal(state: State, g: Goal, seat: Seat) -> None:
     rule = aim_rule(state, g)
     if rule is None or rule.condition != g.condition:
         raise FoldError(f"goal {g.goal_id}: not an aim on {g.person}'s card")
+    stand_in = g.person in state.replaced
+    if stand_in != (g.source is GoalSource.REPLACEMENT):
+        raise FoldError(
+            f"goal {g.goal_id}: a replacement person's goals, and only his, are replacement"
+        )
+    card = state.cards[seat.embodies]
+    if stand_in and g.aim not in replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"goal {g.goal_id}: aim {g.aim} is not one a replacement person holds")
     if any(o.person == g.person and o.aim == g.aim for o in state.goals.values()):
         raise FoldError(f"goal {g.goal_id}: {g.person}'s aim {g.aim} already has a goal")
+
+
+def _replacement(state: State, person: EntityId, old: EntityId, controller: Controller) -> None:
+    """A player takes ``person`` in place of ``old`` (RPL): ``old`` can no longer act and
+    is already handed to the code, has not himself replaced anyone this season, and
+    ``person`` has the two aims he must hold."""
+    if controller is not Controller.HUMAN:
+        raise FoldError("replaces: only a player takes a replacement")
+    if state.handovers.get(old) is not Controller.AI or not posts.needs_replacement(state, old):
+        raise FoldError(f"replaces: {old} is not a person his player can no longer play")
+    if old in state.replaced:
+        raise FoldError(
+            f"replaces: a seat is replaced once a season, and {old} was its replacement"
+        )
+    if old in state.replaced.values() or person in state.replaced.values():
+        raise FoldError(f"replaces: {old} or {person} has been replaced already")
+    card = state.cards[person]
+    if not replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"replaces: {person} has no two aims he must hold")
 
 
 def _hand_over(state: State) -> State:

@@ -200,6 +200,10 @@ def held_battles(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> se
     return out
 
 
+NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+"""The refusal of a step action the seat was not offered, the same for every action."""
+
+
 def _line(label: str, why: str) -> str:
     return f"{label} was not filed: {why}"
 
@@ -268,9 +272,15 @@ def file_one(
             directive.sign(store, campaign_id, seat, proposal)
         elif action == "step":
             taken = StepAction(args["action"])
-            realism_tick.take_step(
-                store, campaign_id, seat, args["order_id"], taken, args["params"]
-            )
+            try:
+                realism_tick.take_step(
+                    store, campaign_id, seat, args["order_id"], taken, args["params"]
+                )
+            except ValueError as exc:  # the step moved on since it was held
+                said = str(exc)
+                return (
+                    said if said in (realism_tick.NOT_YOURS, realism_tick.NO_AMEND) else NOT_OFFERED
+                )
         elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             told = args.get("forecast")
@@ -283,8 +293,14 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "office-vote":
+            agenda_api.office_vote(store, campaign_id, seat, args)
         elif action == "ask":
             realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "offer":
+            realism_tick.make_offer(
+                store, campaign_id, seat, args["bloc"], args["measure"], args["price"]
+            )
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

@@ -185,12 +185,14 @@ def happened(
     ``before`` (the state they started from) on ``dates[0]`` and ``state`` (the state
     after them) on ``dates[1]``, and is one the contest's audience may see."""
     from revisionist.core.events import AreaHeld, BattleEnded
+    from revisionist.core.realism.battle import Ending
 
     toward, audience = move.toward, contest.scope
     if move.kind is MoveKind.BATTLE:
         assert move.region is not None
         return any(
             isinstance(p, BattleEnded)
+            and p.ending is not Ending.CEASED
             and in_region(state.map, p.area, move.region)
             and side_of(state, p.winner, contest) == toward
             for p in today

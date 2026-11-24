@@ -423,3 +423,13 @@ def test_showing_a_members_choice_to_a_person_is_an_admin_read(tmp_path: Path) -
     g.choose(TOMAS, False)
     (filed,) = [e for e in g.store.read(CAMPAIGN) if isinstance(e.payload, ev.OfficeChoiceFiled)]
     assert sealing.needs_admin_read(filed)
+
+
+def test_state_keeps_the_day_a_posts_base_fell_and_hides_it_when_none(tmp_path: Path) -> None:
+    g = sitting(tmp_path, office_on(BY_PERSON))
+    day = g.state.in_world_date
+    assert day is not None
+    assert "office_base_fell" not in g.state.model_dump()
+    kept = g.state.model_copy(update={"office_base_fell": {COMMAND: day}})
+    again = type(g.state).model_validate(kept.model_dump())
+    assert again.office_base_fell == {COMMAND: day}

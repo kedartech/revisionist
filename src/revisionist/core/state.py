@@ -433,6 +433,9 @@ class State(_World):
     office_rests: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each post whose holder was kept at a sitting, and the day before which no question
     on it opens again (OFQ)."""
+    office_base_fell: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each post resting on a base, and the day its base last fell under its line (OFQ;
+    the turn below writes and reads it)."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )

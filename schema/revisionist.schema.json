@@ -27746,6 +27746,14 @@
         "title": "Offers",
         "type": "array"
       },
+      "office_base_fell": {
+        "additionalProperties": {
+          "format": "date",
+          "type": "string"
+        },
+        "title": "Office Base Fell",
+        "type": "object"
+      },
       "office_choices": {
         "additionalProperties": {
           "additionalProperties": {

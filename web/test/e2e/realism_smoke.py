@@ -2311,6 +2311,96 @@ def needs_opened(page: Page, report: dict[str, object]) -> None:
         needs_list_closed(page)
 
 
+OFFICE_POST = "Commander of the Kael Garrison"
+"""The post the canned Salt Strait game puts to an office question on its first day, held by
+Sefa Marr and removed by the Marshal alone (serve_canned.py)."""
+OFFICE_HOLDER = "Sefa Marr"
+
+
+def office_question(page: Page, report: dict[str, object]) -> None:
+    """The office question (OFB): What needs you lists the question the Marshal decides; its
+    Open takes the Capital to its panel, drawn as one person deciding; Remove files his sealed
+    choice, which the panel reads back pressed from the server's answer and the list then
+    drops; Keep changes it, and Remove again leaves it filed. Back to the map. It comes before
+    the opening matter: due first, the question heads the list a Beginner seat sees folded."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    page.locator("main.rl-mapfirst").wait_for(timeout=10_000)  # the Capital is its board
+    if PHONE:
+        needs_list_opened(page)
+    listed = page.locator(".rl-needs").first
+    check(
+        "What needs you lists the office question the seat decides",
+        f"whether {OFFICE_HOLDER.lower()} stays" in said(listed),
+    )
+    check("the office question's line opens in place", open_row(page, f"{OFFICE_HOLDER} stays"))
+    check("the office question's line has an Open button", press(page, ".rl-needs button", "Open"))
+    board = page.locator(".rl-cap")
+    board.wait_for(timeout=10_000)
+    picked = board.locator("button.rl-cap-q.k-office[aria-pressed=true]")
+    picked.wait_for(timeout=10_000)
+    check("Open picks the office question on the Capital", OFFICE_POST in picked.inner_text())
+    panel = board.locator(".rl-office-panel.w-person")
+    panel.wait_for(timeout=10_000)
+    report["office_panel"] = panel.inner_text()
+    words = panel.inner_text()
+    check(
+        "the panel names the office, the holder, the sitting and who decides",
+        OFFICE_POST in words
+        and OFFICE_HOLDER in words
+        and "sits" in words
+        and "One person" in words,
+        words[:300],
+    )
+    check(
+        "the panel draws who decides as one person",
+        board.locator(".rl-office-table[aria-label='One person decides']").count() == 1,
+    )
+    check("the choice reads not filed", "Your choice: not filed" in words)
+    shoot(page, "43-office-person")
+    for word, key, read in (
+        ("Remove", "office-remove", "Your choice: remove"),
+        ("Keep", "office-keep", "Your choice: keep"),
+        ("Remove", "office-remove", "Your choice: remove"),
+    ):
+        panel.locator(f"button[data-key={key}]").click()
+        pressed = board.locator(f".rl-office-panel button[data-key={key}][aria-pressed=true]")
+        try:
+            pressed.wait_for(timeout=10_000)
+        except PlaywrightTimeout:
+            pass
+        text = board.locator(".rl-office-panel").inner_text()
+        check(
+            f"{word} files the choice and the panel reads it back",
+            pressed.count() == 1 and read in text,
+            text[-200:],
+        )
+    report["office_choice"] = board.locator(".rl-office-panel").inner_text()
+    shoot(page, "44-office-filed")
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the office question fits the viewport", width <= SIZE[0], str(width))
+    to_map = page.locator(".rl-board-switch:visible").get_by_role("button", name="Map")
+    if to_map.count():
+        to_map.first.click()
+    else:  # a phone whose switch lives in the Game menu
+        page.locator(".rl-menu-btn").click()
+        page.locator("dialog.rl-menu .rl-menu-board .rl-board-switch").get_by_role(
+            "button", name="Map"
+        ).click()
+    page.locator(".rl-mapfirst-map .rl-tmap").wait_for(timeout=10_000)
+    if PHONE:
+        needs_list_opened(page)
+    check(
+        "a filed choice leaves What needs you",
+        f"whether {OFFICE_HOLDER.lower()} stays" not in said(page.locator(".rl-needs").first),
+    )
+    if PHONE:
+        needs_list_closed(page)
+    check(
+        "the office question raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+
+
 def salt_move(page: Page, report: dict[str, object]) -> None:
     """Pick the Ostrel levy in Harrow Pass and send it to the Saltworks Coast, next door."""
     errors = len([p for p in problems if p.startswith("pageerror")])
@@ -2565,8 +2655,9 @@ def phone_room(page: Page, report: dict[str, object]) -> None:
 
 
 def salt_strait(playwright: object, browser: object, report: dict[str, object]) -> None:
-    """The whole walk: rule 1 (needs, a move, the odds, a decision, Home and Diplomacy) and
-    rule 2 (a statement, an offer, a conference and its votes, a publication), at this width."""
+    """The whole walk: rule 1 (the office question, needs, a move, the odds, a decision, Home
+    and Diplomacy) and rule 2 (a statement, an offer, a conference and its votes, a
+    publication), at this width."""
     ctx = browser.new_context(  # type: ignore[attr-defined]
         viewport={"width": SIZE[0], "height": SIZE[1]}, has_touch=PHONE, is_mobile=PHONE
     )
@@ -2575,6 +2666,7 @@ def salt_strait(playwright: object, browser: object, report: dict[str, object]) 
     play = Second(playwright)
     try:
         salt_start(page, report, play)
+        office_question(page, report)
         needs_opened(page, report)
         salt_move(page, report)
         statement(page, first=True)

@@ -11,6 +11,10 @@ The payload contract these tests hold the implementation to (wording is [propose
   seat's own nation, by sitting day. A seat of any other nation reads ``[]``.
 * ``home["turning"]``: ``list[BaseUnder]``, one per post the seat's person holds whose base
   stands under its line with no question yet open; every other seat reads ``[]``.
+* ``home["footing"]``: ``list[FootingLine]``, one per post the seat's person holds that
+  may be put to a question, at, above or under its line; every other seat reads ``[]``.
+* ``home["results"]``: ``list[OfficeResult]``, each question of the seat's nation decided
+  in the last ``home_api.RESULT_DAYS`` world days, public; a seat of another nation reads ``[]``.
 * ``home["elections"]``: ``list[ElectionAhead]``, each election of the seat's nation not
   yet held, by day, with each chamber's seats as they would be redrawn today.
 * action ``office-vote``, body ``{"question": str, "remove": bool}``, sealed by a commit.
@@ -30,7 +34,7 @@ from revisionist.core.ontology import Controller
 from revisionist.core.realism import groups, office
 from revisionist.core.state import QuestionCause
 from revisionist.engine import notice, realism_tick
-from revisionist.engine.web import agenda_api
+from revisionist.engine.web import agenda_api, home_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
 from tests.test_blocs_turn import greens_at, low
@@ -138,6 +142,92 @@ def test_once_the_question_is_open_the_base_is_no_longer_turning(tmp_path: Path)
     g.tick()
     g.ask()
     assert home(g, KARA)["turning"] == []
+
+
+# --- The holder's footing, always in view ---------------------------------------------
+
+
+def test_the_holder_sees_his_footing_at_and_above_the_line_with_no_days_under(
+    tmp_path: Path,
+) -> None:
+    g = built(tmp_path, office_on(BY_PERSON), greens_at(60))
+    g.tick()
+    (mine,) = home(g, KARA)["footing"]
+    assert mine["office"] == POST_NAME and mine["line"] == office.TURN_LINE
+    assert mine["support"] >= office.TURN_LINE and mine["days"] == 0
+    assert mine["question"] is None
+    assert set(mine) == set(api.FootingLine.__annotations__)
+
+
+def test_under_the_line_the_footing_counts_the_days_running(tmp_path: Path) -> None:
+    g = low(tmp_path)
+    g.tick()
+    (mine,) = home(g, KARA)["footing"]
+    (under,) = home(g, KARA)["turning"]
+    assert mine["support"] == under["support"] and mine["days"] == under["days"] >= 1
+
+
+def test_the_footing_names_the_question_open_on_the_office(tmp_path: Path) -> None:
+    g = asked(tmp_path, office_on(BY_PERSON))
+    (made,) = g.state.office_questions.values()
+    (mine,) = home(g, KARA)["footing"]
+    assert mine["question"] == made.question_id
+
+
+def test_no_seat_but_the_holder_sees_the_footing(tmp_path: Path) -> None:
+    g = low(tmp_path)
+    g.tick()
+    for who in (ILSE, TOMAS):
+        assert home(g, who)["footing"] == []
+
+
+# --- The public result ----------------------------------------------------------------
+
+
+def test_the_result_is_sent_to_the_nation_once_decided_and_the_question_is_gone(
+    tmp_path: Path,
+) -> None:
+    g = asked(tmp_path, office_on(BY_PERSON))
+    (made,) = g.state.office_questions.values()
+    g.choose(ILSE, True)
+    decided = g.until_decided()
+    for who in (ILSE, KARA):
+        h = home(g, who)
+        assert h["office"] == []
+        (line,) = h["results"]
+        assert line["question_id"] == made.question_id
+        assert line["office"] == POST_NAME and line["holder"] == "Kara Lind"
+        assert line["removed"] is True and line["on"] == decided.on.isoformat()
+        assert line["rests_until"] is None
+        assert set(line) == set(api.OfficeResult.__annotations__)
+    assert home(g, TOMAS)["results"] == []
+
+
+def test_a_kept_holder_shows_the_day_he_rests_until(tmp_path: Path) -> None:
+    g = asked(tmp_path, office_on(BY_PERSON))
+    g.choose(ILSE, False)
+    decided = g.until_decided()
+    (line,) = home(g, KARA)["results"]
+    assert line["removed"] is False
+    assert decided.rests_until is not None
+    assert line["rests_until"] == decided.rests_until.isoformat()
+
+
+def test_the_result_leaves_the_home_block_after_its_days(tmp_path: Path) -> None:
+    g = asked(tmp_path, office_on(BY_PERSON))
+    g.choose(ILSE, False)
+    decided = g.until_decided()
+    while (today := g.state.in_world_date) is not None and (
+        (today - decided.on).days < home_api.RESULT_DAYS
+    ):
+        assert home(g, KARA)["results"] != []
+        g.tick()
+    assert home(g, KARA)["results"] == []
+
+
+def test_with_office_off_the_home_block_has_no_footing_or_results(tmp_path: Path) -> None:
+    g = built(tmp_path, greens_at(60))
+    assert "footing" not in home(g, ILSE) and "results" not in home(g, ILSE)
 
 
 # --- Rule 2: an open question is in every seat of the nation --------------------------
@@ -484,3 +574,18 @@ def test_the_seat_fixture_carries_the_office_keys_as_a_game_sends_them(tmp_path:
     )
     assert set(fixture["office"][0]["count"]) == set(api.OfficeCount.__annotations__)
     assert set(fixture["turning"][0]) == set(api.BaseUnder.__annotations__)
+
+
+def test_the_seat_fixture_carries_the_footing_and_a_result_as_a_game_sends_them(
+    tmp_path: Path,
+) -> None:
+    fixture = json.loads(FIXTURE.read_text())["home"]
+    for name in "lr":
+        (tmp_path / name).mkdir()
+    g = low(tmp_path / "l")
+    g.tick()
+    assert fixture["footing"] == home(g, KARA)["footing"]
+    g = asked(tmp_path / "r", office_on(BY_PERSON))
+    g.choose(ILSE, False)
+    g.until_decided()
+    assert fixture["results"] == home(g, KARA)["results"]

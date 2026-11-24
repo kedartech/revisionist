@@ -323,7 +323,13 @@ def test_the_seat_fixture_carries_the_home_block_in_the_snapshot_shape(tmp_path:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["home"]
     priced = {"offers", "promises"}  # with offers on: tests/test_web_offers.py, its own game
     weighed = {"places"}  # with places of weight: tests/test_places_weight.py, its own game
-    asked = {"office", "turning", "elections"}  # tests/test_web_office.py, its own games
+    asked = {
+        "office",
+        "turning",
+        "footing",
+        "results",
+        "elections",
+    }  # test_web_office.py, its games
     ours = {k: v for k, v in fixture.items() if k not in priced | weighed | asked}
     assert ours == {k: v for k, v in home(fixture_game(tmp_path)).items() if k not in weighed}
     (tmp_path / "places").mkdir()

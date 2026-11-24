@@ -4620,6 +4620,28 @@
         "opens": "1900-04-22"
       }
     ],
+    "footing": [
+      {
+        "office": "General of the Norra Levy",
+        "groups": [
+          "The Greens"
+        ],
+        "support": 20.0,
+        "line": 30,
+        "days": 15,
+        "question": null
+      }
+    ],
+    "results": [
+      {
+        "question_id": "N41Q8WCZYVYASX886VRKB7XXA8",
+        "office": "General of the Norra Levy",
+        "holder": "Kara Lind",
+        "on": "1900-04-17",
+        "removed": false,
+        "rests_until": "1900-05-17"
+      }
+    ],
     "elections": [
       {
         "day": "1900-05-01",

@@ -1282,6 +1282,35 @@ class BaseUnder(TypedDict):
     """The day the question would open, if it stays under."""
 
 
+class FootingLine(TypedDict):
+    """A post of the seat's person that may be put to an office question: the base it
+    rests on as it stands today, at, above or under its line."""
+
+    office: str
+    groups: list[str]
+    support: float
+    """The mean support of the groups it rests on."""
+    line: int
+    days: int
+    """World days running, today included, its base has stood under the line; 0 when at
+    or above it."""
+    question: str | None
+    """The office question open on it, if any."""
+
+
+class OfficeResult(TypedDict):
+    """An office question of the seat's own nation decided at its sitting: public news,
+    kept in the home block for ``home_api.RESULT_DAYS`` world days."""
+
+    question_id: str
+    office: str
+    holder: str
+    on: str
+    removed: bool
+    rests_until: str | None
+    """For a holder kept, the day before which no question on the post opens."""
+
+
 class ElectionBloc(TypedDict):
     group: str
     name: str
@@ -1333,6 +1362,10 @@ class HomeBlock(TypedDict):
     """With ``office`` on: each question open on a post of the seat's nation, by sitting day."""
     turning: NotRequired[list[BaseUnder]]
     """With ``office`` on: each post of the seat's person whose base stands under its line."""
+    footing: NotRequired[list[FootingLine]]
+    """With ``office`` on: each post of the seat's person that may be put to a question."""
+    results: NotRequired[list[OfficeResult]]
+    """With ``office`` on: each question of the seat's nation decided lately, by day."""
     elections: NotRequired[list[ElectionAhead]]
     """With ``elections`` on: each election of the seat's nation ahead, by day."""
 

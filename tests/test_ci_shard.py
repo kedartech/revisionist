@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 from types import ModuleType
 
@@ -128,3 +129,28 @@ def test_record_sums_each_files_setup_call_and_teardown(tmp_path: Path) -> None:
     out = tmp_path / "timings.json"
     assert shard().main(["--record", str(log), "--timings", str(out)]) == 0
     assert json.loads(out.read_text()) == {"tests/sub/test_x.py": 0.1, "tests/test_pg.py": 4.0}
+
+
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+SHARD_COUNT = 6
+HEAVIEST_RECORDED_SECONDS = 800
+
+
+def workflow_shards() -> list[int]:
+    text = WORKFLOW.read_text()
+    job = text.split("\n  pytest:\n", 1)[1].split("\n  browser:", 1)[0]
+    match = re.search(r"^\s+shard:\s*\[([^\]]*)\]", job, re.MULTILINE)
+    assert match is not None, "the pytest job has no shard list"
+    return [int(n) for n in match.group(1).split(",")]
+
+
+def test_the_workflow_shard_list_is_the_six_way_split() -> None:
+    assert workflow_shards() == list(range(1, SHARD_COUNT + 1))
+
+
+def test_the_heaviest_shard_stays_well_under_the_job_limit() -> None:
+    m = shard()
+    timings = m.load_timings(m.TIMINGS)
+    shards = m.split(m.test_files(ROOT), timings, len(workflow_shards()))
+    heaviest = max(sum(timings.get(f, 0.0) for f in s) for s in shards)
+    assert heaviest <= HEAVIEST_RECORDED_SECONDS, f"heaviest shard records {heaviest:.0f}s"

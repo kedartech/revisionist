@@ -1291,7 +1291,10 @@ def _held_args(
             raise ValueError(orders_reader.NOTHING)
         who = reading.shown["person"]
         label = f"Your order to {who}" if who else "Your order"
-        return {"asks": [a.model_dump(mode="json") for a in reading.asks]}, label
+        filed: dict[str, Any] = {"asks": [a.model_dump(mode="json") for a in reading.asks]}
+        if reading.forms:  # each ask a form of the seat's gives, filed as that form
+            filed["forms"] = [[f[0], f[1]] if f is not None else None for f in reading.forms]
+        return filed, label
     if "verdict" in body:  # an incident (DFR)
         item, verdict = _text(body, "item", 64), _text(body, "verdict", 20)
         label = locks_api.incident_label(state, seat, item, verdict)

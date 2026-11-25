@@ -159,16 +159,13 @@ def test_with_written_orders_off_the_reader_points_to_the_form(tmp_path: Path) -
     assert not reading.asks and reading.shown["reason"] == orr.TO_THE_FORM
 
 
-@pytest.mark.parametrize("fail", [True])
-def test_a_failed_read_offers_the_wording_with_no_clauses_and_says_so(
-    tmp_path: Path, fail: bool
-) -> None:
+def test_a_failed_read_offers_no_agreement_reading_in_its_place(tmp_path: Path) -> None:
+    """The model being down is told as such, even for an order to another nation's
+    person: no unchecked offer stands in for the reading."""
     g = played(tmp_path)
-    canned = Canned(fail=fail)
-    reading = read(g, canned)
-    deal = reading.asks[0].effect
-    assert isinstance(deal, Deal) and deal.clauses == () and deal.wording == WORDING
-    assert orr.NO_CLAUSES in shown(reading)
+    canned = Canned(fail=True)
+    with pytest.raises(TransportError):
+        read(g, canned)
     assert len(canned.requests) == 1
 
 
@@ -178,10 +175,11 @@ def test_a_failed_read_with_no_foreign_addressee_is_still_an_error(tmp_path: Pat
         read(g, Canned(fail=True), text="Do it.", to="")
 
 
-def test_a_failed_read_files_nothing_until_signed(tmp_path: Path) -> None:
+def test_a_failed_read_files_nothing(tmp_path: Path) -> None:
     g = played(tmp_path)
     store = store_of(g)
-    read(g, Canned(fail=True))
+    with pytest.raises(TransportError):
+        read(g, Canned(fail=True))
     assert not load_state(store, CAMPAIGN).routed
 
 

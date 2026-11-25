@@ -22,7 +22,7 @@ from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.effect import Forecast
 from revisionist.core.realism.pipeline import StepAction
-from revisionist.engine import directive, realism_tick
+from revisionist.engine import directive, orders_reader, realism_tick
 from revisionist.engine.store import EventStore
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import agenda_api, conferences_api
@@ -287,7 +287,10 @@ def file_one(
         elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             told = args.get("forecast")
-            if told is None:
+            if args.get("forms"):  # a written order whose asks the seat's forms give
+                forms = [(f[0], dict(f[1])) if f else None for f in args["forms"]]
+                orders_reader.file_written(store, campaign_id, seat, asks, forms)
+            elif told is None:
                 realism_tick.commit_order(store, campaign_id, seat, asks)
             else:  # a picked suggestion keeps its forecast (FCK)
                 forecast = Forecast.model_validate(told)

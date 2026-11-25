@@ -109,9 +109,10 @@ def capitals_in(state: "State | View", area: EntityId) -> tuple[EntityId, ...]:
     )
 
 
-def _land_nations(state: "State", area: EntityId) -> set[EntityId]:
-    """The polities with a land piece standing in ``area``."""
-    from revisionist.core.realism import kinds, territory
+def _land_nations(state: "State", area: EntityId, taking: bool = False) -> set[EntityId]:
+    """The polities with a land piece standing in ``area``; with ``taking``, only pieces
+    that take ground by standing in it (``battle.holds_ground``)."""
+    from revisionist.core.realism import battle, kinds, territory
     from revisionist.core.realism.geography import FeatureKind, in_play
     from revisionist.core.realism.kinds import Domain
 
@@ -123,6 +124,8 @@ def _land_nations(state: "State", area: EntityId) -> set[EntityId]:
             continue
         if territory.area_of(state, f.places[0], Domain.LAND) != area:
             continue
+        if taking and not battle.holds_ground(state, f):
+            continue
         own = territory.nation(state, f.side)
         if own is not None:
             out.add(own)
@@ -132,7 +135,7 @@ def _land_nations(state: "State", area: EntityId) -> set[EntityId]:
 def takers(state: "State", area: EntityId) -> tuple[EntityId, ...]:
     """The polities whose land pieces in ``area`` would take it: at war with its holder
     and no armistice between them (PEA), and with no land piece there of a polity at war
-    with them. In id order."""
+    with them; a piece whose kind does not hold ground takes nothing (KBA). In id order."""
     from revisionist.core.realism.war import at_war, hostile
 
     held = holder(state, area)
@@ -142,7 +145,7 @@ def takers(state: "State", area: EntityId) -> tuple[EntityId, ...]:
     return tuple(
         sorted(
             n
-            for n in here
+            for n in _land_nations(state, area, taking=True)
             if hostile(state, n, held) and not any(at_war(state, n, m) for m in here)
         )
     )

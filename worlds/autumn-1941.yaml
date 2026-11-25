@@ -2237,6 +2237,10 @@ cards:
       - name: lend_lease
         effects: [allocate]
         summary: "Decide how the aid programme is shared out."
+      - name: reconnaissance
+        effects: [investigate]
+        executor: marshall
+        summary: "Reconnaissance flights by the Army's air forces, ordered through the Chief of Staff."
     reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
     post: uk_premiership  # OFD
@@ -2404,8 +2408,8 @@ cards:
       - name: army_operations
         effects: [move_force, engagement]
         executor: ismay
-        forces: [home_forces]
-        summary: "Orders to Home Forces, passed on through the Chiefs of Staff by Ismay."
+        forces: [home_forces, western_desert_force]
+        summary: "Orders to Home Forces and the Western Desert Force, passed on through the Chiefs of Staff by Ismay."
       - name: public_word
         effects: [statement]
         summary: "Speak to the House and the nation."
@@ -2416,6 +2420,13 @@ cards:
         effects: [deal]
         executor: eden
         summary: "Treat with other governments, through the Foreign Secretary."
+      - name: war_production
+        effects: [allocate]
+        summary: "Direct which branch of industry is pressed ahead, and fund the codebreakers, as Minister of Defence."
+      - name: intelligence
+        effects: [investigate]
+        executor: menzies
+        summary: "Reconnaissance and agents abroad, reported through the Chief of the Secret Intelligence Service."
     reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
     post: soviet_chairmanship  # OFD
@@ -2525,8 +2536,8 @@ cards:
       - name: military_operations
         effects: [move_force, engagement]
         executor: shaposhnikov
-        forces: [soviet_western_front]
-        summary: "Orders to the armies, carried out by the Chief of the General Staff."
+        forces: [soviet_western_front, baltic_fleet]
+        summary: "Orders to the armies and the Baltic Fleet, carried out by the Chief of the General Staff."
       - name: state_defence
         effects: [allocate]
         summary: "Direct industry and supply through the State Defence Committee."
@@ -2540,6 +2551,10 @@ cards:
         effects: [deal]
         executor: molotov
         summary: "Treat with other governments, through the Commissar for Foreign Affairs."
+      - name: intelligence
+        effects: [investigate]
+        executor: shaposhnikov
+        summary: "Agents abroad, run by Red Army intelligence under the Chief of the General Staff."
     reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
     post: reich_chancellorship  # OFD
@@ -2689,6 +2704,13 @@ cards:
         effects: [deal]
         executor: ribbentrop
         summary: "Treat with other governments, through the Foreign Minister."
+      - name: war_production
+        effects: [allocate]
+        summary: "Direct which branch of industry is pressed ahead."
+      - name: air_reconnaissance
+        effects: [investigate]
+        executor: goering
+        summary: "Reconnaissance flights by the Luftwaffe, ordered through its commander in chief."
     reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
     post: japan_premiership  # OFD
@@ -2794,6 +2816,10 @@ cards:
         effects: [deal]
         executor: nomura
         summary: "Negotiate with the United States, through the Ambassador in Washington."
+      - name: intelligence
+        effects: [investigate]
+        executor: nagano
+        summary: "Agents in the consulates abroad, placed through the Chief of the Navy General Staff."
     reach: {rank: 4, chain: [japan]}
   - person: tojo
     post_kind: war_minister
@@ -2923,6 +2949,15 @@ cards:
       - name: public_word
         effects: [statement]
         summary: "Speak for the Army's position."
+      - name: intelligence
+        effects: [investigate]
+        executor: nagano
+        summary: "Reconnaissance flights and agents abroad, through the Chief of the Navy General Staff."
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: nagano
+        forces: [combined_fleet]
+        summary: "Patrols and concealment of the Combined Fleet, through the Chief of the Navy General Staff."
     reach: {rank: 3, chain: [japan]}
   - person: mussolini
     post: italian_premiership  # OFD
@@ -3131,6 +3166,10 @@ cards:
         effects: [deal]
         executor: soong
         summary: "Treat with Washington and London, through T. V. Soong."
+      - name: intelligence
+        effects: [investigate]
+        executor: dai_li
+        summary: "Agents behind the Japanese lines, placed by Dai Li's service."
     reach: {rank: 5, chain: [china], heads: true}
   # --- the people around them, run by code ---
   - person: wallace

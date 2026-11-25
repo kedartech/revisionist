@@ -784,7 +784,6 @@ SALT_STRAIT: tuple[Case, ...] = (
 
 # --- the open differences ----------------------------------------------------------------
 
-AUTHORITY = "data lane fix item: a card's authority covers every order its forms give"
 STAMP = (
     "core lane fix item: a written engagement that sets no force's rule leaves the dates of"
     " the forces its domain names as they were"
@@ -809,39 +808,21 @@ SHIPPING = (
 
 FIXES: dict[str, str] = {
     "1941.roosevelt.cable_to_churchill": MESSAGE,
-    "1941.roosevelt.fly_recon": AUTHORITY,
     "1941.churchill.convoy_orders": SHIPPING,
-    "1941.churchill.production_priority": AUTHORITY,
-    "1941.churchill.move_army": AUTHORITY,
+    "1941.churchill.production_priority": PRODUCTION,
     "1941.churchill.broadcast": AUDIENCE,
-    "1941.churchill.fly_recon": AUTHORITY,
-    "1941.churchill.send_an_agent": AUTHORITY,
-    "1941.churchill.fund_the_codebreakers": AUTHORITY,
     "1941.stalin.state_defence_order": PRODUCTION,
     "1941.stalin.aid_request": PRODUCTION,
-    "1941.stalin.send_on_patrol": AUTHORITY,
-    "1941.stalin.send_an_agent": AUTHORITY,
     "1941.hitler.uboat_directive": SHIPPING,
-    "1941.hitler.production_priority": AUTHORITY,
-    "1941.hitler.fly_recon": AUTHORITY,
+    "1941.hitler.production_priority": PRODUCTION,
     "1941.konoe.requisition_shipping": SHIPPING,
     "1941.konoe.mobilisation_plan": PRODUCTION,
-    "1941.konoe.send_an_agent": AUTHORITY,
     "1941.tojo.requisition_shipping": SHIPPING,
     "1941.tojo.mobilisation_plan": PRODUCTION,
-    "1941.tojo.fly_recon": AUTHORITY,
-    "1941.tojo.send_on_patrol": AUTHORITY,
-    "1941.tojo.send_an_agent": AUTHORITY,
-    "1941.tojo.hide_a_force": AUTHORITY,
     "1941.mussolini.libya_convoys": STAMP,
     "1941.mussolini.production_priority": PRODUCTION,
-    "1941.mussolini.move_fleet": AUTHORITY,
-    "1941.mussolini.move_army": AUTHORITY,
-    "1941.mussolini.send_on_patrol": AUTHORITY,
     "1941.chiang.arsenal_output": PRODUCTION,
     "1941.chiang.appeal_abroad": AUDIENCE,
-    "1941.chiang.move_army": AUTHORITY,
-    "1941.chiang.send_an_agent": AUTHORITY,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

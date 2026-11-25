@@ -219,11 +219,51 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
     met = [f"goal {g.key}: already met at tick 0" for g in world.goals if _met(state, g, ids)]
     if met:
         raise WorldError(met)
-    if state.contests:
-        unfit = roster.problems(state)
-        if unfit:
-            raise WorldError(unfit)
+    if Rule.PLAYABLE_RULE in world.rules:
+        unfit = _by_rule(world, state, ids)
+    else:
+        unfit = roster.problems(state) if state.contests else []
+    if unfit:
+        raise WorldError(unfit)
     return [_started(e, state) for e in events]
+
+
+def _flagged(world: WorldFile) -> set[str]:
+    """The people whose cards are playable: the hand flags, or with ``playable_rule`` on
+    (PBR) the carded people on the roster, which the rule's check holds to its verdict."""
+    if Rule.PLAYABLE_RULE in world.rules:
+        carded = {c.person for c in world.cards}
+        return {ch.entity for ch in world.roster if ch.entity in carded}
+    return {c.person for c in world.cards if c.playable}
+
+
+def floor(world: WorldFile) -> roster.Floor:
+    """The world's floor for the playable rule (PBR), or the default lines."""
+    line = world.playable_floor
+    return roster.Floor() if line is None else roster.Floor(rank=line.rank, tier=line.tier)
+
+
+def _by_rule(world: WorldFile, state: State, ids: Mapping[str, str]) -> list[str]:
+    """With ``playable_rule`` on (PBR): the roster is the cards the rule admits, less those
+    the world holds back. The hand flag is not read."""
+    line = floor(world)
+    problems: list[str] = []
+    listed = {ch.entity for ch in world.roster}
+    for c in world.cards:
+        card = state.cards[EntityId(ids[c.person])]
+        why = roster.admits(state, card, line)
+        if c.person in listed and c.held_back:
+            problems.append(f"character {c.person}: held back, so it may not be on the roster")
+        elif c.person in listed and why:
+            problems.append(
+                f"character {c.person}: on the roster, but the playable rule does not admit "
+                f"it: {'; '.join(why)}"
+            )
+        elif c.person not in listed and not why and not c.held_back:
+            problems.append(
+                f"card {c.person}: the playable rule admits it, so it is on the roster or held back"
+            )
+    return problems
 
 
 def _events(
@@ -578,6 +618,9 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             person(where, step.person)
         _check_cited(problems, where, pl, sections)
     carded: set[str] = set()
+    flagged = _flagged(world)
+    # With the playable rule on, the rule's own check says what a roster card lacks.
+    by_rule = Rule.PLAYABLE_RULE in world.rules
     for c in world.cards:
         where = f"card {c.person}"
         person(where, c.person)
@@ -593,7 +636,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         domains = [dm.name for dm in c.authority]
         if len(set(domains)) != len(domains):
             problems.append(f"{where}: an authority domain is named twice")
-        if c.playable and c.authority and all(k.person == c.person for k in c.inner_circle):
+        alone = all(k.person == c.person for k in c.inner_circle)
+        if c.playable and not by_rule and c.authority and alone:
             problems.append(f"{where}: has authority but no inner circle to sign its reports")
         for dm in c.authority:
             person(f"{where}: domain {dm.name}", dm.executor)
@@ -632,13 +676,14 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_production(world, problems)
     _check_pacts(world, sections, problems)
     _check_conferences(world, sections, problems)
-    playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
-    # A listed person with no card yet is built when picked (compile_figure).
-    for key in sorted((listed & carded) - playable):
-        problems.append(f"character {key}: a realism roster lists only playable cards")
-    for key in sorted(playable - listed):
-        problems.append(f"card {key}: playable, so it must be on the roster")
+    # A listed person with no card yet is built when picked (compile_figure). With the
+    # playable rule on, the roster is held to the rule's verdict after the fold.
+    if Rule.PLAYABLE_RULE not in world.rules:
+        for key in sorted((listed & carded) - flagged):
+            problems.append(f"character {key}: a realism roster lists only playable cards")
+        for key in sorted(flagged - listed):
+            problems.append(f"card {key}: playable, so it must be on the roster")
     polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
     orgs = {d.key for d in world.entities if d.kind is EntityKind.ORG}
     for o in world.outlets:
@@ -2081,15 +2126,19 @@ def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | N
 
 def _check_command(world: WorldFile, problems: list[str]) -> None:
     """With ``command`` on (CMD): a playable military card has a domain naming a force,
-    and no force is named by two military cards. With it off, a card's path is not read."""
+    and no force is named by two military cards. With it off, a card's path is not read.
+    The playable rule (PBR) reads the aims' conditions, so it needs ``aims`` on."""
+    if Rule.PLAYABLE_RULE in world.rules and Rule.AIMS not in world.rules:
+        problems.append("rules: playable_rule needs aims")
     if Rule.COMMAND not in world.rules:
         return
+    by_rule = Rule.PLAYABLE_RULE in world.rules
     named: dict[str, list[str]] = {}
     for c in world.cards:
         if c.path is not CardPath.MILITARY:
             continue
         forces = {k for dm in c.authority for k in dm.forces}
-        if c.playable and not forces:
+        if c.playable and not by_rule and not forces:
             problems.append(
                 f"card {c.person}: a playable military card needs a domain naming a force"
             )
@@ -2993,7 +3042,11 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         for pl in world.pipelines
     )
     posts = Rule.POSTS in world.rules
-    cards = tuple(_card(c, ids, _aim_rules(world, c, ids), posts=posts) for c in world.cards)
+    flagged = _flagged(world)
+    cards = tuple(
+        _card(c, ids, _aim_rules(world, c, ids), posts=posts, playable=c.person in flagged)
+        for c in world.cards
+    )
     templates = tuple(_template(m, ids) for m in world.mandates)
     outlets = tuple(
         Outlet(
@@ -3331,12 +3384,14 @@ def _card(
     aim_rules: tuple[AimRule | None, ...] = (),
     *,
     posts: bool = False,
+    playable: bool | None = None,
 ) -> SeatCard:
-    """The card, naming its post only with ``posts`` on (PPP)."""
+    """The card, naming its post only with ``posts`` on (PPP); playable as ``playable``
+    says, or by its hand flag."""
     return SeatCard(
         person=EntityId(ids[c.person]),
         office=c.office,
-        playable=c.playable,
+        playable=c.playable if playable is None else playable,
         path=c.path,
         post=_maybe(ids, c.post, AssetId) if posts else None,
         powers=c.powers,

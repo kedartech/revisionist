@@ -210,7 +210,7 @@ as well.
 | Ties to other people: regard, what each would take, what each could be pressed with, and who knows | `relationships`, `relationships.{key, a, b, disposition, price_tags, leverage_tags, scope}`, `relationships.scope.{visibility, known_by}` | entity keys; regard -5 to 5 | - | regard 0 between any two | - | on main |
 | What a person wants and holds to, named once as topics | `cards.{wants, holds_to}`, `topics`, `topics.{key, name, levers, effects, words}` | topic keys; form names, effect kinds, lower-case words | - | he wants nothing and holds to nothing | - | on main |
 | The roster: each character's pitch and reach, whether real or composite, his means, his side in each contest, and other names | `roster`, `roster.{entity, pitch, reach, composite, means, sides, aliases}`, `roster.sides.{contest, side}` | a person key; `composite` true or false, always written; asset keys | - | nobody can be claimed | - | on main |
-| Whether a person is playable by a rule, with a floor the world sets and a hold-back flag | `playable_floor`, `cards.held_back` | a rank and a force tier; true or false | `playable_rule` | playable as each card is flagged | - | this run: playable by rule |
+| Whether a person is playable by a rule, with a floor the world sets and a hold-back flag | `playable_floor`, `playable_floor.{rank, tier}`, `cards.held_back` | a rank and a force tier, 0 to 5 each, 2 and 3 when left out; true or false | `playable_rule` | playable as each card is flagged | - | this run: playable by rule |
 | Loyalty in three layers: to the office above, to the person above, to the cause | `cards.loyalty_to` | -5 to 5 each | - | one loyalty | - | parked |
 
 ## 8. Aims

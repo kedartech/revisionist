@@ -1107,6 +1107,18 @@ class CardDecl(Model):
     post: SkipJsonSchema[Key | None] = None
     """The office asset the person holds, read with ``posts`` on (PPP): the part of the
     card that goes with the office moves with it. Written by hand: not offered to a model."""
+    held_back: SkipJsonSchema[bool] = False
+    """With ``playable_rule`` on (PBR), the world keeps a card the rule admits off the
+    roster. It only removes: a card the rule does not admit stays out either way. Written
+    by hand: not offered to a model."""
+
+
+class PlayableFloorDecl(Model):
+    """The lines a card must reach to be played with ``playable_rule`` on (PBR): a rank at
+    or above ``rank``, or a force it commands of a tier at or above ``tier``."""
+
+    rank: int = Field(default=2, ge=0, le=5)
+    tier: int = Field(default=3, ge=0, le=5)
 
 
 class TopicDecl(Model):
@@ -1187,6 +1199,9 @@ class WorldFile(Model):
     roster_limit: SkipJsonSchema[tuple[RosterSize, RosterSize] | None] = None
     """The least and most people the roster holds, in place of 8 and 12. Written by hand:
     not offered to a model, so a drafted world keeps 8 to 12."""
+    playable_floor: SkipJsonSchema[PlayableFloorDecl | None] = None
+    """The floor a card must reach with ``playable_rule`` on (PBR); None: rank 2, force
+    tier 3. Written by hand: not offered to a model."""
     notes: tuple[Annotated[str, StringConstraints(max_length=200)], ...] = ()
     """Readings the GM chose where the record is disputed or silent (spec §5)."""
     start_date: date | None = None

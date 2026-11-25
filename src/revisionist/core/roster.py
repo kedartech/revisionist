@@ -2,19 +2,58 @@
 
 A playable character controls a force, office or network asset of tier 2 or
 more that bears on a contest. Money, information or facilities alone do not
-qualify.
+qualify. A world with ``playable_rule`` on uses the playable rule instead
+(``admits``, PBR): the card commands something outright and can be played.
 """
+
+from typing import NamedTuple
 
 from revisionist.core import contest
 from revisionist.core._base import Model
 from revisionist.core.goals import replacement_aims
 from revisionist.core.ids import ContestId, EntityId
 from revisionist.core.ontology import AssetKind, AssetStatus, Controller, EntityKind
-from revisionist.core.realism.card import CardPath
-from revisionist.core.state import State, controller_after
+from revisionist.core.realism.card import CardPath, SeatCard
+from revisionist.core.state import Rule, State, controller_after
 
 QUALIFYING_TIER = 2
 QUALIFYING_KINDS = frozenset({AssetKind.FORCE, AssetKind.OFFICE, AssetKind.NETWORK})
+
+
+class Floor(NamedTuple):
+    """The lines of the playable rule's floor (PBR): a card's rank, or the tier of a force
+    it commands. A world that sets none takes these."""
+
+    rank: int = 2
+    tier: int = 3
+
+
+def admits(state: State, card: SeatCard, floor: Floor | None) -> tuple[str, ...]:
+    """Why the playable rule (PBR) does not admit ``card``, in plain words; none when it
+    does. It commands something outright and can be played: an authority domain, a form
+    of its own through one of its pipelines, someone other than the person in its inner
+    circle, three aims with conditions, and with ``command`` on, for a commander, a domain
+    that names a force. With a ``floor``, its rank or a force it commands reaches a line."""
+    why: list[str] = []
+    if not card.authority:
+        why.append("it commands nothing outright")
+    if not any(lv.pipeline in card.pipelines for lv in card.levers):
+        why.append("it has no form of its own")
+    if not any(k.person != card.person for k in card.inner_circle):
+        why.append("it has no one in its inner circle")
+    held = sum(r is not None for r in card.aim_rules[: len(card.aims)])
+    if held < 3:
+        why.append(f"it has {held} of three aims with conditions")
+    forces = [f for d in card.authority for f in d.forces]
+    if Rule.COMMAND in state.rules and card.path is CardPath.MILITARY and not forces:
+        why.append("it is a commander with no force named in a domain")
+    if floor is not None and card.reach.rank < floor.rank:
+        tiers = [state.features[f].tier for f in forces if f in state.features]
+        if not any(t >= floor.tier for t in tiers):
+            why.append(
+                f"it is under the floor: rank {card.reach.rank}, no force of tier {floor.tier}"
+            )
+    return tuple(why)
 
 
 def qualifies(state: State, entity: EntityId) -> bool:
@@ -101,7 +140,8 @@ def claimable(state: State) -> tuple[Candidate, ...]:
     """Every roster person, in name order, with whether a player may take him and why not.
 
     The test is the claim's: unclaimed, the character rule where the world has contests,
-    and in a realism world a playable card. It reads the state alone, never a seat.
+    and in a realism world a playable card; with ``playable_rule`` on, the playable rule
+    alone. It reads the state alone, never a seat.
     """
     return tuple(_candidate(state, c) for c in sorted(state.roster, key=lambda c: _order(state, c)))
 
@@ -134,6 +174,8 @@ def _candidate(state: State, entity: EntityId) -> Candidate:
     reason: str | None = None
     if taken:
         reason = f"{name} is already taken."
+    elif Rule.PLAYABLE_RULE in state.rules:
+        reason = _by_rule(state, name, card)
     elif state.contests and not qualifies(state, entity):
         reason = (
             f"{name} does not meet the character rule: a playable character needs a force, "
@@ -151,6 +193,21 @@ def _candidate(state: State, entity: EntityId) -> Candidate:
         taken=taken,
         reason=reason,
     )
+
+
+def _by_rule(state: State, name: str, card: SeatCard | None) -> str | None:
+    """With ``playable_rule`` on, the rule in place of the character rule: the card the
+    compiler admitted (its floor and the world's hold-back are read there), as it stands."""
+    if card is None or not card.playable:
+        return f"{name} is not ready to be played yet."
+    why = admits(state, card, None)
+    return f"{name} cannot be played: {why[0]}." if why else None
+
+
+def refusal(state: State, entity: EntityId) -> str | None:
+    """Why a player may not take the roster person ``entity``, as ``claimable`` says it;
+    None when he may."""
+    return _candidate(state, entity).reason
 
 
 def _nation(state: State, entity: EntityId) -> EntityId | None:

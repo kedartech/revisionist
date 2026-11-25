@@ -252,3 +252,5 @@ roster:
   - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}
 # The roster holds two to four people, not the drafted 8 to 12. [proposed]
 roster_limit: [2, 4]
+# The floor a card must reach with the playable rule on: the default lines, written out.
+playable_floor: {rank: 2, tier: 3}

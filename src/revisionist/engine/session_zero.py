@@ -46,7 +46,7 @@ from revisionist.core.ontology import (
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import PlayStyle
 from revisionist.core.settings import Settings
-from revisionist.core.state import State
+from revisionist.core.state import Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import WorldError, check_history, compile_world
@@ -319,7 +319,10 @@ def _line(state: State, ch: Character) -> str:
 
 
 def _eligible(state: State, entity: EntityId) -> bool:
-    """The character rule (spec §5.5), which applies once the world has contests."""
+    """The character rule (spec §5.5), which applies once the world has contests, unless
+    the world plays by the playable rule (PBR), which the claim reads in its place."""
+    if Rule.PLAYABLE_RULE in state.rules:
+        return True
     return not state.contests or roster.qualifies(state, entity)
 
 
@@ -446,6 +449,10 @@ def claim(store: EventStore, campaign_id: CampaignId, seat: SeatId, name: str) -
             f"{state.entities[ch.entity_id].name} is not ready to be played yet. "
             "Choose them from the cast."
         )
+    if Rule.PLAYABLE_RULE in state.rules:
+        refused = roster.refusal(state, ch.entity_id)
+        if refused is not None:
+            raise StepRefusedError(refused)
     claimed = ev.CharacterClaimed(seat_id=seat, entity_id=ch.entity_id)
     landed: list[tuple[ev.Payload, Scope, SeatId | None]] = [(claimed, PUBLIC, seat)]
     if state.ruleset == "realism":
@@ -804,7 +811,7 @@ def pick(
     first = derived_id(campaign_id, "pick-entity", entity)
     if state.contests:
         added = replay(_events(state, campaign_id, items, first_id=first), initial=state)
-        if not roster.qualifies(added, entity):
+        if not _eligible(added, entity):
             raise _unqualified(added, entity)
     try:
         _log(store, campaign_id, items, first_id=first)

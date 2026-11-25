@@ -256,10 +256,18 @@ def _shipped(path: str) -> Callable[[], list[ev.Event]]:
     return lambda: compile_world(cmp.load_world(ROOT / path), CLAIM_CAMPAIGN, cmp.versions())
 
 
+def _toy_by_rule() -> list[ev.Event]:
+    """The toy world with the playable rule on and a contest the asset rule would read."""
+    from tests import test_playable_rule as pbr
+
+    return compile_world(pbr.world(pbr.contested), CLAIM_CAMPAIGN, cmp.versions())
+
+
 WORLDS: dict[str, Callable[[], list[ev.Event]]] = {
     "autumn-1941": _shipped("worlds/autumn-1941.yaml"),
     "salt-strait-realism": _shipped("worlds/salt-strait-realism.yaml"),
     "territory-toy": _shipped("tests/worlds/territory-toy.yaml"),
+    "toy-by-rule": _toy_by_rule,
     "toy-uncarded": _toy_with_an_uncarded_person,
     "legacy-contest": _legacy_with_contest,
 }

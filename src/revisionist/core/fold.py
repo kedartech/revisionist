@@ -33,7 +33,7 @@ from revisionist.core.goals import (
     replacement_aims,
     season_winners,
 )
-from revisionist.core.ids import AssetId, CampaignId, EntityId, SeatId, derived_id
+from revisionist.core.ids import AssetId, CampaignId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -60,6 +60,7 @@ from revisionist.core.realism import (
     economy,
     elections,
     groups,
+    kinds,
     locks,
     offers,
     office,
@@ -577,6 +578,33 @@ def _offer_settled(state: State, p: ev.OfferSettled) -> State:
     moved = found.model_copy(update={"standing": p.standing, "on": p.on, "due": p.due})
     out = tuple(moved if o.offer_id == p.offer_id else o for o in state.offers)
     return state.model_copy(update={"offers": out})
+
+
+def _commanded(state: State, piece: Feature) -> State:
+    """A piece that enters after the world compiles (a raising): every domain of a card
+    that commands another piece of its nation and its domain commands it too."""
+    where = kinds.domain(state, piece)
+
+    def alike(fid: FeatureId) -> bool:
+        other = state.features.get(fid)
+        return (
+            other is not None
+            and other.feature_id != piece.feature_id
+            and other.side == piece.side
+            and kinds.domain(state, other) is where
+        )
+
+    cards = dict(state.cards)
+    for person, card in state.cards.items():
+        authority = tuple(
+            dm.model_copy(update={"forces": (*dm.forces, piece.feature_id)})
+            if piece.feature_id not in dm.forces and any(alike(f) for f in dm.forces)
+            else dm
+            for dm in card.authority
+        )
+        if authority != card.authority:
+            cards[person] = card.model_copy(update={"authority": authority})
+    return state.model_copy(update={"cards": cards})
 
 
 def _card_post(state: State, cards: Mapping[EntityId, SeatCard], c: SeatCard) -> None:
@@ -1604,7 +1632,10 @@ def _realism(state: State, p: ev.Payload) -> State:
                 ft.as_of < was.as_of or ft.kind is not was.kind or ft.piece != was.piece
             ):
                 raise FoldError(f"feature {ft.feature_id} cannot go back or change kind")
-            return state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
+            state = state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
+            if was is None and ft.piece is not None and Rule.RAISING in state.rules:
+                return _commanded(state, ft)
+            return state
         case ev.WarDeclared():
             w = p.war
             for side in (w.a, w.b):

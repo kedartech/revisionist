@@ -68,7 +68,17 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.groups import Group, KindClass, Theme
-from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
+from revisionist.core.realism.kinds import (
+    FIGURE,
+    MAX_STRENGTH,
+    Against,
+    BaseDomain,
+    Change,
+    Cost,
+    Domain,
+    FigureValue,
+    Role,
+)
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
 from revisionist.core.realism.territory import Coords, Sha256, TerrainKind
@@ -667,6 +677,29 @@ class PieceKindDecl(Model):
     conceal: Annotated[int, Field(ge=0, le=100)] = 0
     carries: tuple[Key, ...] = ()
     """The kinds it can lift, by key."""
+    attack: FigureValue = FIGURE
+    """1 to 5; 3, the default, is the battle's arithmetic of a piece with no kind."""
+    defence: FigureValue = FIGURE
+    on_terrain: dict[Key, Change] = Field(default_factory=dict)
+    """A change to either figure by the terrain key of the area fought in."""
+    against: tuple[Against, ...] = ()
+    """A change to either figure while a kind or a domain of the world is on the other
+    side, with an optional condition (``no_enemy_air``, ``enemy_out_of_supply``)."""
+    strike_steps: int | None = Field(default=None, ge=1)
+    """The steps from a fight within which it supports its side without standing in it;
+    not for a land kind."""
+    covers: bool = False
+    """Whether it cancels the enemy's air support within its range."""
+    may_attack: bool = True
+    holds_ground: bool = True
+    """A kind must do one of the two."""
+    picture: Label | None = None
+    """One of the fixed pictures (``kinds.Picture``)."""
+    cost: Cost | None = None
+    """Output and manpower points spent to raise one."""
+    lead_days: int | None = Field(default=None, ge=1)
+    raised_at: BaseDomain | None = None
+    """The domain of base a place needs to raise one."""
 
 
 class IntelSourceDecl(Model):

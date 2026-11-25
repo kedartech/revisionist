@@ -128,7 +128,7 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
 from revisionist.core.realism.kinds import Domain as PieceDomain
-from revisionist.core.realism.kinds import PieceKind, Resource, Role
+from revisionist.core.realism.kinds import Picture, PieceKind, Resource, Role
 from revisionist.core.realism.laws import Does, Law, LawEffect
 from revisionist.core.realism.locks import (
     Council,
@@ -1293,6 +1293,32 @@ def _check_kinds(world: WorldFile, problems: list[str]) -> None:
         for lifted in k.carries:
             if lifted not in names:
                 problems.append(f"{where}: carries unknown kind {lifted}")
+        _check_figures(world, k, names, problems)
+
+
+PICTURES = frozenset(p.value for p in Picture)
+
+
+def _check_figures(
+    world: WorldFile, k: PieceKindDecl, names: set[str], problems: list[str]
+) -> None:
+    """A kind's own figures name what the world has: terrain, kinds or domains on the
+    other side, and a picture from the fixed list."""
+    where = f"piece kind {k.key}"
+    terrain = {t.key for t in world.terrain}
+    domains = {d.domain.value for d in world.piece_kinds}
+    for key in k.on_terrain:
+        if key not in terrain:
+            problems.append(f"{where}: on_terrain {key} is no terrain")
+    for a in k.against:
+        if a.facing not in names and a.facing not in domains:
+            problems.append(f"{where}: against {a.facing}, which is no kind or domain of the world")
+    if k.picture is not None and k.picture not in PICTURES:
+        problems.append(f"{where}: picture {k.picture} is not one of the pictures")
+    if k.strike_steps is not None and k.domain is PieceDomain.LAND:
+        problems.append(f"{where}: a land kind has no strike_steps")
+    if not k.may_attack and not k.holds_ground:
+        problems.append(f"{where}: a kind that may not attack holds ground")
 
 
 def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
@@ -3135,6 +3161,18 @@ def _piece_kind(k: PieceKindDecl) -> PieceKind:
         detect=k.detect,
         conceal=k.conceal,
         carries=k.carries,
+        attack=k.attack,
+        defence=k.defence,
+        on_terrain=dict(k.on_terrain),
+        against=k.against,
+        strike_steps=k.strike_steps,
+        covers=k.covers,
+        may_attack=k.may_attack,
+        holds_ground=k.holds_ground,
+        picture=Picture(k.picture) if k.picture is not None else None,
+        cost=k.cost,
+        lead_days=k.lead_days,
+        raised_at=k.raised_at,
     )
 
 

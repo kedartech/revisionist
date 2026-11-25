@@ -1248,6 +1248,16 @@ world_maps = st.builds(
 )
 
 
+figure_changes = st.builds(rk.Change, attack=st.integers(-4, 4), defence=st.integers(-4, 4))
+againsts = st.builds(
+    rk.Against,
+    facing=labels,
+    attack=st.integers(-4, 4),
+    defence=st.integers(-4, 4),
+    when=st.none() | st.sampled_from(rk.Condition),
+)
+
+
 @st.composite
 def piece_kinds(draw: st.DrawFn) -> rk.PieceKind:
     domain = draw(st.sampled_from(rk.Domain))
@@ -1262,6 +1272,20 @@ def piece_kinds(draw: st.DrawFn) -> rk.PieceKind:
         detect=draw(st.integers(0, 100)),
         conceal=draw(st.integers(0, 100)),
         carries=tuple(draw(st.lists(labels, max_size=2))),
+        attack=draw(st.integers(1, 5)),
+        defence=draw(st.integers(1, 5)),
+        on_terrain=draw(st.dictionaries(labels, figure_changes, max_size=2)),
+        against=tuple(draw(st.lists(againsts, max_size=2))),
+        strike_steps=draw(st.none() | st.integers(1, 4)),
+        covers=draw(st.booleans()),
+        may_attack=draw(st.booleans()),
+        holds_ground=draw(st.booleans()),
+        picture=draw(st.none() | st.sampled_from(rk.Picture)),
+        cost=draw(
+            st.none() | st.builds(rk.Cost, output=st.integers(0, 50), manpower=st.integers(0, 9))
+        ),
+        lead_days=draw(st.none() | st.integers(1, 90)),
+        raised_at=draw(st.none() | st.sampled_from(["land", "sea", "air"])),
     )
 
 

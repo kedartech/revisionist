@@ -100,6 +100,27 @@ piece_kinds:
     carries: [levy]
   - {key: kite, name: Kite Wing, domain: air, days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}, range_steps: 2, detect: 60}
   - {key: herald, name: Herald, domain: envoy, days_per_step: {hills: 3, plain: 2, shallows: 2, deep: 4}}
+  # A kind with every figure a kind may carry. No piece of it stands at the start; a
+  # nation raises one (tests/test_piece_kinds.py, raising_site).
+  - key: fire_kite
+    name: Fire Kites
+    domain: air
+    days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}
+    range_steps: 2
+    attack: 4
+    defence: 2
+    on_terrain: {hills: {defence: 1}}
+    against:
+      - {facing: galley, attack: 1, when: no_enemy_air}
+      - {facing: air, defence: -1}
+    strike_steps: 2
+    covers: true
+    may_attack: true
+    holds_ground: false
+    picture: bombers
+    cost: {output: 10, manpower: 1}
+    lead_days: 30
+    raised_at: air
 
 features:
   - {key: norra_levy, kind: piece, piece: levy, name: The Norra Levy, side: norra, places: [norrhavn], source: toy}

@@ -104,6 +104,47 @@
         "title": "AdminRead",
         "type": "object"
       },
+      "Against": {
+        "additionalProperties": false,
+        "description": "A change while a named kind, or a piece of a named domain, is on the other side;\nwith ``when``, only while that condition holds.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "facing": {
+            "maxLength": 60,
+            "title": "Facing",
+            "type": "string"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "facing"
+        ],
+        "title": "Against",
+        "type": "object"
+      },
       "Agent": {
         "additionalProperties": false,
         "properties": {
@@ -3042,6 +3083,28 @@
         "title": "CardsDeclared",
         "type": "object"
       },
+      "Change": {
+        "additionalProperties": false,
+        "description": "A change to a kind's figures: added to each, then held to the range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          }
+        },
+        "title": "Change",
+        "type": "object"
+      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -3953,6 +4016,15 @@
         "title": "CommitmentStatusSet",
         "type": "object"
       },
+      "Condition": {
+        "description": "[proposed] When a change for what is on the other side applies, from a fixed list.",
+        "enum": [
+          "no_enemy_air",
+          "enemy_out_of_supply"
+        ],
+        "title": "Condition",
+        "type": "string"
+      },
       "Conference": {
         "additionalProperties": false,
         "description": "A conference called or scheduled. ``key`` names it, and is the text a vote clause\nnames. ``tally_wake``: the tally runs only in a day walk after that wake has opened;\nNone for a world's conference that has not yet opened.",
@@ -4613,6 +4685,28 @@
           "asset"
         ],
         "title": "ControlsAsset",
+        "type": "object"
+      },
+      "Cost": {
+        "additionalProperties": false,
+        "description": "What raising one piece of a kind spends: output and manpower points.",
+        "properties": {
+          "manpower": {
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "integer"
+          },
+          "output": {
+            "minimum": 0,
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "output",
+          "manpower"
+        ],
+        "title": "Cost",
         "type": "object"
       },
       "CostLogged": {
@@ -11128,10 +11222,46 @@
         "title": "Persona",
         "type": "object"
       },
+      "Picture": {
+        "description": "[proposed] The pictures a client draws a kind with, by key: the fixed list.",
+        "enum": [
+          "infantry",
+          "armour",
+          "garrison",
+          "cavalry",
+          "artillery",
+          "battle_fleet",
+          "carrier",
+          "submarines",
+          "transports",
+          "gunboat",
+          "ironclad",
+          "fighters",
+          "bombers",
+          "envoy"
+        ],
+        "title": "Picture",
+        "type": "string"
+      },
       "PieceKind": {
         "additionalProperties": false,
         "description": "One kind of piece the world names.",
         "properties": {
+          "against": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Against"
+            },
+            "title": "Against",
+            "type": "array"
+          },
+          "attack": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Attack",
+            "type": "integer"
+          },
           "carries": {
             "default": [],
             "items": {
@@ -11148,6 +11278,22 @@
             "title": "Conceal",
             "type": "integer"
           },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Cost"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "covers": {
+            "default": false,
+            "title": "Covers",
+            "type": "boolean"
+          },
           "days_per_step": {
             "additionalProperties": {
               "minimum": 1,
@@ -11158,6 +11304,13 @@
             },
             "title": "Days Per Step",
             "type": "object"
+          },
+          "defence": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Defence",
+            "type": "integer"
           },
           "detect": {
             "default": 0,
@@ -11175,10 +11328,28 @@
             "title": "Fuel Per Step",
             "type": "number"
           },
+          "holds_ground": {
+            "default": true,
+            "title": "Holds Ground",
+            "type": "boolean"
+          },
           "key": {
             "maxLength": 60,
             "title": "Key",
             "type": "string"
+          },
+          "lead_days": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lead Days"
           },
           "max_strength": {
             "default": 5,
@@ -11186,10 +11357,53 @@
             "title": "Max Strength",
             "type": "integer"
           },
+          "may_attack": {
+            "default": true,
+            "title": "May Attack",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "on_terrain": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Change"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "On Terrain",
+            "type": "object"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Picture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "raised_at": {
+            "anyOf": [
+              {
+                "enum": [
+                  "land",
+                  "sea",
+                  "air"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raised At"
           },
           "range_steps": {
             "anyOf": [
@@ -11203,6 +11417,19 @@
             ],
             "default": null,
             "title": "Range Steps"
+          },
+          "strike_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strike Steps"
           }
         },
         "required": [
@@ -17196,6 +17423,47 @@
         "title": "ActOf",
         "type": "object"
       },
+      "Against": {
+        "additionalProperties": false,
+        "description": "A change while a named kind, or a piece of a named domain, is on the other side;\nwith ``when``, only while that condition holds.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "facing": {
+            "maxLength": 60,
+            "title": "Facing",
+            "type": "string"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "facing"
+        ],
+        "title": "Against",
+        "type": "object"
+      },
       "Agent": {
         "additionalProperties": false,
         "properties": {
@@ -19237,6 +19505,28 @@
         "title": "Cause",
         "type": "string"
       },
+      "Change": {
+        "additionalProperties": false,
+        "description": "A change to a kind's figures: added to each, then held to the range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          }
+        },
+        "title": "Change",
+        "type": "object"
+      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -19594,6 +19884,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Condition": {
+        "description": "[proposed] When a change for what is on the other side applies, from a fixed list.",
+        "enum": [
+          "no_enemy_air",
+          "enemy_out_of_supply"
+        ],
+        "title": "Condition",
         "type": "string"
       },
       "Conference": {
@@ -20132,6 +20431,28 @@
           "asset"
         ],
         "title": "ControlsAsset",
+        "type": "object"
+      },
+      "Cost": {
+        "additionalProperties": false,
+        "description": "What raising one piece of a kind spends: output and manpower points.",
+        "properties": {
+          "manpower": {
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "integer"
+          },
+          "output": {
+            "minimum": 0,
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "output",
+          "manpower"
+        ],
+        "title": "Cost",
         "type": "object"
       },
       "Council": {
@@ -24207,36 +24528,25 @@
         "title": "Phase",
         "type": "string"
       },
-      "Picture": {
-        "additionalProperties": false,
-        "description": "A nation's reports: the delivered one per enemy piece, by key, and those made but\nnot yet arrived.",
-        "properties": {
-          "delivered": {
-            "additionalProperties": {
-              "$ref": "#/$defs/Report"
-            },
-            "propertyNames": {
-              "maxLength": 60
-            },
-            "title": "Delivered",
-            "type": "object"
-          },
-          "pending": {
-            "default": [],
-            "items": {
-              "$ref": "#/$defs/Report"
-            },
-            "title": "Pending",
-            "type": "array"
-          }
-        },
-        "title": "Picture",
-        "type": "object"
-      },
       "PieceKind": {
         "additionalProperties": false,
         "description": "One kind of piece the world names.",
         "properties": {
+          "against": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Against"
+            },
+            "title": "Against",
+            "type": "array"
+          },
+          "attack": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Attack",
+            "type": "integer"
+          },
           "carries": {
             "default": [],
             "items": {
@@ -24253,6 +24563,22 @@
             "title": "Conceal",
             "type": "integer"
           },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Cost"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "covers": {
+            "default": false,
+            "title": "Covers",
+            "type": "boolean"
+          },
           "days_per_step": {
             "additionalProperties": {
               "minimum": 1,
@@ -24263,6 +24589,13 @@
             },
             "title": "Days Per Step",
             "type": "object"
+          },
+          "defence": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Defence",
+            "type": "integer"
           },
           "detect": {
             "default": 0,
@@ -24280,10 +24613,28 @@
             "title": "Fuel Per Step",
             "type": "number"
           },
+          "holds_ground": {
+            "default": true,
+            "title": "Holds Ground",
+            "type": "boolean"
+          },
           "key": {
             "maxLength": 60,
             "title": "Key",
             "type": "string"
+          },
+          "lead_days": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lead Days"
           },
           "max_strength": {
             "default": 5,
@@ -24291,10 +24642,53 @@
             "title": "Max Strength",
             "type": "integer"
           },
+          "may_attack": {
+            "default": true,
+            "title": "May Attack",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "on_terrain": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Change"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "On Terrain",
+            "type": "object"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/revisionist__core__realism__kinds__Picture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "raised_at": {
+            "anyOf": [
+              {
+                "enum": [
+                  "land",
+                  "sea",
+                  "air"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raised At"
           },
           "range_steps": {
             "anyOf": [
@@ -24308,6 +24702,19 @@
             ],
             "default": null,
             "title": "Range Steps"
+          },
+          "strike_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strike Steps"
           }
         },
         "required": [
@@ -28177,6 +28584,32 @@
         "title": "Domain",
         "type": "object"
       },
+      "revisionist__core__realism__detect__Picture": {
+        "additionalProperties": false,
+        "description": "A nation's reports: the delivered one per enemy piece, by key, and those made but\nnot yet arrived.",
+        "properties": {
+          "delivered": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Report"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Delivered",
+            "type": "object"
+          },
+          "pending": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Report"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "title": "Picture",
+        "type": "object"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -28228,6 +28661,27 @@
           "envoy"
         ],
         "title": "Domain",
+        "type": "string"
+      },
+      "revisionist__core__realism__kinds__Picture": {
+        "description": "[proposed] The pictures a client draws a kind with, by key: the fixed list.",
+        "enum": [
+          "infantry",
+          "armour",
+          "garrison",
+          "cavalry",
+          "artillery",
+          "battle_fleet",
+          "carrier",
+          "submarines",
+          "transports",
+          "gunboat",
+          "ironclad",
+          "fighters",
+          "bombers",
+          "envoy"
+        ],
+        "title": "Picture",
         "type": "string"
       }
     },
@@ -28687,7 +29141,7 @@
       },
       "reports": {
         "additionalProperties": {
-          "$ref": "#/$defs/Picture"
+          "$ref": "#/$defs/revisionist__core__realism__detect__Picture"
         },
         "title": "Reports",
         "type": "object"
@@ -28905,6 +29359,47 @@
           "person"
         ],
         "title": "ActOf",
+        "type": "object"
+      },
+      "Against": {
+        "additionalProperties": false,
+        "description": "A change while a named kind, or a piece of a named domain, is on the other side;\nwith ``when``, only while that condition holds.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "facing": {
+            "maxLength": 60,
+            "title": "Facing",
+            "type": "string"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "facing"
+        ],
+        "title": "Against",
         "type": "object"
       },
       "Agreement": {
@@ -30350,6 +30845,28 @@
         "title": "Cause",
         "type": "string"
       },
+      "Change": {
+        "additionalProperties": false,
+        "description": "A change to a kind's figures: added to each, then held to the range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          }
+        },
+        "title": "Change",
+        "type": "object"
+      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -30707,6 +31224,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Condition": {
+        "description": "[proposed] When a change for what is on the other side applies, from a fixed list.",
+        "enum": [
+          "no_enemy_air",
+          "enemy_out_of_supply"
+        ],
+        "title": "Condition",
         "type": "string"
       },
       "Conference": {
@@ -31219,6 +31745,28 @@
           "asset"
         ],
         "title": "ControlsAsset",
+        "type": "object"
+      },
+      "Cost": {
+        "additionalProperties": false,
+        "description": "What raising one piece of a kind spends: output and manpower points.",
+        "properties": {
+          "manpower": {
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "integer"
+          },
+          "output": {
+            "minimum": 0,
+            "title": "Output",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "output",
+          "manpower"
+        ],
+        "title": "Cost",
         "type": "object"
       },
       "Council": {
@@ -34629,10 +35177,46 @@
         "title": "Phase",
         "type": "string"
       },
+      "Picture": {
+        "description": "[proposed] The pictures a client draws a kind with, by key: the fixed list.",
+        "enum": [
+          "infantry",
+          "armour",
+          "garrison",
+          "cavalry",
+          "artillery",
+          "battle_fleet",
+          "carrier",
+          "submarines",
+          "transports",
+          "gunboat",
+          "ironclad",
+          "fighters",
+          "bombers",
+          "envoy"
+        ],
+        "title": "Picture",
+        "type": "string"
+      },
       "PieceKind": {
         "additionalProperties": false,
         "description": "One kind of piece the world names.",
         "properties": {
+          "against": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Against"
+            },
+            "title": "Against",
+            "type": "array"
+          },
+          "attack": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Attack",
+            "type": "integer"
+          },
           "carries": {
             "default": [],
             "items": {
@@ -34649,6 +35233,22 @@
             "title": "Conceal",
             "type": "integer"
           },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Cost"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "covers": {
+            "default": false,
+            "title": "Covers",
+            "type": "boolean"
+          },
           "days_per_step": {
             "additionalProperties": {
               "minimum": 1,
@@ -34659,6 +35259,13 @@
             },
             "title": "Days Per Step",
             "type": "object"
+          },
+          "defence": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Defence",
+            "type": "integer"
           },
           "detect": {
             "default": 0,
@@ -34676,10 +35283,28 @@
             "title": "Fuel Per Step",
             "type": "number"
           },
+          "holds_ground": {
+            "default": true,
+            "title": "Holds Ground",
+            "type": "boolean"
+          },
           "key": {
             "maxLength": 60,
             "title": "Key",
             "type": "string"
+          },
+          "lead_days": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lead Days"
           },
           "max_strength": {
             "default": 5,
@@ -34687,10 +35312,53 @@
             "title": "Max Strength",
             "type": "integer"
           },
+          "may_attack": {
+            "default": true,
+            "title": "May Attack",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "on_terrain": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Change"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "On Terrain",
+            "type": "object"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Picture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "raised_at": {
+            "anyOf": [
+              {
+                "enum": [
+                  "land",
+                  "sea",
+                  "air"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raised At"
           },
           "range_steps": {
             "anyOf": [
@@ -34704,6 +35372,19 @@
             ],
             "default": null,
             "title": "Range Steps"
+          },
+          "strike_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strike Steps"
           }
         },
         "required": [

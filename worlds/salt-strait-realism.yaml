@@ -13,7 +13,9 @@
 # asks and the player's own aim (SSO); and prices on the Salt Assembly's blocs, classes for
 # happenings with one secret, the size of losses, and one weighted place a nation (SSH);
 # and an office for each head that says what it rests on and how its holder is removed, a
-# ladder and the acts each military post may attempt, and the Lune Moot's election (SSF).
+# ladder and the acts each military post may attempt, and the Lune Moot's election (SSF);
+# and kinds of piece with figures of their own, weather by season, bases a nation's pieces
+# work from and a form to raise a new piece at them, with the three piece rules on (KSC).
 # The three rules read by a live model (`writing`,
 # `clause_reader`, `written_orders`) stay off, as in every shipped world.
 # `worlds/salt-strait.yaml` and `worlds/salt-strait-duo.yaml` are separate worlds and are
@@ -25,7 +27,7 @@ ruleset: realism
 start: "The Salt Strait, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance, kinds_in_battle, weather, raising]
 
 entities:
   # polities
@@ -45,15 +47,18 @@ entities:
   - {key: tam_orrin, kind: person, name: Tam Orrin, parent: kesh}
   - {key: admiral_quell, kind: person, name: Admiral Quell, parent: lune}
   - {key: ines_corr, kind: person, name: Ines Corr, parent: lune}
-  # places, `at` as [y, x] on the map's plane
-  - {key: kael, kind: location, name: Kael, at: [330, 80], within: ostrel_heartland, port_on: the_outer_sea}
-  - {key: harrow_fort, kind: location, name: The Harrow Fort, at: [340, 240], within: harrow_pass}
-  - {key: saltworks, kind: location, name: Varda Saltworks, at: [280, 340], within: varda_saltworks, port_on: the_strait}
-  - {key: esk_harbour, kind: location, name: Esk Harbour, at: [260, 470], within: varda_downs, port_on: the_lune_sound}
-  - {key: high_temple, kind: location, name: The High Temple, at: [60, 100], within: kesh_lowlands}
+  # places, `at` as [y, x] on the map's plane. A base serves its nation's pieces of the
+  # domains named, and a piece is raised at one (KSC). Each nation has a base within two
+  # steps of every area its pieces stood in before it had any, so none is left out of
+  # reach. [proposed]
+  - {key: kael, kind: location, name: Kael, at: [330, 80], within: ostrel_heartland, port_on: the_outer_sea, base: {sides: [ostrel], domains: [land, sea, air]}}
+  - {key: harrow_fort, kind: location, name: The Harrow Fort, at: [340, 240], within: harrow_pass, base: {sides: [ostrel], domains: [land]}}
+  - {key: saltworks, kind: location, name: Varda Saltworks, at: [280, 340], within: varda_saltworks, port_on: the_strait, base: {sides: [varda], domains: [land, sea, air]}}
+  - {key: esk_harbour, kind: location, name: Esk Harbour, at: [260, 470], within: varda_downs, port_on: the_lune_sound, base: {sides: [varda], domains: [land, sea, air]}}
+  - {key: high_temple, kind: location, name: The High Temple, at: [60, 100], within: kesh_lowlands, base: {sides: [kesh], domains: [land]}}
   - {key: kesh_quay, kind: location, name: Kesh Quay, at: [140, 320], within: kesh_shore, port_on: the_strait}
-  - {key: free_port, kind: location, name: The Free Port, at: [100, 520], within: free_harbours, port_on: the_lune_sound}
-  - {key: lune_haven, kind: location, name: Lune Haven, at: [186, 488], within: lune_isles, port_on: the_lune_sound}
+  - {key: free_port, kind: location, name: The Free Port, at: [100, 520], within: free_harbours, port_on: the_lune_sound, base: {sides: [lune], domains: [land, sea]}}
+  - {key: lune_haven, kind: location, name: Lune Haven, at: [186, 488], within: lune_isles, port_on: the_lune_sound, base: {sides: [lune], domains: [land, sea]}}
 
 # The board: a flat plane 600 by 400. A band of water runs west to east across the middle.
 map: {coords: flat, file: salt-strait-realism.json, sha256: ad79d2d8bb805dc87236875d31ed1c2537d8733296f11056d526ffe836645a33, box: [0, 0, 600, 400]}
@@ -118,11 +123,91 @@ resources:
 # observation balloon that searches the areas a step from it, so a reconnaissance flight has
 # a piece to fly. A galley on patrol searches its zone and those beside it. Search and
 # concealment figures are invented. [proposed]
+#
+# Each kind that fights has figures of its own, read with `kinds_in_battle` on (KSC): the
+# levy holds the crags, the lancers ride fast and strike hard but hold badly, a galley hits
+# harder than it holds, and a balloon corps never opens a fight. Lancers stand nowhere at
+# the start; a nation raises them. Each kind but the rider is raised at a base of its
+# domain, for salt and levies, in days. The pictures are from the fixed list; none is a
+# balloon, so the balloon corps is drawn by its domain. Every figure is invented. [proposed]
 piece_kinds:
-  - {key: levy, name: Levy, domain: land, days_per_step: {lowland: 4, heath: 5, crags: 9}}
-  - {key: galley, name: Galley, domain: sea, days_per_step: {narrows: 2, open_water: 3}, max_strength: 3, detect: 50}
-  - {key: balloon_corps, name: Balloon corps, domain: air, days_per_step: {lowland: 2, heath: 2, crags: 3, narrows: 2, open_water: 2}, range_steps: 1, detect: 50, max_strength: 2}
-  - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}}
+  - key: levy
+    name: Levy
+    domain: land
+    days_per_step: {lowland: 4, heath: 5, crags: 9}
+    on_terrain: {crags: {defence: 1}}
+    picture: infantry
+    cost: {output: 4, manpower: 3}
+    lead_days: 28
+    raised_at: land
+  - key: lancers
+    name: Lancers
+    domain: land
+    days_per_step: {lowland: 2, heath: 3, crags: 7}
+    detect: 30
+    attack: 4
+    defence: 2
+    against:
+      - {facing: levy, attack: 1, when: enemy_out_of_supply}
+    picture: cavalry
+    cost: {output: 3, manpower: 2}
+    lead_days: 14
+    raised_at: land
+  - key: galley
+    name: Galley
+    domain: sea
+    days_per_step: {narrows: 2, open_water: 3}
+    max_strength: 3
+    detect: 50
+    attack: 4
+    defence: 2
+    picture: battle_fleet
+    cost: {output: 5, manpower: 2}
+    lead_days: 28
+    raised_at: sea
+  - key: balloon_corps
+    name: Balloon corps
+    domain: air
+    days_per_step: {lowland: 2, heath: 2, crags: 3, narrows: 2, open_water: 2}
+    range_steps: 1
+    detect: 50
+    max_strength: 2
+    attack: 1
+    may_attack: false
+    cost: {output: 3, manpower: 1}
+    lead_days: 14
+    raised_at: air
+  - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}, picture: envoy}
+
+# The weather by region and month, read with `weather` on: the calendar's, never a draw, and
+# public (KSC). Fog lies on the waters in high summer, inside the season; gales close the
+# open water to galleys and ground the balloons in winter, and snow fills the crags.
+# Invented. [proposed]
+weather:
+  kinds:
+    - {key: fair, name: Fair}
+    - key: strait_fog
+      name: The Strait Fog
+      slows:
+        - {days: 1, pieces: [sea]}
+      figures:
+        - {pieces: [galley], attack: -1}
+    - key: winter_gales
+      name: Winter Gales
+      slows:
+        - {days: 2, pieces: [sea]}
+      grounds_air: true
+      closes:
+        - {pieces: [galley], terrain: [open_water]}
+    - key: hill_snow
+      name: Snow in the Hills
+      slows:
+        - {days: 3, terrain: [crags], pieces: [land]}
+      figures:
+        - {pieces: [lancers], attack: -1}
+  regions:
+    the_shores: {jan: hill_snow, feb: hill_snow, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: fair, dec: hill_snow}
+    the_waters: {jan: winter_gales, feb: winter_gales, mar: fair, apr: fair, may: fair, jun: strait_fog, jul: strait_fog, aug: fair, sep: fair, oct: fair, nov: winter_gales, dec: winter_gales}
 
 features:
   - {key: varda_levy, kind: piece, piece: levy, name: The Varda Levy, side: varda, tier: 2, places: [saltworks], source: salt_strait}
@@ -537,6 +622,17 @@ cards:
         summary: "Send a herald with a declaration of war."
         params:
           - {name: target, kind: enum, choices: [ostrel], label: "On whom"}
+      # Read with `raising` on (KSC): a new piece of the kind at the base named. Only the
+      # land kinds: the rules find a galley or a balloon corps raised at a base out of
+      # supply, so the form offers neither. [proposed]
+      - name: raise_piece
+        pipeline: varda_order
+        resolver: economy
+        label: "Raise a piece"
+        summary: "Raise a new levy or lancers at one of Varda's bases, paid from salt and levies."
+        params:
+          - {name: kind, kind: enum, choices: [levy, lancers], label: "Kind", choice_labels: ["Levy", "Lancers"]}
+          - {name: place, kind: enum, choices: [saltworks, esk_harbour], label: "Where", choice_labels: ["Varda Saltworks", "Esk Harbour"]}
       - name: fly_balloon
         pipeline: varda_order
         resolver: intel

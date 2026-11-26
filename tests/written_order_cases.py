@@ -779,8 +779,16 @@ SALT_STRAIT: tuple[Case, ...] = (
         "Sail the galleys to the Free Port.",
         move("varda_galleys", "free_port"),
     ),
+    fsalt(
+        "oren_vale",
+        "raise_piece",
+        {"kind": "levy", "place": "esk_harbour"},
+        "Raise a new levy at Esk Harbour.",
+        {"detail": {"kind": "levy", "place": "esk_harbour"}},
+    ),
 )
-"""Every form on every playable card of Salt Strait."""
+"""Every form on every playable card of Salt Strait. A form no effect kind holds (raising a
+piece) is read as an ask with no effect whose detail names each of its parameters."""
 
 # --- the open differences ----------------------------------------------------------------
 

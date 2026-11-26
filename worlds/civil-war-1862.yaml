@@ -26,8 +26,10 @@ start_date: 1862-09-01
 settings: {end_date: 1862-12-15}
 
 # Every rule but the playable rule (its report goes to Josh first), the three a live model
-# reads (writing, clause_reader, written_orders), and the three no code reads yet (aide_note,
-# peace, post_view): a shipped world names a rule once its reader is built.
+# reads (writing, clause_reader, written_orders), the three no code reads yet (aide_note,
+# peace, post_view), and the three piece rules (kinds_in_battle, weather, raising): the world
+# names its kinds, weather and raising places below, and whether a season plays them is the
+# playable report's.
 rules: [territories, holders, economy, supply, fuel, battles, reports, groups, agreements, conference, contests, aims, aid, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance]
 
 entities:
@@ -82,9 +84,13 @@ entities:
   - {key: kirby_smith, kind: person, name: Edmund Kirby Smith, parent: csa}
 
   # Places: the two capitals the map names as sites, and the places the forces stand. A
-# port on the coarse map is moved inland until it lies inside its territory.
+# port on the coarse map is moved inland until it lies inside its territory. A base serves
+# its side's pieces of the domains named and raises them (KSC). Richmond, with its iron
+# works and navy yard on the James, and Chattanooga, the rail hub of the West, are the
+# Confederacy's: with no base of its own none of its pieces could be ordered anywhere.
+# Which places were bases is [proposed], not checked against a source.
   - {key: washington, kind: location, name: Washington, at: [38.8951, -77.0364], within: maryland, port_on: chesapeake}
-  - {key: richmond, kind: location, name: Richmond, at: [37.5407, -77.4360], within: virginia, port_on: chesapeake}
+  - {key: richmond, kind: location, name: Richmond, at: [37.5407, -77.4360], within: virginia, port_on: chesapeake, base: {sides: [csa], domains: [sea, land]}}
   - {key: fort_monroe, kind: location, name: Fort Monroe, at: [37.0, -76.36], within: virginia, port_on: chesapeake, base: {sides: [usa], domains: [sea, land]}}
   - {key: port_royal, kind: location, name: Port Royal, at: [32.2, -80.73], within: south_carolina, port_on: south_atlantic_coast, base: {sides: [usa], domains: [sea, land]}}
   - {key: key_west, kind: location, name: Key West, at: [24.5551, -81.78], within: florida, port_on: florida_straits, base: {sides: [usa], domains: [sea]}}
@@ -94,7 +100,7 @@ entities:
   - {key: veracruz, kind: location, name: Veracruz, at: [19.1738, -96.1342], within: mexico, port_on: western_gulf, base: {sides: [french_empire], domains: [sea]}}
   - {key: manassas, kind: location, name: Manassas, at: [38.7509, -77.4753], within: virginia}
   - {key: nashville, kind: location, name: Nashville, at: [36.1627, -86.7816], within: tennessee}
-  - {key: chattanooga, kind: location, name: Chattanooga, at: [35.0456, -85.3097], within: tennessee}
+  - {key: chattanooga, kind: location, name: Chattanooga, at: [35.0456, -85.3097], within: tennessee, base: {sides: [csa], domains: [land]}}
   - {key: lexington_ky, kind: location, name: Lexington, at: [38.0406, -84.5037], within: kentucky}
 
 # The areas and borders are the map's, copied from worlds/maps/civil-war-1862.world.yaml
@@ -465,13 +471,139 @@ resources:
   - {key: roads, name: Railroads and roads, unit: lines, role: supply}
   - {key: standing, name: Standing, unit: marks, role: prestige}
 
-# The kinds of piece the world has when this item lands: an army, a fleet and an envoy, as
-# the 1941 world has them. Kinds of the Civil War's own (a river flotilla, cavalry, the
-# raising places) are KSC's. Days per step are [proposed].
+# The Civil War's own kinds of piece (KSC): infantry, cavalry and garrisons on land; river
+# gunboats, ironclads and blockade squadrons at sea; and the envoy. A field army is infantry;
+# the squadrons on the coast, the Union's and the foreign stations alike, are blockade
+# squadrons. The infantry and the three kinds at sea move, see and lift as the army and
+# the fleet the world had before, so with the piece rules off a season plays as before.
+# Cavalry ride faster and see further and hit an army out of supply hard; a garrison holds
+# and never opens a fight; gunboats fight best on the river and ironclads outfight the
+# wooden squadrons. Each kind but the envoy is raised at a base of its domain, for
+# manufactures and men, in days. Every figure, cost and day is [proposed] and a gap: no
+# source gives one, and a kind has no gap mark (a finding against the template).
 piece_kinds:
-  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 8, mountain: 10}, detect: 0, conceal: 0}
-  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3, river: 2}, carries: [army], detect: 60, conceal: 0}
-  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 3, forest: 4, marsh: 4, mountain: 5, sea: 4, river: 2}, detect: 0, conceal: 0}
+  - key: infantry
+    name: Infantry
+    domain: land
+    days_per_step: {plain: 5, forest: 7, marsh: 8, mountain: 10}
+    detect: 0
+    conceal: 0
+    attack: 3
+    defence: 4
+    on_terrain: {mountain: {defence: 1}}
+    picture: infantry
+    cost: {output: 3, manpower: 4}
+    lead_days: 45
+    raised_at: land
+  - key: cavalry
+    name: Cavalry
+    domain: land
+    days_per_step: {plain: 3, forest: 5, marsh: 6, mountain: 7}
+    detect: 40
+    conceal: 0
+    attack: 3
+    defence: 2
+    against:
+      - {facing: infantry, attack: 1, when: enemy_out_of_supply}
+    picture: cavalry
+    cost: {output: 2, manpower: 2}
+    lead_days: 30
+    raised_at: land
+  - key: garrison
+    name: Garrison
+    domain: land
+    days_per_step: {plain: 8, forest: 10, marsh: 12, mountain: 14}
+    detect: 0
+    conceal: 0
+    attack: 1
+    defence: 5
+    may_attack: false
+    picture: garrison
+    cost: {output: 1, manpower: 2}
+    lead_days: 14
+    raised_at: land
+  - key: river_gunboats
+    name: River gunboats
+    domain: sea
+    days_per_step: {sea: 3, river: 2}
+    carries: [infantry, cavalry]
+    detect: 60
+    conceal: 0
+    attack: 3
+    defence: 2
+    on_terrain: {river: {attack: 1}}
+    picture: gunboat
+    cost: {output: 4, manpower: 1}
+    lead_days: 60
+    raised_at: sea
+  - key: ironclads
+    name: Ironclads
+    domain: sea
+    days_per_step: {sea: 3, river: 2}
+    carries: [infantry, cavalry]
+    detect: 60
+    conceal: 0
+    attack: 4
+    defence: 5
+    against:
+      - {facing: blockade_squadron, attack: 1}
+    picture: ironclad
+    cost: {output: 8, manpower: 1}
+    lead_days: 90
+    raised_at: sea
+  - key: blockade_squadron
+    name: Blockade squadron
+    domain: sea
+    days_per_step: {sea: 3, river: 2}
+    carries: [infantry, cavalry]
+    detect: 60
+    conceal: 0
+    attack: 3
+    defence: 3
+    on_terrain: {river: {attack: -1, defence: -1}}
+    picture: battle_fleet
+    cost: {output: 5, manpower: 1}
+    lead_days: 60
+    raised_at: sea
+  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 3, forest: 4, marsh: 4, mountain: 5, sea: 4, river: 2}, detect: 0, conceal: 0, picture: envoy}
+
+# The weather by region and month, read with `weather` on: the calendar's, never a draw, and
+# public (KSC). Mud on the roads in the autumn and spring rains, snow and frozen roads in
+# the winter, and on the coast and the river the autumn's gales and low water that keeps
+# the deep-draught ships off the river. Every month's weather is [proposed] and a gap: no
+# source has been read for it, and the table has no gap mark (a finding against the
+# template).
+weather:
+  kinds:
+    - {key: fair, name: Fair}
+    - key: mud
+      name: Mud on the roads
+      slows:
+        - {days: 2, terrain: [plain, forest], pieces: [land]}
+        - {days: 3, terrain: [marsh], pieces: [land]}
+      figures:
+        - {pieces: [cavalry], attack: -1}
+    - key: winter
+      name: Winter
+      slows:
+        - {days: 3, terrain: [mountain, forest], pieces: [land]}
+      figures:
+        - {pieces: [infantry, cavalry], attack: -1}
+    - key: gales_and_low_water
+      name: Gales and low water
+      slows:
+        - {days: 1, terrain: [sea], pieces: [sea]}
+      closes:
+        - {pieces: [ironclads, blockade_squadron], terrain: [river]}
+    - key: winter_gales
+      name: Winter gales
+      slows:
+        - {days: 2, terrain: [sea], pieces: [sea]}
+  regions:
+    eastern_theatre: {jan: winter, feb: winter, mar: mud, apr: mud, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: mud, dec: winter}
+    western_theatre: {jan: winter, feb: mud, mar: mud, apr: mud, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: mud, dec: mud}
+    the_coast: {jan: winter_gales, feb: winter_gales, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: gales_and_low_water, sep: gales_and_low_water, oct: gales_and_low_water, nov: fair, dec: winter_gales}
+    the_world: {jan: winter_gales, feb: winter_gales, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: fair, dec: winter_gales}
 
 # The forces on the start date, as tiers (1 to 5). Who commanded each and where it stood is
 # from the record; every tier is [proposed], so every row is gap: true. The Union forces at
@@ -479,26 +611,26 @@ piece_kinds:
 # they are left out and recorded as a finding (occupation inside a territory).
 features:
   # The Army of the Potomac, falling back on Washington after Second Manassas (mcpherson_1988).
-  - {key: army_of_the_potomac, kind: piece, piece: army, name: The Army of the Potomac, side: usa, tier: 4, places: [washington], gap: true}
+  - {key: army_of_the_potomac, kind: piece, piece: infantry, name: The Army of the Potomac, side: usa, tier: 4, places: [washington], gap: true}
   # The Army of the Ohio at Nashville (mcpherson_1988).
-  - {key: army_of_the_ohio, kind: piece, piece: army, name: The Army of the Ohio, side: usa, tier: 3, places: [nashville], gap: true}
-  - {key: north_atlantic_squadron, kind: piece, piece: fleet, name: The North Atlantic Blockading Squadron, side: usa, tier: 3, places: [fort_monroe], gap: true}
-  - {key: south_atlantic_squadron, kind: piece, piece: fleet, name: The South Atlantic Blockading Squadron, side: usa, tier: 3, places: [port_royal], gap: true}
-  - {key: east_gulf_squadron, kind: piece, piece: fleet, name: The East Gulf Blockading Squadron, side: usa, tier: 2, places: [key_west], gap: true}
-  - {key: west_gulf_squadron, kind: piece, piece: fleet, name: The West Gulf Blockading Squadron, side: usa, tier: 3, places: [new_orleans], gap: true}
-  - {key: western_flotilla, kind: piece, piece: fleet, name: The Western Flotilla, side: usa, tier: 2, places: [cairo], gap: true}
+  - {key: army_of_the_ohio, kind: piece, piece: infantry, name: The Army of the Ohio, side: usa, tier: 3, places: [nashville], gap: true}
+  - {key: north_atlantic_squadron, kind: piece, piece: blockade_squadron, name: The North Atlantic Blockading Squadron, side: usa, tier: 3, places: [fort_monroe], gap: true}
+  - {key: south_atlantic_squadron, kind: piece, piece: blockade_squadron, name: The South Atlantic Blockading Squadron, side: usa, tier: 3, places: [port_royal], gap: true}
+  - {key: east_gulf_squadron, kind: piece, piece: blockade_squadron, name: The East Gulf Blockading Squadron, side: usa, tier: 2, places: [key_west], gap: true}
+  - {key: west_gulf_squadron, kind: piece, piece: blockade_squadron, name: The West Gulf Blockading Squadron, side: usa, tier: 3, places: [new_orleans], gap: true}
+  - {key: western_flotilla, kind: piece, piece: river_gunboats, name: The Western Flotilla, side: usa, tier: 2, places: [cairo], gap: true}
   # The Army of Northern Virginia near Manassas after the battle of 28 to 30 August (mcpherson_1988).
-  - {key: army_of_northern_virginia, kind: piece, piece: army, name: The Army of Northern Virginia, side: csa, tier: 4, places: [manassas], gap: true}
+  - {key: army_of_northern_virginia, kind: piece, piece: infantry, name: The Army of Northern Virginia, side: csa, tier: 4, places: [manassas], gap: true}
   # Bragg's army, marched out of Chattanooga on 28 August (mcpherson_1988).
-  - {key: army_of_mississippi, kind: piece, piece: army, name: The Army of the Mississippi, side: csa, tier: 3, places: [chattanooga], gap: true}
+  - {key: army_of_mississippi, kind: piece, piece: infantry, name: The Army of the Mississippi, side: csa, tier: 3, places: [chattanooga], gap: true}
   # Kirby Smith's Army of Kentucky at Lexington (mcpherson_1988).
-  - {key: army_of_kentucky, kind: piece, piece: army, name: The Army of Kentucky, side: csa, tier: 2, places: [lexington_ky], gap: true}
-  - {key: james_river_squadron, kind: piece, piece: fleet, name: The James River Squadron, side: csa, tier: 1, places: [richmond], gap: true}
+  - {key: army_of_kentucky, kind: piece, piece: infantry, name: The Army of Kentucky, side: csa, tier: 2, places: [lexington_ky], gap: true}
+  - {key: james_river_squadron, kind: piece, piece: ironclads, name: The James River Squadron, side: csa, tier: 1, places: [richmond], gap: true}
   # Squadrons the record puts on the American coast. The Royal Navy's North America and West
   # Indies station, and the French squadron in the Gulf with the Mexican expedition
   # (jones_2010). Where each stood on the start date and its strength are not sourced.
-  - {key: royal_navy_station, kind: piece, piece: fleet, name: The North America and West Indies Station, side: uk, tier: 3, places: [halifax], gap: true}
-  - {key: french_gulf_squadron, kind: piece, piece: fleet, name: The French Gulf squadron, side: french_empire, tier: 2, places: [veracruz], gap: true}
+  - {key: royal_navy_station, kind: piece, piece: blockade_squadron, name: The North America and West Indies Station, side: uk, tier: 3, places: [halifax], gap: true}
+  - {key: french_gulf_squadron, kind: piece, piece: blockade_squadron, name: The French Gulf squadron, side: french_empire, tier: 2, places: [veracruz], gap: true}
 
 # The posts and their holders. A head's post rests on its blocs and its holder leaves at the
 # end of his term: Lincoln's on 4 March 1865, Davis's six-year term, begun 22 February 1862,

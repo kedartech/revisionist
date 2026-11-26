@@ -14,8 +14,10 @@ world. Two leaders are playable and two are run by code. No model is called: the
 runs with no prose writer and no estimator.
 """
 
+import dataclasses
 import importlib.util
 import itertools
+import json
 from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
@@ -38,20 +40,40 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.realism import economy, groups, laws, locks, office, posts
+from revisionist.core.realism import (
+    bases,
+    economy,
+    groups,
+    kinds,
+    laws,
+    locks,
+    office,
+    posts,
+    supply,
+    territory,
+    weather,
+)
 from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
-from revisionist.core.realism.resolvers import apply_changes, intel, movement, qid, votes
+from revisionist.core.realism.resolvers import (
+    apply_changes,
+    intel,
+    movement,
+    production,
+    qid,
+    votes,
+)
 from revisionist.core.realism.territory import StepCause
 from revisionist.core.state import MODEL_READ_RULES, QuestionCause, RemovalWay, Rule, State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world import WorldFile
-from revisionist.core.world_compile import compile_world, resolve_keys
+from revisionist.core.world_compile import WorldError, compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import odds, realism_tick, session_zero
 from revisionist.engine.realism_tick import draft_order, run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import battles_api
+from tests import test_salt_strait_plays as ssp
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "salt-strait-realism.yaml"
@@ -93,12 +115,16 @@ RULES = {
     Rule.OFFICE,
     Rule.ELECTIONS,
     Rule.DEFIANCE,
+    Rule.KINDS_IN_BATTLE,
+    Rule.WEATHER,
+    Rule.RAISING,
 }
 """Every rule name the engine had when Salt Strait reached parity (SSG), less the three read
 by a live model, which stay off in a shipped world; the commander's seat, locks, laws,
 answers to asks, deciders and the player's own aim (SSO); a bloc's prices, the classes
-of happenings, the size of losses and places with political weight (SSH); and posts, the
-office question, elections and acting without leave (SSF)."""
+of happenings, the size of losses and places with political weight (SSH); posts, the
+office question, elections and acting without leave (SSF); and the three piece rules:
+kinds in battle, weather and raising (KSC)."""
 
 
 def _map_check() -> ModuleType:
@@ -228,6 +254,7 @@ def test_the_world_names_its_own_piece_kinds_and_one_flies() -> None:
     kinds = {k.key: k.domain.value for k in world().piece_kinds}
     assert kinds == {
         "levy": "land",
+        "lancers": "land",
         "galley": "sea",
         "rider": "envoy",
         "balloon_corps": "air",
@@ -955,3 +982,144 @@ def test_the_world_check_answers_every_stage_4_question_or_leaves_it_on_purpose(
     lines = check.check(world(), check.parse_template(TEMPLATE.read_text()))
     got = {x.row.keys[0]: x.status for x in lines if x.row.keys[0] in STAGE_4_KEYS}
     assert got == STAGE_4_KEYS
+
+
+# --- Kinds of piece, weather by season and raising (KSC) -------------------------------
+
+FIGURES = {"attack", "defence", "on_terrain", "against", "may_attack", "holds_ground"}
+"""What a kind carries into a fight (KFG)."""
+PICTURES = {
+    "levy": "infantry",
+    "lancers": "cavalry",
+    "galley": "battle_fleet",
+    "rider": "envoy",
+    "balloon_corps": None,
+}
+"""Each kind's picture; none on the list is a balloon, so the client draws its domain."""
+RAISE_FORM = "raise_piece"
+
+
+def test_four_kinds_fight_with_figures_of_their_own() -> None:
+    fighting = [k for k in world().piece_kinds if k.domain is not Domain.ENVOY]
+    figures = {k.key: json.dumps(k.model_dump(include=FIGURES), sort_keys=True) for k in fighting}
+    assert len(set(figures.values())) == len(figures) >= 4
+    assert {k.key: k.picture for k in world().piece_kinds} == PICTURES
+
+
+def test_a_kind_with_a_picture_not_on_the_list_is_refused() -> None:
+    raw = yaml.safe_load(WORLD.read_text())
+    (lancers,) = [k for k in raw["piece_kinds"] if k["key"] == "lancers"]
+    lancers["picture"] = "war_elephant"
+    doc = WorldFile.model_validate(raw).model_copy(update={"map_data": world().map_data})
+    with pytest.raises(WorldError, match="picture war_elephant is not one of the pictures"):
+        compile_world(doc, CAMPAIGN, cmp.versions())
+
+
+def test_two_kinds_of_weather_change_play_and_every_region_has_a_year() -> None:
+    sky = world().weather
+    assert sky is not None
+    acting = {k.key for k in sky.kinds if k.slows or k.figures or k.grounds_air or k.closes}
+    assert len(acting) >= 2
+    regions = {r.key for r in world().regions}
+    assert set(sky.regions) == regions
+    held = {kind for row in sky.regions.values() for kind in row.values()}
+    assert acting <= held
+    for row in sky.regions.values():
+        assert len(row) == 12
+
+
+def test_weather_holds_inside_the_season_in_the_waters() -> None:
+    state = compiled()
+    strait = entity("the_strait")
+    days = [START + timedelta(days=n) for n in range((SEASON_END - START).days + 1)]
+    seen = {k.key for d in days if (k := weather.holds(state, strait, d)) is not None}
+    assert len(seen) >= 2
+
+
+def test_varda_can_raise_at_its_own_bases_through_the_first_ministers_form() -> None:
+    w = world()
+    (card,) = [c for c in w.cards if c.person == "oren_vale"]
+    (form,) = [lv for lv in card.levers if lv.name == RAISE_FORM]
+    assert form.resolver in ("economy", "production")
+    choices = {p.name: list(p.choices) for p in form.params}
+    by_key = {k.key: k for k in w.piece_kinds}
+    serving = {e.key: e.base for e in w.entities if e.base is not None}
+    for place in choices["place"]:
+        assert place in serving and serving[place].sides == ("varda",), place
+    for kind in choices["kind"]:
+        k = by_key[kind]
+        assert k.cost is not None and k.lead_days is not None and k.raised_at is not None
+        assert any(k.raised_at in serving[p].domains for p in choices["place"]), kind
+    store = opened()
+    state = load_state(store, CAMPAIGN)
+    refused = {
+        (kind, place): why
+        for kind, place in itertools.product(choices["kind"], choices["place"])
+        if (
+            why := production.raise_refusal(
+                state, seat("oren_vale"), RAISE_FORM, {"kind": kind, "place": place}
+            )
+        )
+    }
+    assert refused == {}
+
+
+def test_every_piece_stands_within_reach_of_a_base_of_its_own_and_in_supply() -> None:
+    state = compiled()
+    for f in state.features.values():
+        kind = kinds.of(state, f)
+        if kind is None or kind.domain is Domain.ENVOY:
+            continue
+        reach = bases.within_reach(state, f)
+        assert reach is not None and territory.area_of(state, f.places[0], kind.domain) in reach
+        status = supply.status(state, f)
+        assert status is not None and status.supplied, f.name
+
+
+STRUCK_FIGURES = (*FIGURES, "picture", "cost", "lead_days", "raised_at")
+
+
+def struck(w: dict[str, Any]) -> None:
+    """The three piece rules switched off."""
+    w["rules"] = [r for r in w["rules"] if r not in {r.value for r in PIECE_RULES}]
+
+
+def before_kinds(w: dict[str, Any]) -> None:
+    """The world as it stood before it named its kinds (KSC): the three piece rules off, no
+    kind's figures, picture or raising, no lancers, no weather, no bases and no form to
+    raise a piece."""
+    struck(w)
+    w["piece_kinds"] = [k for k in w["piece_kinds"] if k["key"] != "lancers"]
+    for k in w["piece_kinds"]:
+        for key in STRUCK_FIGURES:
+            k.pop(key, None)
+    w.pop("weather", None)
+    for e in w["entities"]:
+        e.pop("base", None)
+    for card in w["cards"]:
+        card["levers"] = [lv for lv in card.get("levers", []) if lv["name"] != RAISE_FORM]
+
+
+PIECE_RULES = (Rule.KINDS_IN_BATTLE, Rule.WEATHER, Rule.RAISING)
+SAME_PLAY_LEAVES_OUT = {"last_seq", "map", "kinds", "cards", "rules"}
+"""What the world declares and the play does not move: its board, kinds, cards and rules."""
+
+
+def _played(state: State) -> dict[str, Any]:
+    dumped: dict[str, Any] = state.model_dump(mode="json")
+    return {k: v for k, v in dumped.items() if k not in SAME_PLAY_LEAVES_OUT}
+
+
+def test_with_the_piece_rules_off_the_season_plays_as_before_the_kinds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def played(name: str, change: Any) -> State:
+        cast = dataclasses.replace(
+            ssp.SALT_STRAIT, name=name, changes=(*ssp.SALT_STRAIT.changes, change)
+        )
+        (tmp_path / name).mkdir()
+        with monkeypatch.context() as mp:
+            return ssp.Game(cast, tmp_path / name, mp).play().state
+
+    off, before = played("off", struck), played("before", before_kinds)
+    assert _played(off) == _played(before)

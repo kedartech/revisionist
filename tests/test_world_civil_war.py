@@ -11,6 +11,7 @@ template, kept in ``FINDINGS`` below and in the world file's notes.
 
 import copy
 import importlib.util
+import json
 from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
@@ -21,6 +22,7 @@ import yaml
 from revisionist.core import goals
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
+from revisionist.core.realism import bases, territory
 from revisionist.core.realism.groups import ABANDONED_TIMES
 from revisionist.core.state import MODEL_READ_RULES, Rule
 from revisionist.core.world import CardDecl, WorldFile
@@ -37,18 +39,35 @@ TEMPLATE = ROOT / "worlds" / "TEMPLATE.md"
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 START = date(1862, 9, 1)
 SIDES = ("usa", "csa")
-UNBUILT = {
-    Rule.AIDE_NOTE,
-    Rule.PEACE,
-    Rule.POST_VIEW,
-    Rule.KINDS_IN_BATTLE,
-    Rule.WEATHER,
-    Rule.RAISING,
-}
+UNBUILT = {Rule.AIDE_NOTE, Rule.PEACE, Rule.POST_VIEW}
 """Rules no code reads yet: a shipped world names a rule only once its reader is built."""
-RULES = set(Rule) - {Rule.PLAYABLE_RULE} - set(MODEL_READ_RULES) - UNBUILT
+PIECE_RULES = {Rule.KINDS_IN_BATTLE, Rule.WEATHER, Rule.RAISING}
+"""The three piece rules: the world names its kinds, weather and raising places (KSC), and
+whether they are switched on is the playable report's."""
+RULES = set(Rule) - {Rule.PLAYABLE_RULE} - set(MODEL_READ_RULES) - UNBUILT - PIECE_RULES
 """Every rule on except the playable rule, whose report goes to Josh first, the three read
-by a live model, and those no code reads yet."""
+by a live model, those no code reads yet, and the three piece rules."""
+KINDS = {
+    "infantry": ("land", "infantry"),
+    "cavalry": ("land", "cavalry"),
+    "garrison": ("land", "garrison"),
+    "river_gunboats": ("sea", "gunboat"),
+    "ironclads": ("sea", "ironclad"),
+    "blockade_squadron": ("sea", "battle_fleet"),
+    "envoy": ("envoy", "envoy"),
+}
+"""The Civil War's own kinds, each with its domain and picture. [proposed]"""
+SEA_KINDS = {k for k, (domain, _) in KINDS.items() if domain == "sea"}
+FORCE_KINDS = {
+    "army_of_the_potomac": "infantry",
+    "army_of_the_ohio": "infantry",
+    "army_of_northern_virginia": "infantry",
+    "army_of_mississippi": "infantry",
+    "army_of_kentucky": "infantry",
+    "western_flotilla": "river_gunboats",
+    "james_river_squadron": "ironclads",
+}
+"""Every force whose kind is not a blockade squadron's."""
 UNHELD = {
     "central_america",
     "caribbean",
@@ -87,6 +106,7 @@ FINDINGS = (
     "Forces raised by the states",
     "A nation that broke in two",
     "Ports on a coarse coastline",
+    "A kind's figures and the weather marked a gap",
 )
 """What the world cannot say with the keys that exist, each written into the template."""
 
@@ -134,7 +154,7 @@ def stand_area(w: dict[str, Any], feature: dict[str, Any]) -> str | None:
     """The area a force stands in: a fleet the zone its port opens on, else the territory
     its place lies within."""
     place = next(e for e in w["entities"] if e["key"] == feature["places"][0])
-    key = "port_on" if feature["piece"] == "fleet" else "within"
+    key = "port_on" if feature["piece"] in SEA_KINDS else "within"
     area: str | None = place.get(key)
     return area
 
@@ -153,7 +173,7 @@ def off_ground(w: dict[str, Any]) -> list[str]:
     wrong = []
     for f in w["features"]:
         area = stand_area(w, f)
-        if f["piece"] == "fleet":
+        if f["piece"] in SEA_KINDS:
             if area not in zones:
                 wrong.append(f["key"])
             continue
@@ -284,14 +304,14 @@ def test_forces_are_tiers_and_stand_on_their_sides_ground() -> None:
     w = raw()
     assert w["features"]
     for f in w["features"]:
-        assert f["kind"] == "piece" and f["piece"] in ("army", "fleet"), f["key"]
+        assert f["kind"] == "piece" and f["piece"] in KINDS, f["key"]
         assert 1 <= f["tier"] <= 5, f["key"]
     assert off_ground(w) == []
 
 
 def test_a_force_on_the_far_side_of_the_line_is_caught() -> None:
     w = copy.deepcopy(raw())
-    army = next(f for f in w["features"] if f["side"] == "csa" and f["piece"] == "army")
+    army = next(f for f in w["features"] if f["side"] == "csa" and f["piece"] == "infantry")
     w["entities"].append(
         {"key": "boston", "kind": "location", "name": "Boston", "within": "new_england"}
     )
@@ -305,8 +325,87 @@ def test_squadrons_of_the_nations_nobody_plays_stand_on_the_american_coast() -> 
     foreign = [f for f in w["features"] if f["side"] not in SIDES]
     assert foreign
     for f in foreign:
-        assert f["piece"] == "fleet", f["key"]
+        assert f["piece"] == "blockade_squadron", f["key"]
         assert stand_area(w, f) in coast, f["key"]
+
+
+# --- Kinds of piece, weather by season and raising (KSC) -------------------------------
+
+
+def test_the_world_names_its_seven_kinds_each_with_its_picture() -> None:
+    kinds = {k.key: (k.domain.value, k.picture) for k in world().piece_kinds}
+    assert kinds == KINDS
+
+
+def test_the_kinds_that_fight_carry_figures_of_their_own() -> None:
+    fields = {"attack", "defence", "on_terrain", "against", "may_attack", "holds_ground"}
+    fighting = [k for k in world().piece_kinds if k.domain.value != "envoy"]
+    figures = {k.key: json.dumps(k.model_dump(include=fields), sort_keys=True) for k in fighting}
+    assert len(set(figures.values())) == len(figures) == 6
+
+
+def test_each_force_enters_as_its_kind() -> None:
+    for f in raw()["features"]:
+        assert f["piece"] == FORCE_KINDS.get(f["key"], "blockade_squadron"), f["key"]
+
+
+def test_a_kind_moves_and_lifts_as_the_kind_it_was_before() -> None:
+    by_key = {k.key: k for k in world().piece_kinds}
+    land = {k for k, (domain, _) in KINDS.items() if domain == "land"}
+    for key in SEA_KINDS:
+        k = by_key[key]
+        assert k.days_per_step == {"sea": 3, "river": 2} and k.detect == 60, key
+        assert set(k.carries) == land - {"garrison"}, key
+    infantry = by_key["infantry"]
+    assert infantry.days_per_step == {"plain": 5, "forest": 7, "marsh": 8, "mountain": 10}
+
+
+def test_every_region_has_its_weather_for_each_month() -> None:
+    sky = world().weather
+    assert sky is not None
+    assert set(sky.regions) == {r.key for r in world().regions}
+    assert all(len(row) == 12 for row in sky.regions.values())
+    acting = {k.key for k in sky.kinds if k.slows or k.figures or k.grounds_air or k.closes}
+    assert acting <= {kind for row in sky.regions.values() for kind in row.values()}
+    assert len(acting) >= 3
+
+
+def test_low_water_closes_the_river_to_the_deep_draught_kinds_only() -> None:
+    sky = world().weather
+    assert sky is not None
+    shut = {p for k in sky.kinds for c in k.closes if "river" in c.terrain for p in c.pieces}
+    assert shut == {"ironclads", "blockade_squadron"}
+
+
+def test_each_side_can_raise_land_and_sea_kinds_at_bases_of_its_own() -> None:
+    w = world()
+    raised = {k.key: k.raised_at for k in w.piece_kinds if k.raised_at is not None}
+    assert set(raised) == set(KINDS) - {"envoy"}
+    for k in w.piece_kinds:
+        assert (k.cost is None) == (k.lead_days is None) == (k.raised_at is None), k.key
+    held = holders(raw())
+    for side in SIDES:
+        domains = {
+            d
+            for e in w.entities
+            if e.base is not None and side in e.base.sides and held.get(e.within or "") == side
+            for d in e.base.domains
+        }
+        assert {"land", "sea"} <= domains, side
+
+
+def test_every_piece_of_the_two_nations_can_be_ordered_somewhere() -> None:
+    state = replay(compile_world(world(), CAMPAIGN, cmp.versions()))
+    for f in state.features.values():
+        if f.piece is None or territory.nation(state, f.side) not in sides(state):
+            continue
+        reach = bases.within_reach(state, f)
+        assert reach is None or len(reach) > 1, f.name
+
+
+def sides(state: Any) -> set[EntityId]:
+    names = {"The United States", "The Confederate States"}
+    return {k for k, e in state.entities.items() if e.name in names}
 
 
 # --- Deciders and groups ---------------------------------------------------------------

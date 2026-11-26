@@ -310,6 +310,8 @@ def _keyed(effect: dict[str, Any]) -> dict[str, Any]:
 def _ask(sentence: str, effect: dict[str, Any]) -> dict[str, Any]:
     if set(effect) == {"target"}:
         return {"ask": sentence, "target": entity(effect["target"])}
+    if set(effect) == {"detail"}:
+        return {"ask": sentence, "detail": effect["detail"]}
     plain = {k: v for k, v in effect.items() if k != "detail"}
     out = {"ask": sentence, "effect": _keyed(plain)}
     return out | ({"detail": effect["detail"]} if "detail" in effect else {})

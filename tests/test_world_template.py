@@ -12,6 +12,8 @@ from typing import Any
 import pytest
 import yaml
 
+from revisionist.core.realism.kinds import Condition, Picture
+from revisionist.core.realism.weather import MONTHS
 from revisionist.core.state import Rule
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,6 +121,30 @@ def test_the_four_amendments_of_the_pre_modern_check_are_written_in() -> None:
     holder = one("holds a territory")
     assert holder.standing.startswith("parked")
     assert "person" in holder.question.lower() and "faction" in holder.question.lower()
+
+
+PIECE_ROWS = (
+    "piece_kinds.attack",
+    "piece_kinds.cost",
+    "weather",
+    "sighting_margin",
+)
+"""The first key of each row the third run's piece items add: a kind's figures and picture,
+raising, weather, and the margin a sighting names a kind by."""
+
+
+def test_the_piece_rows_write_out_their_fixed_lists() -> None:
+    by_key = {key: row for row in rows() for key in row.keys}
+    assert set(PIECE_ROWS) <= set(by_key)
+    figures = by_key["piece_kinds.attack"]
+    for value in [*(p.value for p in Picture), *(c.value for c in Condition)]:
+        assert f"`{value}`" in figures.allowed, value
+    assert "`land`, `sea`, `air`" in by_key["piece_kinds.raised_at"].allowed
+    assert all(f"`{m}`" in by_key["weather"].allowed for m in MONTHS)
+    for key in ("piece_kinds.attack", "piece_kinds.cost", "weather"):
+        assert by_key[key].standing == "on main", key
+    margin = by_key["sighting_margin"]
+    assert margin.standing.startswith("parked") and "20" in margin.when_absent
 
 
 def test_the_template_names_no_place_nation_or_era() -> None:

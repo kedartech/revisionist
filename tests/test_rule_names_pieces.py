@@ -25,6 +25,7 @@ from revisionist.engine import campaign as cmp
 from tests import locked_orders_script as lo
 from tests import test_salt_strait_plays as ssp
 from tests import test_world_locks_1941 as locks_1941
+from tests import test_world_salt_strait_realism as ssw
 from tests.test_rule_names import BASELINE_1941, THIRD_RUN, _docstrings
 
 PIECES = ("kinds_in_battle", "weather", "raising")
@@ -145,9 +146,13 @@ def test_salt_strait_with_the_piece_names_on_plays_as_with_them_off(
             mp.setattr(detect, "names_kind", lambda state, s: True)
             return ssp.Game(cast, tmp_path / cast.name, mp).play().state
 
+    # Salt Strait ships with the three names on and kinds, weather and bases of its own;
+    # the names alone are compared on the world as it stood before it named them.
+    plain = (*ssp.SALT_STRAIT.changes, ssw.before_kinds)
+    off_cast = dataclasses.replace(ssp.SALT_STRAIT, name="salt-plain", changes=plain)
     on_cast = dataclasses.replace(
-        ssp.SALT_STRAIT, name="salt-pieces", changes=(*ssp.SALT_STRAIT.changes, switched_on)
+        ssp.SALT_STRAIT, name="salt-pieces", changes=(*plain, switched_on)
     )
-    off, on = played(ssp.SALT_STRAIT), played(on_cast)
+    off, on = played(off_cast), played(on_cast)
     assert on.rules - off.rules == {Rule(n) for n in PIECES}
     assert _less_rules(on) == _less_rules(off)

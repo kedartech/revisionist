@@ -31,8 +31,23 @@ Each enacted order counts once: it is read only on its due day. The due orders o
 are taken by settling day, then by what they name, then by id, so an earlier order spends
 first; pools are read before the same day's first-of-the-month payment (``economy.walk``
 runs after the day rules).
+
+The rule name ``raising`` (RNC), with ``economy`` on too: an enacted form that names a
+``kind`` and a ``place`` raises a new piece of that kind there, the kind's ``lead_days``
+after the order left its last step. The place must be a base of the nation's own whose
+domains take the kind's ``raised_at``, in a territory the nation holds, and in supply that
+day. If both pools hold the kind's cost it is spent and the piece enters at strength 1,
+named for its kind with the next number its nation has not used; the fold puts it under
+the nation's command (``fold._commanded``). Where an enemy stands on that day, it arrives
+at the nearest other base of the nation's own that would raise it, and nothing is raised
+when there is none. One piece is raised at a place at a time: filing refuses a second
+order while one is under way (``raise_refusal``, read by ``war_rules.order_refusal``), and
+of two that are both enacted the earlier is the only one raised. Either way the issuing
+seat gets one report that day.
 """
 
+import math
+import re
 from datetime import date, timedelta
 from typing import NamedTuple
 
@@ -43,6 +58,8 @@ from revisionist.core.ids import (
     EntityId,
     FeatureId,
     MandateId,
+    OrderId,
+    PipelineId,
     QuantityId,
     SeatId,
     derived_id,
@@ -66,8 +83,8 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.economy import Pools
-from revisionist.core.realism.geography import Feature, FeatureKind
-from revisionist.core.realism.kinds import Domain
+from revisionist.core.realism.geography import Feature, FeatureKind, in_play
+from revisionist.core.realism.kinds import Domain, PieceKind
 from revisionist.core.realism.land import allocate
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
@@ -75,8 +92,9 @@ from revisionist.core.realism.resolvers import evacuation, shipping
 from revisionist.core.realism.resolvers import production_stored as stored
 from revisionist.core.realism.resolvers.shipping import shifted
 from revisionist.core.realism.resolvers.votes import put
-from revisionist.core.realism.war import polity_of
-from revisionist.core.state import State
+from revisionist.core.realism.territory import Base
+from revisionist.core.realism.war import at_war, polity_of
+from revisionist.core.state import Rule, State
 from revisionist.core.visibility import private_to
 from revisionist.core.world_compile import object_id
 
@@ -93,6 +111,13 @@ MOBILISE_OUTPUT = 5  # [proposed]
 """Output one mobilisation raises, for ``STEP_MANPOWER`` manpower."""
 REQUEST_SHARE_PCT = 10  # [proposed]
 """The share of the giver's aid fund a request it decided sends, in per cent."""
+
+NOT_RAISED = "That kind of piece is not raised"
+NO_BASE = "No base for that kind there"
+NOT_YOURS = "The place is not yours"
+NO_SUPPLY = "The place is out of supply"
+BUSY = "A piece is already being raised there"
+NO_ARRIVAL = "No base of yours to arrive at"
 
 
 def _matter(state: State, lever: str) -> str:
@@ -257,7 +282,7 @@ def _requested(state: State, order: Order) -> "_Aid | None":
     that builds, sends aid itself, is a finding, or that no other nation decides."""
     if FORCE in order.params or ADDS_TO in order.params or _finding(state, order):
         return None
-    if _aid(state, order) is not None:
+    if _raises(state, order) or _aid(state, order) is not None:
         return None
     asker = polity_of(state, state.seats[order.issuer].embodies)
     giver = _giver(state, order)
@@ -282,7 +307,10 @@ def _due(state: State, today: date) -> list[Order]:
     ``production`` orders that build or mobilise, earliest first."""
     due = []
     for o in state.orders.values():
-        if o.status is not OrderStatus.ENACTED or rs.settled_on(o) + timedelta(LEAD_DAYS) != today:
+        if (
+            o.status is not OrderStatus.ENACTED
+            or rs.settled_on(o) + timedelta(_lead(state, o)) != today
+        ):
             continue
         if evacuation.is_evacuation(o):
             continue
@@ -290,8 +318,10 @@ def _due(state: State, today: date) -> list[Order]:
             resolver = rs.resolver_for(state, o)
         except KeyError:
             continue
-        if resolver == "economy" or (
-            resolver == "production" and (_builds(state, o) or _mobilises(state, o))
+        if (
+            resolver == "economy"
+            or _raises(state, o)
+            or (resolver == "production" and (_builds(state, o) or _mobilises(state, o)))
         ):
             due.append(o)
     return sorted(
@@ -423,7 +453,9 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         return ()
     out: list[rs.Change] = []
     for order in _due(state, today):
-        if rs.resolver_for(state, order) == "production" and (
+        if _raises(state, order):
+            changes = _raise(state, order, today)
+        elif rs.resolver_for(state, order) == "production" and (
             _mobilises(state, order) or _output_short(state, order)
         ):
             changes = _mobilised(state, order, today)
@@ -499,6 +531,267 @@ def _after(state: State, changes: list["rs.Change"]) -> State:
             "quantities": quantities,
         }
     )
+
+
+# --- Raising a new piece (RNC) ------------------------------------------------------------
+
+KIND, PLACE = "kind", "place"
+RAISED_TIER = 1  # [proposed] plan, RNC Defaults
+
+
+def raising_on(state: State) -> bool:
+    """Whether new pieces are raised in this game: the economy on, and ``raising`` too."""
+    return economy.on(state) and Rule.RAISING in state.rules
+
+
+def _raising_form(state: State, seat: SeatId, lever: str) -> bool:
+    held = state.seats.get(seat)
+    card = state.cards.get(held.embodies) if held is not None else None
+    found = next((x for x in card.levers if x.name == lever), None) if card else None
+    return found is not None and found.resolver in ("economy", "production")
+
+
+def _raises(state: State, order: Order) -> bool:
+    """Whether ``order`` raises a piece: the rule on, and an economy or production form
+    that names a kind and a place."""
+    return (
+        raising_on(state)
+        and KIND in order.params
+        and PLACE in order.params
+        and _raising_form(state, order.issuer, order.lever)
+    )
+
+
+def _kind(state: State, key: object) -> PieceKind | None:
+    """The world's kind ``key``, if it is raised: it has a cost, lead days and a base."""
+    found = state.kinds.pieces.get(str(key)) if state.kinds is not None else None
+    if found is None or found.cost is None or found.lead_days is None or found.raised_at is None:
+        return None
+    return found
+
+
+def _lead(state: State, order: Order) -> int:
+    """Days from the order leaving its last step to its day: a raising kind's own."""
+    kind = _kind(state, order.params.get(KIND)) if _raises(state, order) else None
+    return kind.lead_days if kind is not None and kind.lead_days is not None else LEAD_DAYS
+
+
+def _place(state: State, key: object) -> EntityId:
+    return EntityId(object_id(state.campaign_id, "entity", str(key)))
+
+
+def _own(state: State, nation: EntityId, base: Base) -> bool:
+    """A base of the nation's own, in a territory it holds."""
+    return (
+        nation in base.sides
+        and base.land is not None
+        and territory.holder(state, base.land) == nation
+    )
+
+
+def _piece(
+    state: State, order: Order, nation: EntityId, kind: PieceKind, at: EntityId, today: date
+) -> Feature:
+    """The piece ``order`` raises, standing at ``at``."""
+    pattern = re.compile(rf"{re.escape(kind.name)} (\d+)")
+    used = [
+        int(m.group(1))
+        for f in state.features.values()
+        if territory.nation(state, f.side) == nation and (m := pattern.fullmatch(f.name))
+    ]
+    return Feature(
+        feature_id=FeatureId(derived_id(state.campaign_id, "raised", order.order_id)),
+        kind=FeatureKind.PIECE,
+        name=f"{kind.name} {max(used, default=0) + 1}",
+        side=nation,
+        tier=RAISED_TIER,
+        places=(at,),
+        as_of=today,
+        piece=kind.key,
+    )
+
+
+def _site(
+    state: State, order: Order, nation: EntityId, kind: PieceKind, today: date
+) -> tuple[Base | None, str | None]:
+    """The base the order's place is and why nothing is raised there (None when it can
+    be): no base takes the kind, it is not the nation's own, or it is out of supply."""
+    assert state.map is not None and kind.raised_at is not None
+    place = _place(state, order.params[PLACE])
+    bases = [b for b in state.map.bases if b.place == place and kind.raised_at in b.domains]
+    if not bases:
+        return None, NO_BASE
+    own = [b for b in bases if _own(state, nation, b)]
+    if not own:
+        return None, NOT_YOURS
+    piece = _piece(state, order, nation, kind, own[0].place, today)
+    if shipping.supplied(state, piece, today) is False:
+        return None, NO_SUPPLY
+    return own[0], None
+
+
+def _due_on(state: State, order: Order) -> date:
+    return rs.settled_on(order) + timedelta(_lead(state, order))
+
+
+def _same_place(state: State, order: Order, place: EntityId) -> bool:
+    return _raises(state, order) and _place(state, order.params[PLACE]) == place
+
+
+def _under_way(state: State, place: EntityId, today: date) -> bool:
+    """Whether a piece is being raised at ``place``: an order for it still moving, or one
+    enacted whose day has not passed and whose piece has not entered."""
+    for o in state.orders.values():
+        if not _same_place(state, o, place):
+            continue
+        if o.status is OrderStatus.MOVING:
+            return True
+        raised = FeatureId(derived_id(state.campaign_id, "raised", o.order_id))
+        if (
+            o.status is OrderStatus.ENACTED
+            and _due_on(state, o) >= today
+            and raised not in state.features
+        ):
+            return True
+    return False
+
+
+def _behind(state: State, order: Order) -> bool:
+    """Whether another enacted order for the same place, settled before it, was still
+    being raised when ``order`` left its last step."""
+    place, settled = _place(state, order.params[PLACE]), rs.settled_on(order)
+    return any(
+        o.order_id != order.order_id
+        and o.status is OrderStatus.ENACTED
+        and _same_place(state, o, place)
+        and (rs.settled_on(o), o.order_id) < (settled, order.order_id)
+        and _due_on(state, o) >= settled
+        for o in state.orders.values()
+    )
+
+
+def raise_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:
+    """Why an order to raise may not be filed now, in fixed words; empty when it may, and
+    for every other order. The place's checks are the day's as they stand today, and a
+    second order for a place where a piece is being raised is refused."""
+    if not raising_on(state) or KIND not in params or PLACE not in params:
+        return ""
+    if not _raising_form(state, seat, lever):
+        return ""
+    nation = polity_of(state, state.seats[seat].embodies)
+    kind = _kind(state, params[KIND])
+    today = state.in_world_date
+    if nation is None or state.map is None or today is None:
+        return ""
+    if kind is None:
+        return NOT_RAISED
+    draft = Order(
+        order_id=OrderId(derived_id(state.campaign_id, "raise-check", seat)),
+        issuer=seat,
+        lever=lever,
+        pipeline=PipelineId("check"),
+        params=dict(params),
+        filed=today,
+    )
+    _, why = _site(state, draft, nation, kind, today)
+    if why is not None:
+        return why
+    return BUSY if _under_way(state, _place(state, params[PLACE]), today) else ""
+
+
+def _enemy_at(state: State, nation: EntityId, base: Base, domain: str) -> bool:
+    """Whether a force of a nation at war with ``nation`` stands where a piece of
+    ``domain`` raised at ``base`` would."""
+    areas = {base.land, base.area(domain)} - {None}
+    for f in state.features.values():
+        side = territory.nation(state, f.side)
+        if not in_play(f) or not kinds.is_force(state, f) or side is None:
+            continue
+        if not at_war(state, nation, side):
+            continue
+        where = kinds.domain(state, f)
+        if where is not None and territory.area_of(state, f.places[0], where) in areas:
+            return True
+    return False
+
+
+def _arrival(
+    state: State, order: Order, nation: EntityId, kind: PieceKind, site: Base, today: date
+) -> Base | None:
+    """Where the piece arrives: its place, or, where an enemy stands, the nearest other
+    base of the nation's own that takes the kind, in supply and with no enemy; ties to the
+    place whose id sorts first. None when there is no such base."""
+    if not _enemy_at(state, nation, site, kind.domain):
+        return site
+    assert state.map is not None
+    start = site.land or site.sea
+    steps = territory.steps_from(state.map, "air", [start] if start is not None else [])
+    open_ = [
+        b
+        for b in state.map.bases
+        if b.place != site.place
+        and kind.raised_at in b.domains
+        and _own(state, nation, b)
+        and not _enemy_at(state, nation, b, kind.domain)
+        and shipping.supplied(state, _piece(state, order, nation, kind, b.place, today), today)
+        is not False
+    ]
+    far = math.inf
+    return min(
+        open_,
+        key=lambda b: (steps.get(b.land, far) if b.land else far, str(b.place)),
+        default=None,
+    )
+
+
+def _cost_short(pools: Pools, kind: PieceKind) -> str | None:
+    assert kind.cost is not None
+    if pools.output < kind.cost.output:
+        return f"The output pool is short: {pools.output:g} of {kind.cost.output}"
+    if pools.manpower < kind.cost.manpower:
+        return f"The manpower pool is short: {pools.manpower:g} of {kind.cost.manpower}"
+    return None
+
+
+def _raise(state: State, order: Order, today: date) -> list["rs.Change"]:
+    """What one due order to raise does today: the cost spent, the new piece and the
+    report; only the report when nothing is raised."""
+    nation = polity_of(state, state.seats[order.issuer].embodies)
+    if nation is None or state.map is None:
+        return []
+    place = state.entities.get(_place(state, order.params[PLACE]))
+    where = place.name if place is not None else str(order.params[PLACE])
+    kind = _kind(state, order.params[KIND])
+    what = kind.name if kind is not None else str(order.params[KIND])
+    pools = state.economy.pools.get(nation, Pools())
+    site, why = (None, NOT_RAISED) if kind is None else _site(state, order, nation, kind, today)
+    if why is None and _behind(state, order):
+        why = BUSY
+    arrive = None
+    if why is None and kind is not None and site is not None:
+        arrive = _arrival(state, order, nation, kind, site, today)
+        why = NO_ARRIVAL if arrive is None else _cost_short(pools, kind)
+    if why is not None or kind is None or kind.cost is None or arrive is None:
+        rows = [
+            BodyField(label="For", value=_clip(what)),
+            BodyField(label="At", value=_clip(where)),
+            BodyField(label="Why", value=_clip(why or "")),
+        ]
+        paper = _report(state, order, nation, today, f"Raising: nothing raised at {where}", rows)
+        return [paper] if paper is not None else []
+    piece = _piece(state, order, nation, kind, arrive.place, today)
+    cost = kind.cost
+    spent = pools.model_copy(
+        update={"output": pools.output - cost.output, "manpower": pools.manpower - cost.manpower}
+    )
+    rows = [
+        BodyField(label="Kind", value=_clip(what)),
+        BodyField(label="At", value=_clip(state.entities[arrive.place].name)),
+        BodyField(label="Spent", value=f"{cost.output} output, {cost.manpower} manpower"),
+    ]
+    paper = _report(state, order, nation, today, f"Raised: {piece.name}", rows)
+    out: list[rs.Change] = [ev.EconomySet(polity=nation, pools=spent, on=today), piece]
+    return out + ([paper] if paper is not None else [])
 
 
 # --- Aid that arrives (AID) ---------------------------------------------------------------
@@ -687,7 +980,7 @@ def _asked(state: State, order: Order) -> list[ev.MandateIssued]:
     opportunity met by filing the form for the asker, due ``AID_ANSWER_DAYS`` later. An
     order is a request to the nations whose people decide a step of its pipeline. A full
     desk gets none; nothing waits on the answer."""
-    if not economy.on(state) or _aid(state, order) is not None:
+    if not economy.on(state) or _aid(state, order) is not None or _raises(state, order):
         return []
     asker = polity_of(state, state.seats[order.issuer].embodies)
     if asker is None:

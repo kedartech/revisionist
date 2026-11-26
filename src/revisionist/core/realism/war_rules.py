@@ -22,6 +22,7 @@ from revisionist.core.realism.document import (
 from revisionist.core.realism.effect import Engagement, SetEngagement
 from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
 from revisionist.core.realism.resolvers.movement import STRENGTH
+from revisionist.core.realism.resolvers.production import raise_refusal
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -149,8 +150,10 @@ def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
     In a territory game the world says which check a form takes (WRL): a form whose rule is
     ``war`` takes the declaration of war checks; a ``movement`` form with a ``strength``
     takes the detachment check; a choice its parameter marks ``needs_war`` takes the
-    shoot-on-sight check against the nation the mark names. A game without the territory
-    rules, as every stored game is, keeps the checks it had by the form's name."""
+    shoot-on-sight check against the nation the mark names; any other form takes the
+    raising check (``production.raise_refusal``), which only an order to raise can fail. A
+    game without the territory rules, as every stored game is, keeps the checks it had by
+    the form's name."""
     own = _own_polity(state, seat)
     if own is None:
         return ""
@@ -167,7 +170,7 @@ def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
         return refused
     if form.resolver == WAR:
         return _declaration_refusal(state, own, params)
-    return ""
+    return raise_refusal(state, seat, lever, params)
 
 
 def _form(state: State, seat: SeatId, lever: str) -> Lever | None:

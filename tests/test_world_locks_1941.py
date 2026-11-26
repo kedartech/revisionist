@@ -137,7 +137,10 @@ def test_the_commander_with_no_force_does_not_compile() -> None:
     world = _world()
     bare = _card(world, "king").model_copy(update={"authority": ()})
     cards = tuple(bare if c.person == "king" else c for c in world.cards)
+    by_hand = tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)
     with pytest.raises(WorldError, match="a playable military card needs a domain naming a force"):
+        _compile(world.model_copy(update={"cards": cards, "rules": by_hand}))
+    with pytest.raises(WorldError, match=r"king: on the roster, .* a commander with no force"):
         _compile(world.model_copy(update={"cards": cards}))
 
 

@@ -33,6 +33,7 @@ from revisionist.core.realism.card import CardPath, superiors
 from revisionist.core.realism.detachments import DETACHMENTS_PER_SIDE
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import Order
+from revisionist.core.state import Rule
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import WorldError, check_history, compile_world
 from revisionist.engine import campaign as cmp
@@ -109,7 +110,10 @@ def test_the_commander_with_no_force_does_not_compile() -> None:
     world = _world()
     bare = _card(world, "xue_yue").model_copy(update={"authority": ()})
     cards = tuple(bare if c.person == "xue_yue" else c for c in world.cards)
+    by_hand = tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)
     with pytest.raises(WorldError, match="a playable military card needs a domain naming a force"):
+        _compile(world.model_copy(update={"cards": cards, "rules": by_hand}))
+    with pytest.raises(WorldError, match=r"xue_yue: on the roster, .* a commander with no force"):
         _compile(world.model_copy(update={"cards": cards}))
 
 

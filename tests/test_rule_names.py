@@ -75,6 +75,7 @@ SHIPPED_ON: dict[str, frozenset[str]] = {
             "office",
             "defiance",
             "peace",
+            "playable_rule",
         }
     ),
     "salt-strait-realism": frozenset(

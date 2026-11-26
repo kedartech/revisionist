@@ -21,6 +21,9 @@ no bloc's count moves by a price, so the bands read as with ``offers`` off.
 With ``peace`` on (PED), each nation with a seat has a row naming who may accept a peace,
 and the scripted orders offer none: no war ends and no clause against a separate peace is
 judged, so the bands read as with ``peace`` off.
+
+With ``playable_rule`` on (PBD), the roster is the cards the rule admits, which are the cards
+flagged playable by hand, so the seat the run claims and the bands read as with it off.
 """
 
 from collections.abc import Iterable

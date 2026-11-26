@@ -438,7 +438,7 @@ def ruled_copy(name: str) -> tuple[WorldFile, list[str]]:
     )
     copy = shipped.model_copy(
         update={
-            "rules": (*shipped.rules, Rule.PLAYABLE_RULE),
+            "rules": tuple(dict.fromkeys((*shipped.rules, Rule.PLAYABLE_RULE))),
             "roster": roster,
             "playable_floor": line,
             "roster_limit": (min(2, len(roster)), 40),

@@ -1,13 +1,23 @@
 """The autumn-1941 realism world: it compiles, nobody is pre-seated, the playable cards
 (the eight leaders and the military cards flagged playable by hand) are the roster, and every
-figure is cited or a gap."""
+figure is cited or a gap.
+
+With ``playable_rule`` on (PBD), the roster is the cards the rule admits, which are the cards
+flagged by hand: no card is held back, and taking the rule out leaves the scripted run as it
+was."""
+
+import pytest
 
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId
 from revisionist.core.realism.card import CardPath
+from revisionist.core.roster import claimable
+from revisionist.core.state import Rule
 from revisionist.core.world import WorldFile
-from revisionist.core.world_compile import check_history, compile_world
+from revisionist.core.world_compile import WorldError, check_history, compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
+from tests import test_world_locks_1941 as locks_1941
+from tests.test_rule_names import BASELINE_1941
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 
@@ -126,6 +136,55 @@ def test_every_mandate_goes_to_a_playable_person() -> None:
     assert world.mandates
     assert all(set(m.to) <= playable for m in world.mandates)
     assert playable <= {k for m in world.mandates for k in m.to}
+
+
+def _open(world: WorldFile) -> set[str]:
+    """The roster people a player may take in a new game of ``world``, by key."""
+    keys = {v: k for k, v in resolve_keys(world, CAMPAIGN).items()}
+    state = replay(compile_world(world, CAMPAIGN, cmp.versions()))
+    return {keys[c.person] for c in claimable(state) if c.reason is None}
+
+
+def _without_the_rule(world: WorldFile) -> WorldFile:
+    return world.model_copy(
+        update={"rules": tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)}
+    )
+
+
+def test_the_world_plays_by_the_playable_rule() -> None:
+    assert Rule.PLAYABLE_RULE in _world().rules
+
+
+def test_the_rule_admits_the_roster_the_hand_flags_made() -> None:
+    world = _world()
+    assert Rule.PLAYABLE_RULE in world.rules
+    before, after = sorted(_open(_without_the_rule(world))), sorted(_open(world))
+    print("\nby the hand flags   by the playable rule")
+    for a, b in zip(before, after, strict=False):
+        print(f"{a:<20}{b}")
+    hand = {c.person for c in world.cards if c.playable}
+    commanders = {c.person for c in world.cards if c.playable and c.path is CardPath.MILITARY}
+    assert before == after == sorted(hand) == sorted(LEADERS | commanders)
+    assert not any(c.held_back for c in world.cards)
+
+
+def test_a_card_held_back_may_not_be_on_the_roster() -> None:
+    world = _world()
+    assert Rule.PLAYABLE_RULE in world.rules
+    cards = tuple(c.model_copy(update={"held_back": c.person == "king"}) for c in world.cards)
+    with pytest.raises(WorldError, match="character king: held back"):
+        compile_world(world.model_copy(update={"cards": cards}), CAMPAIGN, cmp.versions())
+    roster = tuple(c for c in world.roster if c.entity != "king")
+    held = world.model_copy(update={"cards": cards, "roster": roster})
+    assert _open(held) == {c.entity for c in roster}
+
+
+def test_the_scripted_run_without_the_rule_is_the_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    world = _world()
+    assert Rule.PLAYABLE_RULE in world.rules
+    assert locks_1941.run_digest(_without_the_rule(world), monkeypatch) == BASELINE_1941
 
 
 def test_no_card_or_office_names_chiang_chairman_of_the_national_government() -> None:

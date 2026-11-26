@@ -27,7 +27,9 @@ start_date: 1941-09-01
 # posts, office and defiance (OFD): each card names its post; what each head's post rests on and
 # how its holder is removed, who may move each commander, his ladder and his acts without leave
 # are on the office assets under `assets`, from Ava's sourcing note or marked a gap.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places, posts, office, defiance, peace]
+# playable_rule (PBD): the roster is the cards the playable rule admits at the default floor
+# (rank 2, a force of tier 3), which are the cards flagged playable by hand; none is held back.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places, posts, office, defiance, peace, playable_rule]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its

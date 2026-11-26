@@ -929,7 +929,7 @@ export function realismRoom(ctx) {
     const file = rv.map?.file;
     if (file && !shapesFor(file)) loadShapes(file);
     return {
-      pages, map: rv.map, shapes: shapesFor(file), record: rv.record, comeBack: comeBackLine(rv),
+      pages, map: rv.map, shapes: shapesFor(file), record: rv.record, comeBack: comeBackLine(rv), battles: rv.battles,
       reduced: Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
     };
   }

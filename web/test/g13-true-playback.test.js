@@ -1,6 +1,6 @@
 // True playback: when the room opens on a wake the seat has not watched, it plays that wake's
-// steps from the catch-up reply on the map: what moved against the seat first (papers, holders),
-// then its own orders and pieces, then the stakes. Several missed wakes play in turn inside the
+// steps from the catch-up reply on the map, day by day: on each day what moved against the seat
+// first (papers, holders), then its own orders and pieces, then the stakes. Several missed wakes play in turn inside the
 // What you missed sheet and end on the "when you come back" line. The range comes from the
 // server; the played mark lives in the page only. The reel that ran before the wake is gone.
 // Reduced motion shows still frames; Skip ends it.
@@ -57,15 +57,36 @@ const page = (number, steps, extra = {}) => ({
 const player = (pages, more = {}) => play.wakePlayer({
   pages, map: TMAP, shapes: SHAPES, record: fixture.record, comeBack: 'When you come back: nothing is due.', reduced: true, ...more,
 });
+/** A fake clock and animation-frame queue: `flush(ms)` runs one frame `ms` later. */
+function clock() {
+  let t = 0;
+  let queue = [];
+  return {
+    now: () => t,
+    frame: (cb) => { queue.push(cb); return queue.length; },
+    flush(ms = 20) {
+      t += ms;
+      const run = queue;
+      queue = [];
+      for (const cb of run) cb(t);
+    },
+    waiting: () => queue.length,
+  };
+}
 const frames = (el) => el.querySelectorAll('li.rl-plb-step');
 const kinds = (el) => frames(el).map((li) => li.getAttribute('data-kind'));
+// the feed's own steps: a room also plays the rounds of the seat's battles fought in a wake
+const fed = (el) => frames(el).filter((li) => li.getAttribute('data-kind') !== 'round');
+const fedKinds = (el) => fed(el).map((li) => li.getAttribute('data-kind'));
 
 // rule 1: against the seat first, then its own orders and pieces, then the stakes
 
-test('a wake plays what moved against the seat, then its own orders and pieces, then the stakes', () => {
+test('a wake plays its days in order, and on one day what moved against the seat, then its own orders and pieces, then the stakes', () => {
   assert.deepEqual(play.playOrder(ALL_KINDS).map((s) => s.kind), ['holder', 'paper', 'move', 'order', 'halt', 'stake']);
   installDom();
-  assert.deepEqual(kinds(player([page(4, ALL_KINDS)])), ['holder', 'paper', 'move', 'order', 'halt', 'stake']);
+  assert.deepEqual(kinds(player([page(4, ALL_KINDS)])), ['stake', 'move', 'order', 'holder', 'halt', 'paper']);
+  const oneDay = ALL_KINDS.map((s) => ({ ...s, on: '1900-04-05' }));
+  assert.deepEqual(kinds(player([page(4, oneDay)])), ['holder', 'paper', 'move', 'order', 'halt', 'stake']);
 });
 
 test('PBF\'s two-moves case: both own moves in order, the papers first, and no enemy move', () => {
@@ -73,9 +94,9 @@ test('PBF\'s two-moves case: both own moves in order, the papers first, and no e
   // the enemy's piece changed place on the seat's map too: the playback reads steps, never the map
   const enemy = { ...LEVY, key: 'm-enemy', name: 'The Sudland Levy', side: 'enemy', piece: null };
   const el = player([TWO_MOVES], { map: { ...TMAP, marks: [...TMAP.marks, enemy] } });
-  assert.deepEqual(kinds(el), ['paper', 'paper', 'move', 'move']);
+  assert.deepEqual(kinds(el), ['paper', 'move', 'move', 'paper']);
   const lines = frames(el).map((li) => words(li.querySelector('.rl-plb-cap')));
-  assert.deepEqual(lines.slice(2), ['The Norra Levy moved from The Norra Plain to The Norra Hills', 'The Norra Herald moved from The Norra Plain to The Gulf']);
+  assert.deepEqual(lines.slice(1, 3), ['The Norra Levy moved from The Norra Plain to The Norra Hills', 'The Norra Herald moved from The Norra Plain to The Gulf']);
   assert.ok(!words(el).includes('Sudland Levy'));
   assert.equal(frames(el).length, TWO_MOVES.steps.length);
 });
@@ -84,27 +105,28 @@ test('each kind of step reads as a plain line, with the record\'s words for an o
   installDom();
   const lines = frames(player([page(4, ALL_KINDS)])).map((li) => words(li.querySelector('.rl-plb-cap')));
   assert.deepEqual(lines, [
-    'The Isle passed to Sudland from Norra',
-    'A paper reached you: A battle report: the Isle',
+    'The Gulf crossing: moved',
     'The Norra Levy moved from The Norra Plain to The Norra Hills',
     `Your order “${ORDER.asked}”: filed`,
+    'The Isle passed to Sudland from Norra',
     'The Norra Kites held in The Norra Plain: the step to The Gulf was refused (too little fuel)',
-    'The Gulf crossing: moved',
+    'A paper reached you: A battle report: the Isle',
   ]);
 });
 
 test('a move lights where the piece left and where it entered on the seat\'s own map', () => {
   installDom();
-  const ticks = [];
-  const el = player([TWO_MOVES], { reduced: false, tick: (fn) => ticks.push(fn) });
+  const c = clock();
+  const el = player([TWO_MOVES], { reduced: false, clock: c });
   const map = el.querySelector('figure.rl-plb-map svg');
   assert.ok(map, 'the territory map is drawn');
   const lit = () => [map.querySelectorAll('.rl-plb-from').map((p) => p.getAttribute('data-area')), map.querySelectorAll('.rl-plb-to').map((p) => p.getAttribute('data-area'))];
-  assert.deepEqual(lit(), [[], []]); // a paper first: nothing lit
-  ticks.shift()();
-  ticks.shift()();
+  assert.deepEqual(lit(), [[], []]);
+  c.flush(play.DAY_MS * 1 + 10); // 3 April: a paper first, nothing lit
+  assert.deepEqual(lit(), [[], []]);
+  c.flush(play.DAY_MS * 4); // 7 April: the Levy entered the hills
   assert.deepEqual(lit().map((a) => [...new Set(a)]), [['norra_plain'], ['norra_hills']]);
-  ticks.shift()();
+  c.flush(play.DAY_MS * 2); // 9 April: the Herald entered the gulf
   assert.deepEqual(lit().map((a) => [...new Set(a)]), [['norra_plain'], ['the_gulf']]);
 });
 
@@ -141,7 +163,7 @@ test('a room that opens on a wake it has not watched plays it inside that wake\'
   assert.ok(sheet.open);
   const played = sheet.querySelector('section.rl-plb');
   assert.ok(played, 'where forces moved is the playback');
-  assert.deepEqual(kinds(sheet), ['paper', 'paper', 'move', 'move']);
+  assert.deepEqual(fedKinds(sheet), ['paper', 'move', 'move', 'paper']);
   assert.ok(sheet.children.indexOf(played) < sheet.children.indexOf(sheet.querySelector('.rl-hap-actions')), 'above To the desk');
   assert.equal(doc.body.querySelectorAll('dialog.rl-plb-dialog').length, 0, 'no second dialog over the sheet');
   // the minute poll's re-read keeps the playback where it stands, and asks nothing more
@@ -164,7 +186,7 @@ test('the played mark is never stored: a wake whose sheet this browser has seen 
   const shown = doc.body.querySelectorAll('dialog.rl-plb-dialog');
   assert.equal(shown.length, 1);
   assert.ok(shown[0].open);
-  assert.deepEqual(kinds(shown[0]), ['paper', 'paper', 'move', 'move']);
+  assert.deepEqual(fedKinds(shown[0]), ['paper', 'move', 'move', 'paper']);
   for (const k of writes) assert.ok(!/play|plb|watch/i.test(k), k);
   const played = shown[0].querySelector('section.rl-plb');
   await ctx.refresh();
@@ -237,7 +259,7 @@ test('several missed wakes and the one just opened play in turn in the missed sh
   await flush();
   const sheet = doc.body.querySelector('dialog.rl-missed');
   assert.ok(sheet?.open);
-  assert.deepEqual(frames(sheet).map((li) => li.getAttribute('data-wake')), ['1', '2', '2', '2', '2', '3']);
+  assert.deepEqual(fed(sheet).map((li) => li.getAttribute('data-wake')), ['1', '2', '2', '2', '2', '3']);
   assert.equal(doc.body.querySelectorAll('dialog.rl-plb-dialog').length, 0);
 });
 
@@ -260,35 +282,36 @@ test('the room keeps no map from before the run and lays no reel over a running 
 
 test('under reduced motion every frame stands still on screen, the end line too, and nothing is timed', () => {
   installDom();
-  const ticks = [];
-  const el = player([TWO_MOVES], { reduced: true, tick: (fn) => ticks.push(fn) });
+  const c = clock();
+  const el = player([TWO_MOVES], { reduced: true, clock: c });
   assert.ok(el.classList.contains('still'));
-  assert.equal(ticks.length, 0);
+  assert.equal(c.waiting(), 0);
   assert.ok(el.querySelectorAll('ol.rl-plb-frames li').every((li) => !li.hasAttribute('hidden')));
 });
 
-test('with motion, one frame at a time; Skip ends it at once and the end line shows', () => {
+test('with motion, each frame on its day; Skip ends it at once and the end line shows', () => {
   installDom();
-  const ticks = [];
+  const c = clock();
   let ended = 0;
-  const el = player([TWO_MOVES], { reduced: false, tick: (fn) => { ticks.push(fn); return ticks.length; }, onEnd: () => { ended += 1; } });
+  const el = player([TWO_MOVES], { reduced: false, clock: c, onEnd: () => { ended += 1; } });
   const shown = () => el.querySelectorAll('ol.rl-plb-frames li').filter((li) => !li.hasAttribute('hidden'));
+  c.flush(play.DAY_MS + 10);
   assert.equal(frames(el).filter((li) => !li.hasAttribute('hidden')).length, 1);
   assert.equal(el.querySelector('li[aria-current="step"]'), frames(el)[0]);
-  ticks.shift()();
+  c.flush(play.DAY_MS * 4);
   assert.equal(frames(el).filter((li) => !li.hasAttribute('hidden')).length, 2);
   const skip = buttons(el, 'Skip')[0];
   skip.click();
   assert.equal(ended, 1);
   assert.equal(shown().length, el.querySelectorAll('ol.rl-plb-frames li').length);
   assert.ok(el.querySelector('li.rl-plb-end'));
-  ticks.forEach((fn) => fn()); // a tick still due after Skip changes nothing
+  for (let n = 0; n < 40; n += 1) c.flush(play.DAY_MS); // a frame still due after Skip changes nothing
   assert.equal(ended, 1);
 });
 
 test('in the missed sheet, which has its own way out, Skip shows everything and then goes', () => {
   installDom();
-  const el = player([TWO_MOVES], { reduced: false, tick: () => 0 });
+  const el = player([TWO_MOVES], { reduced: false, clock: clock() });
   buttons(el, 'Skip')[0].click();
   assert.equal(el.querySelectorAll('button').length, 0);
   assert.ok(el.querySelectorAll('ol.rl-plb-frames li').every((li) => !li.hasAttribute('hidden')));
@@ -298,7 +321,7 @@ test('in the missed sheet, which has its own way out, Skip shows everything and 
 test('the dialog\'s Skip closes it', () => {
   installDom();
   let closed = 0;
-  const d = play.playbackDialog({ pages: [TWO_MOVES], map: TMAP, shapes: SHAPES, record: fixture.record, reduced: false, tick: () => 0, onClose: () => { closed += 1; } });
+  const d = play.playbackDialog({ pages: [TWO_MOVES], map: TMAP, shapes: SHAPES, record: fixture.record, reduced: false, clock: clock(), onClose: () => { closed += 1; } });
   d.showModal();
   buttons(d, 'Skip')[0].click();
   assert.equal(closed, 1);

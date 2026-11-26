@@ -430,7 +430,9 @@ function marksLayer(map, labelAt, at, opts) {
   const crowd = new Map();
   for (const m of marks) {
     const xy = m.places?.length > 1 ? null : markAt(m, labelAt, at, opts.today);
-    if (xy) crowd.set(xy.join(), { xy, here: [...(crowd.get(xy.join())?.here ?? []), m] });
+    // a mark the playback moves (`opts.apart`) is drawn on its own, never in a stack
+    const spot = xy && (opts.apart?.has(markKey(m)) ? `apart ${markKey(m)}` : xy.join());
+    if (xy) crowd.set(spot, { xy, here: [...(crowd.get(spot)?.here ?? []), m] });
   }
   const out = [lines];
   for (const { xy, here } of crowd.values()) {
@@ -614,7 +616,7 @@ function notInPlay(shapes, coast, box, line) {
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
  * coast (the coastline file's rings: land not in play), onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
  * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down), battles (`battleMarksOf`),
- * battle (the open battle's area), onBattle(mark) }. Arrow keys on the picked piece or a
+ * battle (the open battle's area), onBattle(mark), apart (a Set of mark keys drawn on their own, never stacked) }. Arrow keys on the picked piece or a
  * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
  */
 export function territoryDrawing(map, shapes, givenOpts = {}) {

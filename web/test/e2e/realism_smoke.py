@@ -2239,6 +2239,11 @@ def playback_closed(page: Page) -> None:
         return
     shoot(page, "salt-playback")
     word = "To the map" if player.get_by_role("button", name="To the map").count() else "Skip"
+    if word == "Skip":
+        # a wake still playing runs as a clock of world days, its day shown as it runs
+        day = player.locator(".rl-plb-day")
+        said = day.inner_text() if day.count() else ""
+        check("the playing wake shows its day as it runs", "The wake runs" in said, said)
     check(
         f"the wake player's {word} can be reached", press(page, "dialog.rl-plb-dialog button", word)
     )

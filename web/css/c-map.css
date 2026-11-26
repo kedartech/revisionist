@@ -102,6 +102,8 @@
 .rl-tm-svg:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
 /* while the view moves: the land is one picture, moved whole, with the land past its box shown; the marks ride over it */
 .rl-tm-svg.rl-tm-moving { overflow: visible; }
+/* the marks, their courses and the labels are a layer of their own: a piece that moves repaints that layer, not the land */
+.rl-tm-over { will-change: transform; }
 .rl-tm-live { position: absolute; pointer-events: none; overflow: hidden; font-family: var(--font-chrome); }
 .rl-tm-notland { fill: var(--chart-land); fill-rule: evenodd; opacity: 0.45; pointer-events: none; }
 .rl-tm-backdrop { fill: var(--chart-land); opacity: 0.45; }

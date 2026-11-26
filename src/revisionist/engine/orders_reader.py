@@ -18,7 +18,7 @@ from pydantic import Field, ValidationError
 from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
-from revisionist.core.ids import CampaignId, EntityId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism import agreement, conference
@@ -26,7 +26,6 @@ from revisionist.core.realism.agenda import Ask, Option
 from revisionist.core.realism.card import ChannelKind, Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.conference import Vote
 from revisionist.core.realism.effect import (
-    MAX_PARTIES,
     AgreementClause,
     Allocate,
     ClauseType,
@@ -40,6 +39,7 @@ from revisionist.core.realism.effect import (
     Route,
     SetEngagement,
 )
+from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.locks import HeldOrder, zone_of
 from revisionist.core.realism.reach import channels_to
 from revisionist.core.realism.resolvers import intel
@@ -401,44 +401,30 @@ def _treaty_reading(
     person: str | None = None,
     channel: str | None = None,
 ) -> Reading:
-    """An offer of an agreement from the player's own wording, with the clauses the reader
-    proposed that survived the checks. The player signs the terms rendered from those
+    """An offer of an agreement from the player's own wording and the clauses the reader
+    proposed, made by the offer form's own checks: a clause the form would refuse refuses
+    the whole offer in the form's words. The player signs the terms rendered from the
     clauses, and the reader's own summary is never shown."""
-    me = view.me.embodies
-    own = polity_of(state, me)
-    if len(text) > WORDING_MAX:
-        return _unfileable(text, LONG_WORDING, person, channel)
-    parties = tuple(dict.fromkeys(p for p in ((own,) if own else ()) + parties))[:MAX_PARTIES]
-    others = tuple(p for p in parties if p != own)
-    if own is None or not others or any(p not in view.entities for p in parties):
-        return _unfileable(text, NO_PARTIES, person, channel)
-    why = agreement.refusal(
-        state, seat, Deal(counterparty=others[0], parties=parties, wording=text)
-    )
-    if why:
-        return _unfileable(text, why, person, channel)
-    clauses, dropped = _checked(state, view, seat, parties, raw)
-    deal = Deal(counterparty=others[0], parties=parties, wording=text, clauses=clauses)
-    offer = _offer_of(state, me, deal)
+    from revisionist.engine.web import agreements_api
+
+    body = {"wording": text, "parties": list(parties), "clauses": list(raw)}
+    try:
+        formed = agreements_api.offer_reading(state, seat, body)
+    except ValueError as exc:
+        return _unfileable(text, str(exc), person, channel)
+    deal = formed.asks[0].effect
+    if not isinstance(deal, Deal):
+        return _unfileable(text, UNREADABLE, person, channel)
+    offer = _offer_of(state, view.me.embodies, deal)
     parts = [
         f"{label} ({READING}): {words}" if label.startswith("Clause ") else f"{label}: {words}"
         for label, words in agreement.term_rows(state, offer)
     ]
     parts.append(f"Your wording, which the rules do not check: {text}")
-    if dropped:
-        parts.append(
-            f"Left out, because it did not fit the clauses the rules can check: {dropped}."
-        )
     if note:
         parts.append(note)
-    ask = Ask(ask=OFFER_ASK, effect=deal)
     shown = OrderProposal(person=person, channel=channel, text=text, parts=parts, reason=None)
-    return Reading(
-        shown=shown,
-        asks=(ask,),
-        version=offer.version,
-        terms=agreement.render_terms(state, offer),
-    )
+    return Reading(shown=shown, asks=formed.asks, version=formed.version, terms=formed.terms)
 
 
 def _vote_reading(
@@ -449,15 +435,16 @@ def _vote_reading(
     person: str | None,
     channel: str | None,
 ) -> Reading:
-    """A written vote (CNF), read into the sealed vote the conference's action files.
-    Shown with the conference's text and the vote, in fixed words."""
+    """A written vote (CNF), read into the sealed vote the conference's action files, by
+    that action's own checks and in its words. Shown with the conference's text and the
+    vote, in fixed words."""
+    from revisionist.engine.web import conferences_api
+
     try:
-        ballot = _Ballot.model_validate(raw)
-    except ValidationError:
-        return _unfileable(text, UNREADABLE, person, channel)
-    why = conference.vote_refusal(state, seat, ballot.conference)
-    if why:
-        return _unfileable(text, why, person, channel)
+        args, _ = conferences_api.vote_args(state, seat, raw)
+    except ValueError as exc:
+        return _unfileable(text, str(exc), person, channel)
+    ballot = _Ballot.model_validate(args)
     held = state.conferences.held[ballot.conference]
     parts = [
         f"Conference: {held.key}",
@@ -563,7 +550,8 @@ def _escort(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None
 
 def _aid(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     """An aid finding's recipient and share: an allocation, in per cent, of what the
-    finding's receipt names."""
+    finding's receipt names. A share past the form's bounds is given as written, for the
+    form to refuse when it is filed."""
     keys = state.map.production if state.map is not None else None
     if keys is None or not any(f.form == lever.name for f in keys.findings):
         return None
@@ -575,9 +563,8 @@ def _aid(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     for spec in lever.params:
         if (c := _choice(state, spec, "entity", effect.recipient)) is not None:
             out[spec.name] = c
-        elif spec.kind is ParamKind.INT and spec.lo is not None and spec.hi is not None:
-            if spec.lo <= effect.amount <= spec.hi:
-                out[spec.name] = str(effect.amount)
+        elif spec.kind is ParamKind.INT:
+            out[spec.name] = str(effect.amount)
     return out if len(out) == 2 else None
 
 
@@ -594,14 +581,97 @@ def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[st
     return None
 
 
+PARAM_FORMS = frozenset({"economy", "trade"})
+"""The resolvers whose forms no effect kind holds: a written order names their parameters."""
+
+_DECISION = {Posture.ATTACK: "press", Posture.HOLD: "hold", Posture.WITHDRAW: "withdraw"}
+"""The battle decision a written posture stands for, in the battle form's words."""
+
+
+def _commanded(state: State, seat: SeatId, force: str | None) -> Feature:
+    """The force, when the seat commands it; else the contingency form's refusal."""
+    from revisionist.core.realism import war_rules
+    from revisionist.engine.web import battles_api
+
+    f = state.features.get(FeatureId(force)) if force is not None else None
+    if f is None or not any(s == seat for s, _ in war_rules.commanders(state, f.feature_id)):
+        raise ValueError(battles_api.NOT_YOURS_FORCE)
+    return f
+
+
+def _battle_form(state: State, seat: SeatId, ask: Ask) -> tuple[Ask, EntityId | None] | None:
+    """The ask the battle or contingency form files for a written battle decision or
+    standing contingency, built by that form's own checks, with the battle's area for a
+    decision; None for any other ask. Raises ``ValueError`` in the form's words."""
+    from revisionist.core.realism import battle
+    from revisionist.engine.web import battles_api
+
+    e = ask.effect
+    if isinstance(e, MoveForce) and e.posture is not None and e.posture in _DECISION:
+        if not battle.on(state):
+            return None
+        f = _commanded(state, seat, e.force)
+        area = battle.fighting_area(state, f)
+        fought = battle.at(state, area) if area is not None else None
+        keys = battles_api._keys(state)
+        if fought is None or fought.area not in keys:
+            raise ValueError(battles_api.NOT_IN)
+        body = {"area": keys[fought.area][0], "decision": _DECISION[e.posture]}
+        if e.to is not None:
+            body["to"] = keys[e.to][0] if e.to in keys else str(e.to)
+        asks, _, _ = battles_api.battle_asks(state, seat, body)
+        return asks[0], fought.area
+    if isinstance(e, SetEngagement) and e.contingency is not None and e.concealed is None:
+        f = _commanded(state, seat, e.force)
+        if e.contingency.to is not None and e.contingency.to not in battles_api._keys(state):
+            raise ValueError(f"There is no area {e.contingency.to}.")
+        effect = SetEngagement(
+            force=f.feature_id,
+            zone=f.name,
+            rule=f.engagement or Engagement.DEFEND,
+            contingency=e.contingency,
+        )
+        label = f"{f.name}: {e.contingency.kind.value.replace('_', ' ')}"
+        return Ask(ask=label, effect=effect), None
+    return None
+
+
+def _as_forms(state: State, seat: SeatId, asks: Sequence[Ask]) -> list[Ask]:
+    """Each ask, a battle decision or a contingency as its form files it; one battle takes
+    one decision. Raises ``ValueError`` in the form's words."""
+    from revisionist.engine.web import battles_api
+
+    out: list[Ask] = []
+    decided: set[EntityId] = set()
+    for ask in asks:
+        found = _battle_form(state, seat, ask)
+        if found is None:
+            out.append(ask)
+            continue
+        filed, area = found
+        if area is not None and area in decided:
+            raise ValueError(battles_api.DECIDED)
+        decided |= {area} if area is not None else set()
+        out.append(filed)
+    return out
+
+
 def twin(state: State, seat: SeatId, ask: Ask, detail: dict[str, str]) -> Twin | None:
     """The one form on the seat's card that gives the ask's effect, with every parameter
     filled: from the effect, and from ``detail`` for what the effect cannot hold. A detail
-    never names what the effect fills. None when no form, or more than one, fits."""
+    never names what the effect fills. A form no effect kind holds (an evacuation, a trade
+    order) is given by an ask with no effect whose detail names each of its parameters; its
+    values are the form's to check when it is filed. None when no form, or more than one,
+    fits."""
     card = state.cards.get(state.seats[seat].embodies)
-    if card is None or ask.effect is None:
+    if card is None:
         return None
     found: list[Twin] = []
+    if ask.effect is None:
+        for lever in card.levers if detail else ():
+            if lever.resolver in PARAM_FORMS and set(detail) == {p.name for p in lever.params}:
+                found.append((lever.name, dict(detail)))
+        return found[0] if len(found) == 1 else None
     for lever in card.levers:
         filled = _filled(state, seat, lever, ask.effect)
         if filled is None or set(filled) & set(detail):
@@ -610,6 +680,30 @@ def twin(state: State, seat: SeatId, ask: Ask, detail: dict[str, str]) -> Twin |
         if set(given) == {p.name for p in lever.params}:
             found.append((lever.name, given))
     return found[0] if len(found) == 1 else None
+
+
+def _past_bounds(state: State, seat: SeatId, ask: Ask) -> str | None:
+    """The refusal of the forms on the seat's card that give the ask's effect, when each
+    of them holds a number the effect fills past its bounds; None when one takes them all,
+    or none gives the effect. A written order that names too little to be its form is
+    still held to the form's bounds."""
+    card = state.cards.get(state.seats[seat].embodies)
+    if card is None or ask.effect is None:
+        return None
+    refused: list[str] = []
+    for lever in card.levers:
+        filled = _filled(state, seat, lever, ask.effect)
+        if filled is None:
+            continue
+        try:
+            for spec in lever.params:
+                if spec.kind is ParamKind.INT and spec.name in filled:
+                    realism_tick._fits(spec, filled[spec.name])
+        except ValueError as exc:
+            refused.append(str(exc))
+            continue
+        return None
+    return refused[0] if refused else None
 
 
 def _war_reading(
@@ -739,6 +833,10 @@ def read_order(
         return _unfileable(text, UNREADABLE, name, said)
     if not written and any(_new_order(a) for a in asks):
         return _unfileable(text, TO_THE_FORM, name, said)
+    try:
+        asks = _as_forms(state, seat, asks)
+    except ValueError as exc:
+        return _unfileable(text, str(exc), name, said)
     check = Option(label="order", asks=tuple(asks), to=who)
     details = json.dumps([d for _, d in read])
     if not _named_ok(view, check) or scan_text(state, seat, check.model_dump_json() + details):
@@ -766,6 +864,9 @@ def read_order(
     )
     if any(f is None and detail for f, (_, detail) in zip(forms, read, strict=True)):
         return _unfileable(text, TO_THE_FORM, name, said)
+    for ask, form in zip(asks, forms, strict=True):
+        if form is None and (why := _past_bounds(state, seat, ask)) is not None:
+            return _unfileable(text, why, name, said)
     shown = OrderProposal(person=name, channel=said, text=text, parts=parts, reason=None)
     return Reading(shown=shown, asks=tuple(asks), forms=forms if any(forms) else ())
 

@@ -19,6 +19,7 @@ from revisionist.core.realism.effect import Deal
 from revisionist.engine import orders_reader as orr
 from revisionist.engine.llm import PLAYER_TEXT_RULE, Reply, Request, TransportError, prompt_text
 from revisionist.engine.store import MemoryStore, load_state
+from revisionist.engine.web import agreements_api
 from tests.test_adjacency_moves import Logged, entity
 from tests.test_agreements import ILSE, NORRA, SUDLAND, TOMAS, game
 from tests.test_territory_model import CAMPAIGN
@@ -105,16 +106,23 @@ def test_the_signing_view_is_the_rendered_terms_and_not_the_readers_summary(
     assert "do not check" in shown(reading)
 
 
-def test_an_invalid_clause_is_dropped_and_said(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"type": "keep_out", "binds": NORRA},
+        {"type": "keep_out", "binds": NORRA, "area": "nowhere"},
+        {"type": "no_war", "binds": entity("ostmark"), "nation": NORRA},
+        {"type": "vote", "binds": NORRA, "text": "t", "present": True},
+    ],
+    ids=["bad-shape", "no-such-area", "foreign", "vote"],
+)
+def test_an_invalid_clause_refuses_the_offer_as_the_form_does(
+    tmp_path: Path, bad: dict[str, Any]
+) -> None:
     g = played(tmp_path)
-    bad_shape = {"type": "keep_out", "binds": NORRA}
-    no_such_area = {"type": "keep_out", "binds": NORRA, "area": "nowhere"}
-    foreign = {"type": "no_war", "binds": entity("ostmark"), "nation": NORRA}
-    vote = {"type": "vote", "binds": NORRA, "text": "t", "present": True}
-    reading = read(g, Canned(treaty(KEEP_OUT, bad_shape, no_such_area, foreign, vote)))
-    deal = reading.asks[0].effect
-    assert isinstance(deal, Deal) and len(deal.clauses) == 1
-    assert "Left out" in shown(reading) and "4" in shown(reading)
+    reading = read(g, Canned(treaty(KEEP_OUT, bad)))
+    assert not reading.asks
+    assert reading.shown["reason"] == agreements_api.CLAUSE_LEFT_OUT.format(n=2)
 
 
 def test_a_valid_clause_the_text_does_not_support_is_kept_and_labelled_as_a_reading(
@@ -246,14 +254,15 @@ def test_a_reply_the_code_cannot_parse_gives_the_no_clauses_reading(tmp_path: Pa
     assert orr.NO_CLAUSES in shown(reading) and len(canned.requests) == 1
 
 
-def test_a_clause_naming_something_that_is_not_a_nation_is_dropped(tmp_path: Path) -> None:
+def test_a_clause_naming_something_that_is_not_a_nation_is_refused(tmp_path: Path) -> None:
     g = played(tmp_path)
     not_a_nation = {"type": "no_war", "binds": NORRA, "nation": entity("isle")}
-    deal = read(g, Canned(treaty(not_a_nation))).asks[0].effect
-    assert isinstance(deal, Deal) and deal.clauses == ()
+    reading = read(g, Canned(treaty(not_a_nation)))
+    assert not reading.asks
+    assert reading.shown["reason"] == agreements_api.CLAUSE_LEFT_OUT.format(n=1)
 
 
-def test_a_clause_naming_a_piece_the_seat_does_not_command_is_dropped(tmp_path: Path) -> None:
+def test_a_clause_naming_a_piece_the_seat_does_not_command_is_refused(tmp_path: Path) -> None:
     g = played(tmp_path)
     galleys = {
         "type": "place",
@@ -262,8 +271,9 @@ def test_a_clause_naming_a_piece_the_seat_does_not_command_is_dropped(tmp_path: 
         "area": entity("isle"),
         "on": "2026-01-01",
     }
-    deal = read(g, Canned(treaty(galleys))).asks[0].effect
-    assert isinstance(deal, Deal) and deal.clauses == ()
+    reading = read(g, Canned(treaty(galleys)))
+    assert not reading.asks
+    assert reading.shown["reason"] == agreements_api.CLAUSE_LEFT_OUT.format(n=1)
 
 
 def test_a_changed_wording_is_a_new_version_and_needs_a_new_signature(tmp_path: Path) -> None:

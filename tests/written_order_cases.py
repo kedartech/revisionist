@@ -830,3 +830,49 @@ difference: the first one found, where a case has more than one."""
 CASES: tuple[Case, ...] = tuple(
     replace(c, fix=FIXES.get(c.name)) for c in NINETEEN_41 + SALT_STRAIT
 )
+
+
+# --- canned rulings: written orders no form covers ---------------------------------------
+
+RULED_BY = "cable_to_churchill"
+"""The case whose written sentence is an approach the estimator rules on: the President's
+cable, written to the Prime Minister, which no form of the President's covers in writing."""
+
+PLANTED_FACT = "planted_fact"
+PLANTED_FIGURE = "planted_figure"
+"""A fact and a figure no resolver computes, planted by the test: neither shipped world has
+one at its open, and a disclosure and a figure's move need one to name."""
+
+RULINGS: dict[str, Effect] = {
+    "move_force": patrol("us_pacific_fleet"),
+    "engagement": engage("atlantic", "escort", "us_atlantic_fleet"),
+    "allocate": give("uk", "lend_lease", 10, "percent"),
+    "appointment": {"kind": "appointment", "person": "hopkins", "office": "envoy"},
+    "measure": {
+        "kind": "measure",
+        "title": "Aid to Britain",
+        "clauses": [{"kind": "power", "subject": "aid to britain"}],
+    },
+    "statement": say("aid_to_allies"),
+    "investigate": {"kind": "investigate", "target": "germany", "question": "intent"},
+    "deal": {"kind": "deal", "counterparty": "uk", "offer": ["destroyers"], "ask": ["bases"]},
+    "disposition": {"kind": "disposition", "of": "uk", "toward": "usa", "change": 2},
+    "disclosure": {"kind": "disclosure", "fact": PLANTED_FACT},
+    "figure": {"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 5},
+}
+"""One canned ruling per effect kind the estimator may return, each the estimator's whole
+reply on the approach ``RULED_BY`` stands for, as world keys. Each lands as ruled."""
+
+PAST_THE_CAP: dict[str, tuple[tuple[Effect, ...], tuple[Effect, ...]]] = {
+    "disposition": (
+        (RULINGS["disposition"], RULINGS["disposition"]),
+        (RULINGS["disposition"],),
+    ),
+    "figure": (
+        ({"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 25},),
+        ({"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 10},),
+    ),
+    "effects": ((RULINGS["statement"],) * 9, (RULINGS["statement"],) * 8),
+}
+"""Rulings past a cap, and what lands: a disposition moves at most 2 in one order, a figure
+at most 10 percent in one order, and a ruling holds at most 8 effects."""

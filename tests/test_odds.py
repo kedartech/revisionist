@@ -173,7 +173,7 @@ def test_a_game_without_battles_gives_no_odds(tmp_path: Path) -> None:
 
 def test_the_reply_is_a_spread_with_every_part(tmp_path: Path) -> None:
     reply = toward(seen(start(tmp_path), report()))
-    assert set(reply) == set(api.OddsReply.__annotations__)
+    assert set(reply) == api.OddsReply.__required_keys__
     shares = reply["shares"]
     assert shares is not None
     assert set(shares) == {"win", "stalemate", "loss"}
@@ -802,7 +802,7 @@ def test_the_seat_fixture_carries_an_odds_reply_in_the_api_shape(tmp_path: Path)
     """Under ``spread``: the client's fixture never carries the word for chances."""
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["spread"]
     assert fixture == toward(seen(start(tmp_path), report()))
-    assert set(fixture) == set(api.OddsReply.__annotations__)
+    assert set(fixture) == api.OddsReply.__required_keys__
     assert set(fixture["terrain"]) == set(api.OddsTerrain.__annotations__)
     assert set(fixture["shares"]) == set(api.OddsShares.__annotations__)
     assert set(fixture["by_strength"][0]) == set(api.OddsAtStrength.__annotations__)

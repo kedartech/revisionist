@@ -30,7 +30,7 @@ import time
 from collections import OrderedDict, deque
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Literal, NamedTuple, cast
 
 from revisionist.core import events as ev
@@ -38,7 +38,7 @@ from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.project import project
-from revisionist.core.realism import battle, detect, holders, kinds, territory, war_rules
+from revisionist.core.realism import battle, detect, holders, kinds, territory, war_rules, weather
 from revisionist.core.realism.battle import (
     Battle,
     BattleSide,
@@ -47,6 +47,7 @@ from revisionist.core.realism.battle import (
     Fighter,
     SideIn,
 )
+from revisionist.core.realism.card import words
 from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import Rule, State, View
@@ -54,7 +55,9 @@ from revisionist.core.world_compile import object_id
 from revisionist.engine.web import map_api
 from revisionist.engine.web.realism_api import (
     ClosingOdds,
+    FigureCause,
     OddsAtStrength,
+    OddsCause,
     OddsOutcome,
     OddsReply,
     OddsShares,
@@ -129,6 +132,27 @@ class Picture(NamedTuple):
     """Every report used, fighters and air alike, by the key the seat's map gives it
     (``map_api.report_keys``), never the core one."""
     terrain: OddsTerrain
+    kinded: "tuple[Variant, tuple[tuple[FigureCause, str, Variant], ...]] | None" = None
+    """With ``kinds_in_battle`` on (KVW): the kinds' part as the seat knows it, then one
+    for each cause there with that cause taken out, each with its words."""
+
+
+class Variant(NamedTuple):
+    """The kinds' part of a picture as the battle reads it (KVW): each side's edges (the
+    seat's pieces by id, the enemy's by report key), the pieces that strike, each side's
+    air support, the seat's side's supply and the terrain's defence."""
+
+    own_edges: tuple[tuple[str, int], ...]
+    enemy_edges: tuple[tuple[str, int], ...]
+    strikers: tuple[str, ...]
+    own_air: bool
+    enemy_air: bool
+    supplied: bool
+    defence: int
+
+
+CAUSES: tuple[FigureCause, ...] = ("terrain", "weather", "enemy_kind", "air_cover", "out_of_supply")
+"""The causes the odds can name, in the order a tie goes to."""
 
 
 def _keys(view: View) -> dict[EntityId, tuple[str, str]]:
@@ -239,6 +263,145 @@ def _back(view: View, piece: Feature, area: EntityId) -> str | None:
     return _keys(view)[to][0] if to is not None and to in _keys(view) else None
 
 
+class _Fight(NamedTuple):
+    """Where and when a picture's fight is, for its kinds' part."""
+
+    side: Literal[0, 1]
+    own_at: EntityId
+    enemy_at: EntityId
+    terrain: str | None
+    """The terrain key fought on; None in a meeting at sea or on a border."""
+    defence: int
+    supplied: bool
+    day: date
+
+
+def _named(found: Sequence[kinds.PieceKind]) -> frozenset[str]:
+    """What an ``against`` reads of these kinds: each one's key and domain."""
+    return frozenset(n for k in found for n in (k.key, k.domain.value))
+
+
+def _variant(
+    state: State,
+    view: View,
+    pieces: Sequence[Feature],
+    enemy: tuple[Seen, ...],
+    at: _Fight,
+    drop: FigureCause | None = None,
+) -> Variant:
+    """The kinds' part of a picture with the cause ``drop`` taken out (None: none). The
+    seat's own pieces and their support are read from its own side; the enemy's kinds,
+    support and cover from its reports only, a report naming no kind as its domain's
+    plain kind, the figures of which are all 3."""
+    from revisionist.core.realism.kinds import Condition, Figure
+
+    board = view.map
+    assert board is not None
+    seen = map_api.seat_board(state, view)
+    nation = territory.nation(state, pieces[0].side) if pieces else None
+    sky = weather.sky(state) if drop != "weather" else None
+    terrain = at.terrain if drop != "terrain" else None
+    rep = map_api.reported(state, view, at.enemy_at, at.day)
+    over_me = rep if at.own_at == at.enemy_at else map_api.reported(state, view, at.own_at, at.day)
+    support = battle._support(seen, nation, at.own_at, at.day) if nation is not None else []
+    covered = nation is not None and battle._covers(seen, nation, at.enemy_at, at.day)
+    pieces_kinds = view.kinds.pieces if view.kinds is not None else {}
+    plain = map_api.plain_kind(map_api.area_domain(board, at.enemy_at))
+    theirs: list[tuple[str, kinds.PieceKind]] = []
+    for s in enemy:
+        r = view.reports.get(s.key)
+        named = pieces_kinds.get(r.kind) if r is not None and r.kind is not None else None
+        theirs.append((s.key, named if named is not None and drop != "enemy_kind" else plain))
+    mine = [(str(f.feature_id), k) for f in pieces if (k := kinds.of(state, f)) is not None]
+    own_support = [k for f in support if (k := kinds.of(state, f)) is not None]
+    facing_me = _named([k for _, k in theirs] + list(rep.support))
+    if drop == "enemy_kind":
+        facing_me = frozenset()
+    facing_them = _named([k for _, k in mine] + own_support)
+    holds_me = set() if rep.air else {Condition.NO_ENEMY_AIR}
+    holds_them = set() if support else {Condition.NO_ENEMY_AIR}
+    supplied = at.supplied or drop == "out_of_supply"
+    if not supplied:
+        holds_them.add(Condition.ENEMY_OUT_OF_SUPPLY)
+    mine_which = Figure.ATTACK if at.side == 0 else Figure.DEFENCE
+    theirs_which = Figure.DEFENCE if at.side == 0 else Figure.ATTACK
+
+    def edges(
+        found: Sequence[tuple[str, kinds.PieceKind]],
+        which: Figure,
+        facing: frozenset[str],
+        holds: set[Condition],
+        where: EntityId,
+    ) -> tuple[tuple[str, int], ...]:
+        out = []
+        for key, k in found:
+            shift = sky.shift(k, where, at.day) if sky is not None else ()
+            value = kinds.figure(
+                k, which, terrain=terrain, facing=facing, holds=holds, weather=shift
+            )
+            out.append((key, value - kinds.FIGURE))
+        return tuple(out)
+
+    air = drop != "air_cover"
+    return Variant(
+        own_edges=edges(mine, mine_which, facing_me, holds_me, at.own_at),
+        enemy_edges=edges(theirs, theirs_which, facing_them, holds_them, at.enemy_at),
+        strikers=tuple(key for key, k in [*mine, *theirs] if k.strike_steps is not None),
+        own_air=air and bool(support) and not over_me.covers,
+        enemy_air=air and rep.air and not covered,
+        supplied=supplied,
+        defence=at.defence if drop != "terrain" else 0,
+    )
+
+
+def _kinded(
+    state: State, view: View, pieces: Sequence[Feature], enemy: tuple[Seen, ...], at: _Fight
+) -> tuple[Variant, tuple[tuple[FigureCause, str, Variant], ...]] | None:
+    """The kinds' part of a picture as the seat knows it, then one for each cause there
+    with that cause taken out, each with its words; None with ``kinds_in_battle`` off."""
+    if not battle.kinds_count(state):
+        return None
+    actual = _variant(state, view, pieces, enemy, at)
+    out: list[tuple[FigureCause, str, Variant]] = []
+    for cause in CAUSES:
+        other = _variant(state, view, pieces, enemy, at, cause)
+        if other != actual:
+            out.append((cause, _cause_words(state, view, enemy, at, cause), other))
+    return actual, tuple(out)
+
+
+def _cause_words(
+    state: State, view: View, enemy: tuple[Seen, ...], at: _Fight, cause: FigureCause
+) -> str:
+    """The words a cause is named by in the odds: the ground, the weather's name, the
+    enemy kinds reported there, or the cause's fixed words."""
+    if cause == "terrain":
+        return f"the {words(at.terrain)}" if at.terrain else map_api.CAUSE_WORDS["terrain"]
+    if cause == "weather":
+        held = weather.holds(state, at.enemy_at, at.day)
+        return held.name if held is not None else map_api.CAUSE_WORDS["weather"]
+    if cause == "enemy_kind":
+        pieces = view.kinds.pieces if view.kinds is not None else {}
+        names = sorted(
+            {
+                pieces[r.kind].name
+                for s in enemy
+                if (r := view.reports.get(s.key)) is not None and r.kind in pieces
+            }
+        )
+        return f"{', '.join(names)} reported there" if names else map_api.CAUSE_WORDS[cause]
+    return map_api.CAUSE_WORDS[cause]
+
+
+def _arrival(state: State, view: View, f: Feature, area: EntityId) -> date | None:
+    """The day ``f`` would arrive in ``area`` by its course on the seat's board."""
+    today = view.in_world_date
+    course = territory.plans(map_api.seat_board(state, view), f).get(area)
+    if today is None or course is None:
+        return today
+    return today + timedelta(days=course.total)
+
+
 def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) -> Picture:
     """The picture for sending ``f`` into ``area``: it would attack whatever the reports
     put there, alone, on the terrain there."""
@@ -259,6 +422,12 @@ def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) 
         air=own_nation is not None and battle._air(state, own_nation, area),
         supplied=battle._supplied(state, [f]),
     )
+    day = _arrival(state, view, f, area)
+    fight = (
+        _Fight(0, area, area, terrain["terrain"] or None, terrain["defence"], own.supplied, day)
+        if day is not None
+        else None
+    )
     return Picture(
         area=area,
         side=0,
@@ -275,6 +444,7 @@ def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) 
         back=_back(view, f, area),
         reports=map_api.report_keys(view, used),
         terrain=terrain,
+        kinded=_kinded(state, view, [f], seen, fight) if fight is not None else None,
     )
 
 
@@ -346,6 +516,25 @@ def _in_battle(
         back=_back(view, f, where),
         reports=map_api.report_keys(view, used),
         terrain=terrain,
+        kinded=(
+            _kinded(
+                state,
+                view,
+                present,
+                seen,
+                _Fight(
+                    i,
+                    where,
+                    enemy_at,
+                    None if b.meeting else terrain["terrain"] or None,
+                    defence,
+                    own.supplied,
+                    today,
+                ),
+            )
+            if today is not None
+            else None
+        ),
     )
 
 
@@ -379,8 +568,10 @@ def picture(state: State, seat: SeatId, body: Mapping[str, Any]) -> Picture:
 
 
 def seed(campaign: CampaignId, wake: int, seat: SeatId, p: Picture) -> str:
-    """The request's seed: the campaign, the wake, the seat and the picture. No clock."""
-    raw = json.dumps([str(campaign), wake, str(seat), p], sort_keys=True, default=str)
+    """The request's seed: the campaign, the wake, the seat and the picture. No clock. A
+    picture with no kinds' part seeds on its other fields alone."""
+    shown: Sequence[object] = p if p.kinded is not None else p[:-1]
+    raw = json.dumps([str(campaign), wake, str(seat), shown], sort_keys=True, default=str)
     return hashlib.blake2b(raw.encode(), digest_size=16).hexdigest()
 
 
@@ -442,45 +633,10 @@ def spread(p: Picture, base: str, runs: int = ODDS_RUNS, days: int = ODDS_DAYS) 
             by_strength=[OddsAtStrength(strength=s, win=0.0) for s in range(low, high + 1)],
             reports=list(p.reports),
         )
-    i = p.side
-    outcomes = [0, 0, 0]  # win, stalemate, loss
-    own_lost: list[int] = []
-    enemy_lost: list[int] = []
-    taken_on: list[int] = []
-    back = 0
-    tried = dict.fromkeys(range(low, high + 1), 0)
-    won = dict.fromkeys(range(low, high + 1), 0)
-    for run in range(runs):
-        fighters = tuple(Fighter(s.key, _draw(base, run, s)) for s in p.enemy)
-        total = sum(f.strength for f in fighters)
-        enemy = SideIn(
-            fighters=fighters,
-            brought=total,
-            own_ground=p.enemy_ground,
-            air=p.enemy_air,
-            supplied=p.enemy_supplied,
-        )
-        pair = (p.own, enemy) if i == 0 else (enemy, p.own)
-        played = battle.simulate(
-            battle.Sides(pair[0], pair[1], p.defence, p.presses, p.lull), f"{base}\x1f{run}", days
-        )
-        after = (played.sides.attacker, played.sides.defender)
-        own_lost.append(after[i].lost - p.own.lost)
-        enemy_lost.append(after[1 - i].lost)
-        tried[total] += 1
-        winner = {Ending.WON: 0, Ending.HELD: 1}.get(played.ending) if played.ending else None
-        if winner is None:
-            outcomes[1] += 1
-        elif winner == i:
-            outcomes[0] += 1
-            won[total] += 1
-            if p.takes and played.rounds:
-                taken_on.append(played.rounds[-1].day + 1 + holders.CAPTURE_DAYS)
-        else:
-            outcomes[2] += 1
-        if played.broken == i:
-            back += 1
-    return OddsReply(
+    first = p.kinded[0] if p.kinded is not None else None
+    got = _runs(p, base, runs, days, low, high, first)
+    outcomes, own_lost, enemy_lost, taken_on, back, tried, won = got
+    reply = OddsReply(
         known=True,
         area=p.terrain["area"],
         terrain=p.terrain,
@@ -506,6 +662,87 @@ def spread(p: Picture, base: str, runs: int = ODDS_RUNS, days: int = ODDS_DAYS) 
             for s in range(low, high + 1)
         ],
         reports=list(p.reports),
+    )
+    if p.kinded is not None:
+        reply["moved_by"] = _moved_by(p, base, runs, days, low, high, outcomes[0])
+    return reply
+
+
+_Runs = tuple[list[int], list[int], list[int], list[int], int, dict[int, int], dict[int, int]]
+
+
+def _runs(
+    p: Picture, base: str, runs: int, days: int, low: int, high: int, v: Variant | None
+) -> _Runs:
+    """``runs`` battles of ``p``, its kinds' part ``v`` (None: no kinds' part): the
+    outcomes (win, stalemate, loss), each run's losses, the days to take the area, the
+    runs forced back, and the runs and wins by the enemy's drawn strength."""
+    i = p.side
+    outcomes = [0, 0, 0]
+    own_lost: list[int] = []
+    enemy_lost: list[int] = []
+    taken_on: list[int] = []
+    back = 0
+    tried = dict.fromkeys(range(low, high + 1), 0)
+    won = dict.fromkeys(range(low, high + 1), 0)
+    own = p.own
+    edges: tuple[tuple[tuple[str, int], ...], tuple[tuple[str, int], ...]] = ((), ())
+    strikers: frozenset[str] = frozenset()
+    defence, enemy_air = p.defence, p.enemy_air
+    if v is not None:
+        own = own._replace(air=v.own_air, supplied=v.supplied)
+        mine, theirs = v.own_edges, v.enemy_edges
+        edges = (mine, theirs) if i == 0 else (theirs, mine)
+        strikers, defence, enemy_air = frozenset(v.strikers), v.defence, v.enemy_air
+    for run in range(runs):
+        fighters = tuple(Fighter(s.key, _draw(base, run, s)) for s in p.enemy)
+        total = sum(f.strength for f in fighters)
+        enemy = SideIn(
+            fighters=fighters,
+            brought=total,
+            own_ground=p.enemy_ground,
+            air=enemy_air,
+            supplied=p.enemy_supplied,
+        )
+        pair = (own, enemy) if i == 0 else (enemy, own)
+        sides = battle.Sides(pair[0], pair[1], defence, p.presses, p.lull, edges, strikers)
+        played = battle.simulate(sides, f"{base}\x1f{run}", days)
+        after = (played.sides.attacker, played.sides.defender)
+        own_lost.append(after[i].lost - p.own.lost)
+        enemy_lost.append(after[1 - i].lost)
+        tried[total] += 1
+        winner = {Ending.WON: 0, Ending.HELD: 1}.get(played.ending) if played.ending else None
+        if winner is None:
+            outcomes[1] += 1
+        elif winner == i:
+            outcomes[0] += 1
+            won[total] += 1
+            if p.takes and played.rounds:
+                taken_on.append(played.rounds[-1].day + 1 + holders.CAPTURE_DAYS)
+        else:
+            outcomes[2] += 1
+        if played.broken == i:
+            back += 1
+    return outcomes, own_lost, enemy_lost, taken_on, back, tried, won
+
+
+def _moved_by(
+    p: Picture, base: str, runs: int, days: int, low: int, high: int, wins: int
+) -> OddsCause | None:
+    """The cause whose absence changes the win share most, on the same draws; None when
+    none there changes it. A tie goes to the first in ``CAUSES``."""
+    assert p.kinded is not None
+    best: tuple[int, FigureCause, str] | None = None
+    for cause, said, v in p.kinded[1]:
+        without = _runs(p, base, runs, days, low, high, v)[0][0]
+        if without != wins and (best is None or abs(without - wins) > abs(best[0] - wins)):
+            best = (without, cause, said)
+    if best is None:
+        return None
+    return OddsCause(
+        cause=best[1],
+        words=best[2],
+        direction="for" if wins > best[0] else "against",
     )
 
 

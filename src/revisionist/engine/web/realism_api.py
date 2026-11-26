@@ -731,6 +731,101 @@ class PieceCourse(TypedDict):
     arrives: str | None
 
 
+class PieceFigures(TypedDict):
+    """A piece's five figures, each a step from 1 to 5 (KVW)."""
+
+    attack: int
+    defence: int
+    speed: int
+    """From the days a step takes: the fewer, the higher."""
+    reach: int
+    """The steps it acts at from where it stands: an air kind's range or a striking kind's
+    strike steps; 1 for a kind that acts only where it stands."""
+    hidden: int
+    """From its kind's concealment."""
+
+
+FigureName = Literal["attack", "defence", "speed", "reach", "hidden"]
+FigureCause = Literal[
+    "terrain", "weather", "out_of_supply", "out_of_fuel", "air_cover", "enemy_kind"
+]
+
+
+class FigureChange(TypedDict):
+    """One thing changing a piece's figure where it stands or would stand: the figure,
+    the direction and the cause, in fixed words. Never the amount."""
+
+    figure: FigureName
+    direction: Literal["up", "down"]
+    cause: FigureCause
+    words: str
+    """The cause as the seat reads it: the ground, the weather's name, the enemy kind
+    reported there, or the cause's own fixed words."""
+
+
+class PieceKindView(TypedDict):
+    """An own piece's kind and its figures as the seat sees them (KVW): sent only with
+    ``kinds_in_battle`` on, for a piece of a kind the world names."""
+
+    key: str
+    name: str
+    picture: str | None
+    """The key of the picture the client draws the kind with; None when the world names none."""
+    figures: PieceFigures
+    """The kind's own figures."""
+    here: PieceFigures
+    """The figures where the piece stands, today."""
+    changes: list[FigureChange]
+    """What changes them there, in the order applied."""
+
+
+class WeatherEffect(TypedDict):
+    """One thing a kind of weather does to one of the seat's own kinds."""
+
+    kind: str
+    """The own kind's key."""
+    figure: FigureName
+    direction: Literal["up", "down", "closed"]
+    """Closed: the areas are shut to the kind while the weather holds."""
+    terrain: list[str]
+    """The terrain keys it acts on; empty for every terrain."""
+
+
+class WeatherKindView(TypedDict):
+    key: str
+    name: str
+    does: list[WeatherEffect]
+    """What it does to each of the seat's own kinds; the rest of the block is the same
+    for every seat."""
+
+
+class RegionWeather(TypedDict):
+    region: str
+    now: str | None
+    """The key of the weather this month; None for a region the table does not reach."""
+    next: str | None
+
+
+class WeatherBlock(TypedDict):
+    """Every region's weather this month and next (KVW): the calendar's, public, the same
+    for every seat apart from what each weather does to its own kinds."""
+
+    month: str
+    next_month: str
+    regions: list[RegionWeather]
+    kinds: list[WeatherKindView]
+    """The kinds of weather that hold somewhere this month or next."""
+
+
+class OddsCause(TypedDict):
+    """The cause that moved the odds most: the one whose absence changes the win share
+    most, and whether it is for the seat's side or against it."""
+
+    cause: FigureCause
+    words: str
+    direction: Literal["for", "against"]
+
+
 class MapLift(TypedDict):
     """The lift a move by sea draws for a land piece."""
 
@@ -755,6 +850,10 @@ class MapMove(TypedDict):
     rule applies (a board with no bases, or an envoy)."""
     lift: MapLift | None
     """The lift the move draws; None when it draws none."""
+    figures: NotRequired[PieceFigures]
+    """With ``kinds_in_battle`` on: the piece's figures as they would stand in ``area`` on
+    the day it would arrive, from the seat's reports alone."""
+    changes: NotRequired[list[FigureChange]]
 
 
 class MapPiece(TypedDict):
@@ -774,6 +873,8 @@ class MapPiece(TypedDict):
     under_way: PieceCourse | None
     moves: NotRequired[list[MapMove]]
     """In a territory game only: every area the piece can be sent to, by area key."""
+    figures: NotRequired[PieceKindView]
+    """With ``kinds_in_battle`` on, for a piece of a kind the world names."""
 
 
 class MapMark(TypedDict):
@@ -949,6 +1050,8 @@ class SeatMap(TypedDict):
     box: NotRequired[list[float] | None]
     """``[west, south, east, north]``; None when the world names none."""
     file: NotRequired[MapFile]
+    weather: NotRequired[WeatherBlock]
+    """With ``weather`` on, in a territory game whose board holds a weather table."""
 
 
 class EconomyFigure(TypedDict):
@@ -1568,6 +1671,9 @@ class OddsReply(OddsOutcome):
     of the enemy there, ``known`` is false and only the terrain facts are given."""
 
     by_strength: list[OddsAtStrength]
+    moved_by: NotRequired[OddsCause | None]
+    """With ``kinds_in_battle`` on and the enemy known: the cause that moved the odds most;
+    None when no cause there moves them."""
 
 
 class ClosingOdds(TypedDict):
@@ -2560,7 +2666,10 @@ __all__ = [
     "EconomyPools",
     "EconomyTerritory",
     "Figure",
+    "FigureCause",
+    "FigureChange",
     "FigureGroup",
+    "FigureName",
     "FloorBloc",
     "FloorChamber",
     "FloorVote",
@@ -2599,6 +2708,7 @@ __all__ = [
     "MarkArea",
     "NationStanding",
     "OddsAtStrength",
+    "OddsCause",
     "OddsOutcome",
     "OddsReply",
     "OddsShares",
@@ -2632,6 +2742,8 @@ __all__ = [
     "PersonTally",
     "PieceArea",
     "PieceCourse",
+    "PieceFigures",
+    "PieceKindView",
     "PieceWait",
     "PlaceChoice",
     "PlaceLift",
@@ -2657,6 +2769,7 @@ __all__ = [
     "RecordBlock",
     "RecordOrder",
     "RecordWake",
+    "RegionWeather",
     "Reply",
     "ResultPart",
     "Reveal",
@@ -2683,4 +2796,7 @@ __all__ = [
     "WaitLine",
     "WakeHeader",
     "WarNation",
+    "WeatherBlock",
+    "WeatherEffect",
+    "WeatherKindView",
 ]

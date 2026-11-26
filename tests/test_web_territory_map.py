@@ -225,25 +225,27 @@ def test_the_toy_map_fixture_is_the_map_the_action_serves(
     assert fixture == json.loads((Path(__file__).parent / "worlds" / "toy.map.json").read_text())
 
 
-def shape(examples: list[Any], kind: Any) -> None:
-    """Each example has every key ``kind`` declares, required or not."""
+def shape(examples: list[Any], kind: Any, without: frozenset[str] = frozenset()) -> None:
+    """Each example has every key ``kind`` declares, required or not, but ``without``."""
     assert examples
     for example in examples:
-        assert set(example) == set(kind.__annotations__), kind.__name__
+        assert set(example) == set(kind.__annotations__) - without, kind.__name__
 
 
 def test_the_seat_fixture_carries_a_territory_map_in_the_snapshot_shape(tmp_path: Path) -> None:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["territory_map"]
     assert fixture == block(fixture_game(tmp_path))["map"]
-    # ``reports`` comes only with the reports rule: the reports fixture checks it (RPD)
-    assert set(fixture) == set(api.SeatMap.__annotations__) - {"reports"}
+    # ``reports`` comes only with the reports rule: the reports fixture checks it (RPD);
+    # ``weather`` only with the weather rule: tests/test_web_piece_kinds.py checks it
+    assert set(fixture) == set(api.SeatMap.__annotations__) - {"reports", "weather"}
     shape(fixture["areas"], api.MapArea)
     shape(fixture["regions"], api.MapRegion)
     shape([fixture["file"]], api.MapFile)
     own = [m["piece"] for m in fixture["marks"] if m["piece"] is not None]
-    shape(own, api.MapPiece)
+    # ``figures`` and ``changes`` come only with kinds_in_battle: tests/test_web_piece_kinds.py
+    shape(own, api.MapPiece, frozenset({"figures"}))
     lit = [move for p in own for move in p["moves"]]
-    shape(lit, api.MapMove)
+    shape(lit, api.MapMove, frozenset({"figures", "changes"}))
     shape([a for move in lit for a in (move["area"], *move["path"])], api.PieceArea)
     shape([move["lift"] for move in lit if move["lift"] is not None], api.MapLift)
     assert {move["reach"] for move in lit} == {None, "operate", "raid"}

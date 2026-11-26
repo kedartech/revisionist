@@ -21,7 +21,7 @@ from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import detect, kinds, territory
+from revisionist.core.realism import battle, detect, kinds, territory
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import BodyField, DocumentView
@@ -606,9 +606,23 @@ class _Sent:
                 under_way=_course(self.state, self.view, self.place_keys, f, domain),
             )
             if self.seen is not None:
-                piece["moves"] = map_api.lit(self.seen, f, self._area_namer(domain), self.reaches)
+                there = self._there(f)
+                piece["moves"] = map_api.lit(
+                    self.seen, f, self._area_namer(domain), self.reaches, there
+                )
+                found = map_api.piece_view(self.state, self.seen, self.view, f)
+                if found is not None:
+                    piece["figures"] = found
             out.append((f, piece))
         return out
+
+    def _there(self, f: Feature) -> Callable[[EntityId, date], map_api.Standing] | None:
+        """The piece's figures in an area on a day, with ``kinds_in_battle`` on (KVW)."""
+        kind = kinds.of(self.state, f)
+        seen = self.seen
+        if seen is None or kind is None or not battle.kinds_count(self.state):
+            return None
+        return lambda at, on: map_api.standing(seen, self.view, f, kind, at, on)
 
 
 def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
@@ -805,7 +819,26 @@ def seat_map(
     if reporting:
         out["reports"] = map_reports(view)
     map_api.protect_marks(out, view)
-    return map_api.add_board(out, state, view) if state is not None else out
+    if state is None:
+        return out
+    out = map_api.add_board(out, state, view)
+    if territory.on(state):
+        found = map_api.weather_block(state, today, _own_kinds(state, view))
+        if found is not None:
+            out["weather"] = found
+    return out
+
+
+def _own_kinds(state: State, view: View) -> list[kinds.PieceKind]:
+    """The kinds of the seat's own side's pieces in play, in the world file's order."""
+    own = own_sides(view)
+    held = {
+        kind.key
+        for f in state.features.values()
+        if f.side in own and in_play(f) and (kind := kinds.of(state, f)) is not None
+    }
+    pieces = state.kinds.pieces if state.kinds is not None else {}
+    return [k for key, k in pieces.items() if key in held]
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:

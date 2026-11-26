@@ -466,7 +466,8 @@ def fixture_game(tmp: Path) -> State:
 def test_the_seat_fixture_carries_a_reports_map_in_the_snapshot_shape(tmp_path: Path) -> None:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["reports_map"]
     assert fixture == block(fixture_game(tmp_path))["map"]
-    assert set(fixture) == set(api.SeatMap.__annotations__)
+    # ``weather`` comes only with the weather rule: tests/test_web_piece_kinds.py checks it
+    assert set(fixture) == set(api.SeatMap.__annotations__) - {"weather"}
     reports = fixture["reports"]
     assert reports and all(set(r) == set(api.MapReport.__annotations__) for r in reports)
     sources = get_args(api.MapReport.__annotations__["source"])

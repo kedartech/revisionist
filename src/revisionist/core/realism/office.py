@@ -207,7 +207,7 @@ def _notice(state: State, q: OfficeQuestion) -> ev.DocumentIssued:
             arrives=q.opened,
             channel=ChannelKind.CABLE,
             classification=Classification.CONFIDENTIAL,  # [proposed]
-            title=f"The office question on {office}"[:120],
+            title=f"The office question on {office}"[:60],
             body=(
                 BodyField(label="Post", value=office[:120]),
                 BodyField(label="Holder", value=who[:120]),
@@ -429,7 +429,7 @@ def _warning(state: State, post: AssetId, holder: EntityId, today: date) -> ev.D
             arrives=today,
             channel=ChannelKind.CABLE,
             classification=Classification.CONFIDENTIAL,  # [proposed]
-            title=f"The base turns: {office}"[:120],
+            title=f"The base turns: {office}"[:60],
             body=(
                 BodyField(label="Post", value=office[:120]),
                 BodyField(label="Holder", value=state.entities[holder].name[:120]),

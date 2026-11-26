@@ -215,20 +215,6 @@ DEFENCES = "washington_defences"
 """McClellan's office and the one below it on its ladder, as the shipped world has them."""
 
 
-def lincoln_appoints(w: World) -> None:
-    """Lincoln's card names no appointments authority on the shipped world, though the
-    presidency moves the Potomac command; the test's copy gives him one."""
-    for card in w["cards"]:
-        if card["person"] == "lincoln":
-            card["authority"].append(
-                {
-                    "name": "appointments",
-                    "effects": ["appointment"],
-                    "summary": "Appoint and relieve the generals commanding the armies.",
-                }
-            )
-
-
 class UnionFall(Fall):
     people = ("mcclellan", "halleck", "stanton", "lincoln")
 
@@ -248,9 +234,7 @@ def relieved(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Fall]:
     """Lincoln relieves McClellan; McClellan, at the Washington defences, writes to him;
     Lincoln restores him. The 1941 relief's acts, through ``Fall``, on this world."""
     with pytest.MonkeyPatch.context() as m:
-        g = UnionFall(
-            UNION, tmp_path_factory.mktemp("relief"), m, world=shipped(WORLD, (lincoln_appoints,))
-        )
+        g = UnionFall(UNION, tmp_path_factory.mktemp("relief"), m, world=shipped(WORLD))
         f = g.fallen
         g._tick(None)
         assert g.head is not None

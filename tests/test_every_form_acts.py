@@ -1,17 +1,17 @@
 """Every form does something (EFD).
 
-Every form on every playable card, in Autumn 1941 and in Salt Strait, is filed on the
-opened game and the world is walked forward day by day to the season's end. A form acts
-when, against the same walk with no order filed, it changes a quantity, a piece, a
+Every form on every playable card, in Autumn 1941, Salt Strait and the Civil War, is filed
+on the opened game and the world is walked forward day by day to the season's end. A form
+acts when, against the same walk with no order filed, it changes a quantity, a piece, a
 relationship, a fact, a war, a holder, a pool, a group, an agreement, a contest, a report,
-an agent or a goal. Each order is filed as a seat files it (``realism_tick.form_filing``)
-and enacted as it would be after its pipeline. An order a lock holds is filed held; the
-lock is opened from state (the superior's own order setting the posture, or the law it
-waits on put in force, in both walks), and the order counts once it lands through the
-engine's own landing (``realism_tick._unlocked``). A held order that never lands in the
-walk is reported, not counted. Forms that change nothing are listed in ``INERT`` as strict
-expected-to-fail cases, each naming the fix that owns it; each mark goes when its fix
-merges.
+an agent, a goal, a post, a lock or a war that ended. Each order is filed as a seat files
+it (``realism_tick.form_filing``) and enacted as it would be after its pipeline. An order
+a lock holds is filed held; the lock is opened from state (the superior's own order
+setting the posture, or the law it waits on put in force, in both walks), and the order
+counts once it lands through the engine's own landing (``realism_tick._unlocked``). A held
+order that never lands in the walk is reported, not counted. Forms that change nothing
+are listed in ``INERT`` as strict expected-to-fail cases, each naming the fix that owns
+it; each mark goes when its fix merges.
 """
 
 import json
@@ -47,7 +47,7 @@ from revisionist.engine.wake_report import inert_forms
 from tests.locked_orders_script import Ids, autumn_1941, table
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
-SALT = "salt-strait-realism"
+WORLDS = {"1941": "autumn-1941", "salt": "salt-strait-realism", "civil": "civil-war-1862"}
 WATCHED = (
     "quantities",
     "features",
@@ -66,6 +66,10 @@ WATCHED = (
     "battles",
     "captures",
     "goals",
+    "posts",
+    "post_moves",
+    "locks",
+    "ended_wars",
 )
 """The parts of the state an enacted form may change; the documents and news a filing
 writes about itself are not among them."""
@@ -311,7 +315,9 @@ _LOADED: dict[str, WorldFile] = {}
 def _open(name: str, tmp: Path, monkeypatch: pytest.MonkeyPatch, who: str | None = None) -> _World:
     """The world opened with the people ``who`` plays beside (``table``)."""
     if name not in _LOADED:
-        _LOADED[name] = autumn_1941(tmp) if name == "1941" else cmp.load_world(cmp.world_path(SALT))
+        _LOADED[name] = (
+            autumn_1941(tmp) if name == "1941" else cmp.load_world(cmp.world_path(WORLDS[name]))
+        )
     world = _LOADED[name]
     people = table(world, who)
     if (name, people) not in _WORLDS:
@@ -331,8 +337,8 @@ def _acts(
 
 def _forms() -> list[tuple[str, str, str]]:
     out = []
-    for name, path in (("1941", cmp.world_path("autumn-1941")), ("salt", cmp.world_path(SALT))):
-        world = cmp.load_world(path)
+    for name, key in WORLDS.items():
+        world = cmp.load_world(cmp.world_path(key))
         out += [(name, c.person, lv.name) for c in world.cards if c.playable for lv in c.levers]
     return out
 

@@ -519,6 +519,9 @@ cards:
       - name: public_word
         effects: [statement, measure]
         summary: "Speak to the nation and the strait."
+      - name: appointments  # [proposed]
+        effects: [appointment]
+        summary: "Appoint and relieve the commodore of the galleys."
     levers:
       - name: move_force
         pipeline: varda_order

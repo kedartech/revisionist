@@ -36,6 +36,7 @@ from revisionist.core.realism.effect import (
     Investigate,
     MoveForce,
     Posture,
+    ProposeMeasure,
     Route,
     SetEngagement,
 )
@@ -46,6 +47,7 @@ from revisionist.core.realism.resolvers import intel
 from revisionist.core.realism.resolvers.movement import FORCE, TO
 from revisionist.core.realism.resolvers.production import _matter
 from revisionist.core.realism.resolvers.shipping import ESCORT_LEVEL
+from revisionist.core.realism.resolvers.votes import measure_key
 from revisionist.core.realism.route import held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
@@ -568,10 +570,22 @@ def _aid(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     return out if len(out) == 2 else None
 
 
+def _bill(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """A bill form's bill: a measure whose title names one of the form's bills, as the
+    votes rule keys it (with ``laws`` on, by the declared law's title or key)."""
+    spec = next((p for p in lever.params if p.name == "bill"), None)
+    if spec is None or not isinstance(effect, ProposeMeasure):
+        return None
+    key = measure_key(effect, state)
+    return {"bill": key} if key in spec.choices else None
+
+
 def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[str, str] | None:
     """The parameters of ``lever`` the effect names, when its form gives that effect."""
     if lever.resolver == "movement":
         return _moved(state, lever, effect)
+    if lever.resolver == "votes":
+        return _bill(state, lever, effect)
     if lever.resolver == "intel":
         return _intel(state, seat, lever, effect)
     if lever.resolver == "shipping":

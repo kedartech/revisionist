@@ -907,6 +907,9 @@ cards:
       - name: public_word
         effects: [statement, measure]
         summary: "Speak to the nation and to the powers abroad."
+      - name: appointments  # [proposed]
+        effects: [appointment]
+        summary: "Appoint and relieve the generals commanding the Union armies."
     levers:
       - name: move_force
         pipeline: union_order
@@ -929,6 +932,7 @@ cards:
         summary: "Put a spy in place to report what moves there."
         params:
           - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [virginia, tennessee, mississippi], label: "Where"}  # [proposed]
       - name: send_bill
         pipeline: congress_bill
         resolver: votes
@@ -981,6 +985,9 @@ cards:
       - name: public_word
         effects: [statement, measure]
         summary: "Speak to the Confederacy and to the powers abroad."
+      - name: appointments  # [proposed]
+        effects: [appointment]
+        summary: "Appoint and relieve the generals commanding the Confederate armies."
     levers:
       - name: move_force
         pipeline: confederate_order
@@ -996,6 +1003,7 @@ cards:
         summary: "Put a spy in place to report what moves there."
         params:
           - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [maryland, kentucky, pennsylvania], label: "Where"}  # [proposed]
       - name: send_bill
         pipeline: cs_congress_bill
         resolver: votes

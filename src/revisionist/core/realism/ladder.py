@@ -150,10 +150,12 @@ def order(
 
 
 LINE = 120
+TITLE = 60
+"""The longest a paper's title may be (``Label``)."""
 
 
-def _clip(text: str) -> str:
-    return text if len(text) <= LINE else text[: LINE - 1] + "\N{HORIZONTAL ELLIPSIS}"
+def _clip(text: str, at: int = LINE) -> str:
+    return text if len(text) <= at else text[: at - 1] + "\N{HORIZONTAL ELLIPSIS}"
 
 
 def notice_id(state: State, move_id: str) -> DocumentId:
@@ -185,7 +187,7 @@ def _notice(state: State, move: PostMove) -> list[ev.Payload]:
                 arrives=move.ordered,
                 channel=ChannelKind.CABLE,
                 classification=Classification.CONFIDENTIAL,  # [proposed]
-                title=_clip(title),
+                title=_clip(title, TITLE),
                 body=(
                     BodyField(label="Post", value=_clip(office)),
                     BodyField(label="Takes effect", value=when),

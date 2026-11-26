@@ -75,6 +75,7 @@ from revisionist.core.realism.arrivals import arrivals
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue, PostCause
 from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import (
+    Appointment,
     Deal,
     Effect,
     Forecast,
@@ -1366,6 +1367,9 @@ def written_filing(
                 raise ValueError(routing.refusal)
             continue
         part = routing.part
+        why = _no_question(state, part.effect, today)
+        if why:
+            raise ValueError(why)
         if part.effect is None:
             words = (_words(part.ask), part.target or part.executor)
             if words in said:
@@ -1398,6 +1402,21 @@ def written_filing(
         (ev.OrderRouted(order=order), private_to(seat)),
         *_replacing(state, seat, asks, order.order_id, today),
     ], order
+
+
+def _no_question(state: State, effect: Effect | None, today: date) -> str:
+    """Why a move of post that would take a seat's last authority is refused now: the
+    office question it waits for could never open on the post (``office.arising`` would
+    settle it void). Empty for any other order, and for a question that may yet open."""
+    if not isinstance(effect, Appointment) or not ladder.on(state) or not office.on(state):
+        return ""
+    post = ladder.post_named(state, effect.office)
+    if post is None or not ladder.takes_last(state, effect.person, post, effect.appoint):
+        return ""
+    if office.open_on(state, post) is not None:
+        return ""
+    why = office.refusal(state, post, today)
+    return f"{why[:1].upper()}{why[1:]}." if why else ""
 
 
 NOT_YOURS = "That decision is not yours to take."  # [proposed]

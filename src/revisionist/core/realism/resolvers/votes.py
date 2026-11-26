@@ -275,10 +275,18 @@ def bloc_votes(state: State, nation: EntityId, measure: str) -> tuple[tuple[str,
     return tuple(out)
 
 
-def measure_key(measure: ProposeMeasure) -> str:
-    """The key a measure carried by an order is listed under: its title in lower-case
-    words joined by underscores."""
-    return "_".join(re.sub(r"[^0-9a-z]+", " ", measure.title.casefold()).split())
+def _key_words(title: str) -> str:
+    return "_".join(re.sub(r"[^0-9a-z]+", " ", title.casefold()).split())
+
+
+def measure_key(measure: ProposeMeasure, state: State | None = None) -> str:
+    """The key a measure carried by an order is listed under: with ``laws`` on, the key of
+    the declared law the measure's title names, by the law's title or its key; else its
+    title in lower-case words joined by underscores."""
+    key = _key_words(measure.title)
+    if state is None or not laws.on(state):
+        return key
+    return next((x.key for x in state.laws if key in (_key_words(x.title), x.key)), key)
 
 
 def _listed(state: State, nation: EntityId, key: str) -> bool:

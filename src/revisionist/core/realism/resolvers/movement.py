@@ -323,10 +323,10 @@ def _piece_order(
         return (), None
     if not _of_side(state, state.seats[order.issuer].embodies, piece.side):
         return (), None
-    course = territory.plan(state, piece, to.entity_id)
+    set_out = max(rs.settled_on(order), piece.as_of)
+    course = territory.plan(state, piece, to.entity_id, set_out)
     if not isinstance(course, territory.Plan):
         return (), None
-    set_out = max(rs.settled_on(order), piece.as_of)
     dest = course.path[-1] if course.path else piece.places[0]
     sent = _set_on(piece, course, dest, set_out)
     if STRENGTH in order.params:
@@ -364,10 +364,11 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
     given its course; a leg of the record falling due turned into a course to its area.
     The flag says the move is the record's."""
     if piece.bound_for is not None and not piece.path:
-        course = territory.plan(state, piece, piece.bound_for)
+        set_out = min(piece.as_of, today)
+        course = territory.plan(state, piece, piece.bound_for, set_out)
         if not isinstance(course, territory.Plan):
             return _halted(piece, today), False
-        return _set_on(piece, course, piece.bound_for, min(piece.as_of, today)), False
+        return _set_on(piece, course, piece.bound_for, set_out), False
     if piece.bound_for is None and piece.legs and piece.legs[0].since <= today:
         due = [leg for leg in piece.legs if leg.since <= today]
         domain = kinds.domain(state, piece)
@@ -375,7 +376,7 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
         rest = piece.legs[len(due) :]
         if target is None:
             return piece.model_copy(update={"legs": rest}), True
-        course = territory.plan(state, piece, target)
+        course = territory.plan(state, piece, target, due[-1].since)
         if not isinstance(course, territory.Plan):
             return piece.model_copy(update={"legs": rest}), True
         moved = _set_on(piece, course, target, due[-1].since)
@@ -449,7 +450,7 @@ def _walk_one(
         if moved.path and _enemy_in(state, moved, entered, meeting):
             moved = _halted(moved, on)
         elif moved.path:
-            days = territory.step_days(state, moved, moved.path[0])
+            days = territory.step_days(state, moved, moved.path[0], on)
             if days is None:
                 moved = _halted(moved, on)
             else:

@@ -108,7 +108,11 @@ def test_the_1941_run_with_the_piece_names_on_folds_as_the_baseline(
 
 
 def _less_rules(state: State) -> str:
-    return lo.digest(state.model_copy(update={"rules": frozenset()}))
+    """The game's digest with no rules, and no weather on its board: with ``weather`` on the
+    board holds the world's weather (KWX), which the toy world makes fair in the months its
+    game is played."""
+    board = state.map and state.map.model_copy(update={"weather": None})
+    return lo.digest(state.model_copy(update={"rules": frozenset(), "map": board}))
 
 
 def test_the_toy_world_with_the_piece_names_on_plays_as_with_them_off(

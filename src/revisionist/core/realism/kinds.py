@@ -19,7 +19,7 @@ change (``figure``). A kind given none of them has 3 for each, which is the batt
 arithmetic of a piece with no kind. Rules read the figures only with their own switch on.
 """
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Sequence
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
@@ -261,11 +261,13 @@ def figure(
     terrain: str | None = None,
     facing: Collection[str] = frozenset(),
     holds: Collection[Condition] = frozenset(),
+    weather: Sequence[Change] = (),
 ) -> int:
     """The kind's attack or defence in a fight on ``terrain`` (a terrain key) against a
     side whose kinds and domains are ``facing`` (``facing``), while ``holds`` hold: the
     kind's own figure, changed first by the terrain, then by each ``against`` that applies
-    in the world file's order, held to 1 to 5 after every change."""
+    in the world file's order, then by each change the ``weather`` makes (KWX), held to 1
+    to 5 after every change."""
     value: int = getattr(kind, which.value)
     changes: list[Change] = []
     if terrain is not None and terrain in kind.on_terrain:
@@ -273,6 +275,7 @@ def figure(
     changes.extend(
         a for a in kind.against if a.facing in facing and (a.when is None or a.when in holds)
     )
+    changes.extend(weather)
     for change in changes:
         value = held(value + getattr(change, which.value))
     return value

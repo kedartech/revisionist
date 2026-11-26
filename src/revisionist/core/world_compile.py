@@ -99,6 +99,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism import kinds
 from revisionist.core.realism import territory as tm
+from revisionist.core.realism import weather as wx
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
 from revisionist.core.realism.card import (
@@ -1745,6 +1746,8 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
         else:
             problems.append(f"{where}: within unknown area {e.within}")
     _check_adjacency(world, areas, sections, problems)
+    if Rule.WEATHER in world.rules:
+        _check_weather(world, problems)
     box = world.map.box
     if world.map.coords == "flat" and box is not None:
         west, south, east, north = box
@@ -1830,6 +1833,77 @@ def _check_map_file(world: WorldFile, problems: list[str]) -> None:
         for district in d.districts:
             if district not in districts:
                 problems.append(f"territory {d.key}: district {district} is not in the map file")
+
+
+def _check_weather(world: WorldFile, problems: list[str]) -> None:
+    """The weather (KWX): every area's region reaches a row, a row names every month and
+    a kind of weather the world names, and a kind of weather names only kinds or domains
+    of piece and terrain the world has. With the rule off the weather is not read, so it
+    is not checked either."""
+    decl = world.weather
+    if decl is None:
+        return
+    parent = {r.key: r.parent for r in world.regions}
+    terrain = {t.key for t in world.terrain}
+    pieces = {k.key for k in world.piece_kinds} | {k.domain.value for k in world.piece_kinds}
+    named: set[str] = set()
+    for k in decl.kinds:
+        where = f"weather {k.key}"
+        if k.key in named:
+            problems.append(f"{where}: duplicate key")
+        named.add(k.key)
+        for names in (
+            *(s.pieces for s in k.slows),
+            *(f.pieces for f in k.figures),
+            *(c.pieces for c in k.closes),
+        ):
+            problems.extend(
+                f"{where}: {p}, which is no kind or domain of the world"
+                for p in names
+                if p not in pieces
+            )
+        for keys in (*(s.terrain for s in k.slows), *(c.terrain for c in k.closes)):
+            problems.extend(f"{where}: unknown terrain {t}" for t in keys if t not in terrain)
+    for region, row in decl.regions.items():
+        if region not in parent:
+            problems.append(f"weather: unknown region {region}")
+        problems.extend(
+            f"weather: region {region} leaves out {m}" for m in wx.MONTHS if m not in row
+        )
+        problems.extend(
+            f"weather: region {region} names {key} in {m}, which is no kind of weather"
+            for m, key in row.items()
+            if key not in named
+        )
+    for region in sorted({d.region for d in _area_decls(world)} & set(parent)):
+        at: str | None = region
+        seen: set[str] = set()
+        while at is not None and at not in decl.regions and at not in seen:
+            seen.add(at)
+            at = parent.get(at)
+        if at is None or at not in decl.regions:
+            problems.append(f"weather: no row for region {region} or a region it lies in")
+
+
+def _weather(world: WorldFile) -> wx.Weather | None:
+    """The weather as the board holds it, with ``weather`` on; None with it off."""
+    decl = world.weather
+    if decl is None or Rule.WEATHER not in world.rules:
+        return None
+    return wx.Weather(
+        kinds={
+            k.key: wx.WeatherKind(
+                key=k.key,
+                name=k.name,
+                slows=k.slows,
+                figures=k.figures,
+                grounds_air=k.grounds_air,
+                closes=k.closes,
+            )
+            for k in decl.kinds
+        },
+        regions={r: tuple(row[m] for m in wx.MONTHS) for r, row in decl.regions.items()},
+    )
 
 
 def _check_regions(world: WorldFile, problems: list[str]) -> set[str]:
@@ -3249,6 +3323,7 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
             if e.capital is not None
         },
         production=_production(world, ids),
+        weather=_weather(world),
     )
 
 

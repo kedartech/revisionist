@@ -19,8 +19,9 @@ land pieces over land territories and declared crossings (across sea zones only 
 from a port to a port), sea pieces over sea zones, air pieces over any area within their
 range of a base of their side, envoys over any area not held by a power at war with theirs
 (ENV). A step into an area takes the kind's
-``days_per_step`` for the terrain of the area entered, and ties between courses of equal
-days go to the one whose area keys sort first. ``step`` is the one function that
+``days_per_step`` for the terrain of the area entered, with ``weather`` on what the weather
+of that area adds on the day the step begins (KWX), and ties between courses of equal days
+go to the one whose area keys sort first. ``step`` is the one function that
 completes a step, whatever moved the piece; each step lands one ``piece_stepped`` event.
 """
 
@@ -29,7 +30,7 @@ import heapq
 import json
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, NamedTuple
 
@@ -37,6 +38,7 @@ from pydantic import Field, StringConstraints
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, QuantityId
+from revisionist.core.realism.weather import Weather
 
 if TYPE_CHECKING:
     from revisionist.core.events import PieceStepped
@@ -189,9 +191,11 @@ class WorldMap(Model):
     production: Production | None = None
     """The aid findings and the production priority (``production`` in the world; PRL).
     None on a board compiled before PRL; empty for a world that declares none."""
+    weather: Weather | None = None
+    """The weather by region and month, with ``weather`` on (KWX); None otherwise."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"ports", "bases", "lift_pools", "capitals", "production"}
+        {"ports", "bases", "lift_pools", "capitals", "production", "weather"}
     )
 
     def areas(self) -> tuple[EntityId, ...]:
@@ -309,10 +313,11 @@ Course = tuple[int, tuple[EntityId, ...], tuple[int, ...]]
 
 
 def _search(
-    g: _Graph, start: EntityId, moves: Callable[[EntityId], Iterable[tuple[EntityId, int]]]
+    g: _Graph, start: EntityId, moves: Callable[[EntityId, int], Iterable[tuple[EntityId, int]]]
 ) -> dict[EntityId, Course]:
     """The course of fewest days from ``start`` to every area ``moves`` reaches; between
-    courses of equal days, the one whose area keys sort first."""
+    courses of equal days, the one whose area keys sort first. ``moves`` is given the area
+    and the days the course has taken to reach it."""
     heap: list[tuple[int, tuple[str, ...], EntityId, tuple[EntityId, ...], tuple[int, ...]]]
     heap = [(0, (), start, (), ())]
     done: dict[EntityId, Course] = {}
@@ -321,7 +326,7 @@ def _search(
         if here in done:
             continue
         done[here] = (days, path, each)
-        for n, cost in moves(here):
+        for n, cost in moves(here, days):
             if n not in done:
                 entry = (days + cost, (*keys, g.key.get(n, n)), n, (*path, n), (*each, cost))
                 heapq.heappush(heap, entry)
@@ -338,7 +343,7 @@ def steps_within(
 
     g = _graph(board)
 
-    def moves(here: EntityId) -> Iterable[tuple[EntityId, int]]:
+    def moves(here: EntityId, _: int) -> Iterable[tuple[EntityId, int]]:
         for n in _by_domain(g, here, kind.domain):
             cost = kind.days_per_step.get(g.terrain[n])
             if cost is not None:
@@ -470,21 +475,34 @@ def _can_lift(state: "State", piece: "Feature") -> bool:
     return q is not None and q.value is not None and q.value >= lift_tons(piece)
 
 
-def step_days(state: "State", piece: "Feature", to: EntityId) -> int | None:
-    """Days a step into ``to`` takes this piece: its kind's for the terrain entered, or a
-    land piece's carrier's for a sea zone. None where it cannot step."""
+def step_days(state: "State", piece: "Feature", to: EntityId, on: date | None = None) -> int | None:
+    """Days a step into ``to`` begun on ``on`` (the world's today when not given) takes this
+    piece: its kind's for the terrain entered, or a land piece's carrier's for a sea zone,
+    and with ``weather`` on what the weather there that day adds. None where it cannot
+    step, or the weather that day closes ``to`` to the kind that moves it."""
     board, kind = state.map, _kind_of(state, piece)
     if board is None or kind is None:
         return None
     terrain = _graph(board).terrain.get(to)
     if terrain is None:
         return None
+    by: PieceKind | None = kind
     if kind.domain == "land" and _is_sea(board, to):
-        lift = carrier(state, piece)
-        days = None if lift is None else lift.days_per_step.get(terrain)
-    else:
-        days = kind.days_per_step.get(terrain)
-    return None if days is None else days + _slower(piece)
+        by = carrier(state, piece)
+    days = None if by is None else by.days_per_step.get(terrain)
+    if days is None or by is None:
+        return None
+    extra = _weather(state, by, to, on or state.in_world_date)
+    return None if extra is None else days + extra + _slower(piece)
+
+
+def _weather(state: "State", kind: "PieceKind", to: EntityId, on: date | None) -> int | None:
+    """Days the weather adds to a step of ``kind`` into ``to`` begun on ``on``; None when it
+    closes ``to`` to the kind. Nothing with ``weather`` off or no day."""
+    from revisionist.core.realism import weather
+
+    sky = weather.sky(state)
+    return 0 if sky is None or on is None else sky.step(kind, to, on)
 
 
 def _slower(piece: "Feature") -> int:
@@ -543,10 +561,13 @@ def _reach_refused(state: "State", piece: "Feature", area: EntityId) -> str | No
     return found.reason if found is not None and found.tier is Tier.REFUSED else None
 
 
-def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
-    """Every area the piece can be sent to, with its course of fewest days (the area it
-    stands in with an empty course). A land piece goes by land wherever land reaches, and
-    by lift, from a port to a port, only to an area no land course reaches."""
+def plans(state: "State", piece: "Feature", on: date | None = None) -> dict[EntityId, Plan]:
+    """Every area the piece can be sent to setting out on ``on`` (the world's today when not
+    given), with its course of fewest days (the area it stands in with an empty course). A
+    land piece goes by land wherever land reaches, and by lift, from a port to a port, only
+    to an area no land course reaches. With ``weather`` on, each step is counted with the
+    weather of the day it begins, and an area the weather closes that day is not entered."""
+    from revisionist.core.realism import weather
     from revisionist.core.realism.kinds import stands_on
 
     board, kind = state.map, _kind_of(state, piece)
@@ -560,8 +581,10 @@ def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
     ship = carrier(state, piece)
     shut = {a for a in g.kind if barred(state, piece.side, a, domain) is not None}
     slower = _slower(piece)
+    sky = weather.sky(state)
+    start = on or state.in_world_date
 
-    def moves(here: EntityId, by_lift: bool) -> Iterable[tuple[EntityId, int]]:
+    def moves(here: EntityId, by_lift: bool, taken: int) -> Iterable[tuple[EntityId, int]]:
         at_sea = g.kind.get(here) is TerrainKind.SEA
         if domain == "land" and at_sea:
             near = [n for n in g.links.get(here, ()) if g.kind.get(n) is TerrainKind.SEA]
@@ -580,15 +603,18 @@ def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
                 continue
             by = ship if domain == "land" and g.kind.get(n) is TerrainKind.SEA else kind
             cost = None if by is None else by.days_per_step.get(g.terrain[n])
+            if by is not None and cost is not None and sky is not None and start is not None:
+                extra = sky.step(by, n, start + timedelta(days=taken))
+                cost = None if extra is None else cost + extra
             if cost is not None:
                 yield n, cost + slower
 
     here = piece.places[0]
     found: dict[EntityId, Course] = {}
     if g.kind.get(here) is not TerrainKind.SEA or domain != "land":
-        found = _search(g, here, lambda a: moves(a, False))
+        found = _search(g, here, lambda a, taken: moves(a, False, taken))
     if lift:
-        for a, course in _search(g, here, lambda a: moves(a, True)).items():
+        for a, course in _search(g, here, lambda a, taken: moves(a, True, taken)).items():
             found.setdefault(a, course)
     return {
         a: Plan(path, each) for a, (_, path, each) in found.items() if stands_on(domain, g.kind[a])
@@ -600,7 +626,10 @@ def _name(state: "State", entity: EntityId | None) -> str:
     return e.name if e is not None else "it"
 
 
-def _why(state: "State", piece: "Feature", kind: "PieceKind", area: EntityId) -> str:
+def _why(
+    state: "State", piece: "Feature", kind: "PieceKind", area: EntityId, on: date | None
+) -> str:
+    from revisionist.core.realism import weather
     from revisionist.core.realism.kinds import stands_on
 
     board = state.map
@@ -620,6 +649,10 @@ def _why(state: "State", piece: "Feature", kind: "PieceKind", area: EntityId) ->
     refused = _reach_refused(state, piece, area)
     if refused is not None:
         return refused
+    sky, day = weather.sky(state), on or state.in_world_date
+    shut = None if sky is None or day is None else sky.closed(kind, area, day)
+    if shut is not None:
+        return f"{there} is closed to {piece.name} by {shut.name} this month."
     return f"No way lies open for {piece.name} to {there}."
 
 
@@ -634,16 +667,17 @@ def _nearest(
     return ranked[0][2] if ranked else None
 
 
-def plan(state: "State", piece: "Feature", to: EntityId) -> Plan | Refused:
-    """The course to send the piece to ``to`` (an area or a place), or why it cannot go
-    there with the nearest area it could be sent to."""
+def plan(state: "State", piece: "Feature", to: EntityId, on: date | None = None) -> Plan | Refused:
+    """The course to send the piece to ``to`` (an area or a place) setting out on ``on``
+    (the world's today when not given), or why it cannot go there with the nearest area
+    it could be sent to."""
     board, kind = state.map, _kind_of(state, piece)
     if board is None or kind is None:
         return Refused(f"{piece.name} does not move on the map.", None)
     dest = area_of(state, to, kind.domain)
     if dest is None:
         return Refused(f"{_name(state, to)} is not on the map.", None)
-    open_to = plans(state, piece)
+    open_to = plans(state, piece, on)
     found = open_to.get(dest)
     if found is not None:
         return found
@@ -653,7 +687,7 @@ def plan(state: "State", piece: "Feature", to: EntityId) -> Plan | Refused:
         if nearest is None
         else f" The nearest area it could be sent to is {_name(state, nearest)}."
     )
-    return Refused(_why(state, piece, kind, dest) + tail, nearest)
+    return Refused(_why(state, piece, kind, dest, on) + tail, nearest)
 
 
 def path(state: "State", piece: "Feature", to: EntityId) -> tuple[EntityId, ...] | None:

@@ -82,6 +82,7 @@ from revisionist.core.realism.kinds import (
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
 from revisionist.core.realism.territory import Coords, Sha256, TerrainKind
+from revisionist.core.realism.weather import Closure, Month, Shift, Slow
 from revisionist.core.settings import Settings
 from revisionist.core.state import Rule
 from revisionist.core.visibility import Visibility
@@ -969,6 +970,31 @@ class RegionDecl(Model):
     """The region this one lies in. Regions nest to any depth, never in a cycle."""
 
 
+class WeatherKindDecl(Model):
+    """A kind of weather the world names (KWX), and what it does in a region where it holds:
+    ``slows`` add days to a step into an area, by the terrain entered and the kinds or
+    domains of piece named; ``figures`` change the attack or defence of the kinds or
+    domains named; ``grounds_air`` stops air support, strikes and cover in or into the
+    region; ``closes`` shuts its areas (of the terrain named, or all) to the kinds or
+    domains named."""
+
+    key: Key
+    name: Label
+    slows: tuple[Slow, ...] = ()
+    figures: tuple[Shift, ...] = ()
+    grounds_air: bool = False
+    closes: tuple[Closure, ...] = ()
+
+
+class WeatherDecl(Model):
+    """The world's weather by season (KWX): its kinds, and for each region the kind that
+    holds in each month. A region with no row takes the row of the nearest region it lies
+    in; every area's region must reach one, and a row names all twelve months."""
+
+    kinds: tuple[WeatherKindDecl, ...] = Field(min_length=1)
+    regions: dict[Key, dict[Month, Key]]
+
+
 class TerritoryDecl(Cited):
     """A land area of the map. Its holder and yields are cited, or marked a gap."""
 
@@ -1271,6 +1297,9 @@ class WorldFile(Model):
     sea_zones: SkipJsonSchema[tuple[SeaZoneDecl, ...]] = ()
     adjacency: SkipJsonSchema[tuple[AdjacencyDecl, ...]] = ()
     """Each bordering pair once, in either order."""
+    weather: SkipJsonSchema[WeatherDecl | None] = None
+    """The weather by region and month, with ``weather`` on (KWX). With the rule off it is
+    checked and left out of the game. Written by hand: not offered to a model."""
     resources: SkipJsonSchema[tuple[ResourceDecl, ...]] = ()
     """The resources territories yield, each with its role. Realism only. Written by hand:
     not offered to a model."""

@@ -62,6 +62,31 @@ adjacency:
   - [isle, open_sea]
   - {a: isle, b: norra_plain, crossing: the ferry}
 
+# The weather by region and month, read with the `weather` rule on: the calendar's, never
+# a draw, and public. The north and the south take the mainland's row. The months the toy
+# world's games are played in, from April, are fair: tests/test_weather.py sets its own. A kind of weather
+# may add days to a step into an area (by the terrain entered and the kind or domain of
+# the piece), change a kind's figures, ground the air, and close areas to a kind or domain.
+weather:
+  kinds:
+    - {key: fair, name: Fair}
+    - key: thaw
+      name: The Thaw
+      slows:
+        - {days: 2, terrain: [plain], pieces: [land]}
+      figures:
+        - {pieces: [levy], attack: -1}
+    - key: gales
+      name: Gales
+      slows:
+        - {days: 1, pieces: [sea]}
+      grounds_air: true
+      closes:
+        - {pieces: [galley], terrain: [deep]}
+  regions:
+    mainland: {jan: fair, feb: fair, mar: thaw, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: thaw, dec: fair}
+    waters: {jan: gales, feb: gales, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: gales, dec: gales}
+
 # Norra's shipping, from which a levy's lift across the water is drawn.
 quantities:
   - {key: norra_shipping, owner: norra, name: Norra's shipping, value: 100000, unit: tons, source: toy}

@@ -3796,6 +3796,35 @@
         "title": "ClockStatusSet",
         "type": "object"
       },
+      "Closure": {
+        "additionalProperties": false,
+        "description": "The areas of a region closed to the kinds or domains named: those of the terrain\nnamed, or every area when none.",
+        "properties": {
+          "pieces": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pieces"
+        ],
+        "title": "Closure",
+        "type": "object"
+      },
       "CodebreakingSet": {
         "additionalProperties": false,
         "description": "A nation's codebreaking level raised by one, from ``on`` (IOR). Engine only.",
@@ -12973,7 +13002,7 @@
           "shift": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Shift"
+                "$ref": "#/$defs/revisionist__core__realism__detect__Shift"
               },
               {
                 "type": "null"
@@ -14854,15 +14883,6 @@
         "title": "SettingsSet",
         "type": "object"
       },
-      "Shift": {
-        "description": "How a wrong report is wrong. Engine only: never in a report or a view.",
-        "enum": [
-          "strength",
-          "area"
-        ],
-        "title": "Shift",
-        "type": "string"
-      },
       "ShiftDisposition": {
         "additionalProperties": false,
         "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
@@ -14952,6 +14972,40 @@
           "places"
         ],
         "title": "SightRef",
+        "type": "object"
+      },
+      "Slow": {
+        "additionalProperties": false,
+        "description": "Days a weather adds to a step into an area of its region: for a step into the\nterrain named (every terrain when none), by a piece of a kind or domain named (every\npiece when none).",
+        "properties": {
+          "days": {
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "Slow",
         "type": "object"
       },
       "Source": {
@@ -16310,6 +16364,93 @@
         "title": "WarNeed",
         "type": "object"
       },
+      "Weather": {
+        "additionalProperties": false,
+        "description": "The world's weather: its kinds by key, and for each region with a row the kind of\nweather that holds in each month, January first.",
+        "properties": {
+          "kinds": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WeatherKind"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Kinds",
+            "type": "object"
+          },
+          "regions": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 60,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Regions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kinds",
+          "regions"
+        ],
+        "title": "Weather",
+        "type": "object"
+      },
+      "WeatherKind": {
+        "additionalProperties": false,
+        "description": "One kind of weather the world names, and what it does where it holds.",
+        "properties": {
+          "closes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Closure"
+            },
+            "title": "Closes",
+            "type": "array"
+          },
+          "figures": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__weather__Shift"
+            },
+            "title": "Figures",
+            "type": "array"
+          },
+          "grounds_air": {
+            "default": false,
+            "title": "Grounds Air",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "slows": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Slow"
+            },
+            "title": "Slows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "WeatherKind",
+        "type": "object"
+      },
       "WorldMap": {
         "additionalProperties": false,
         "description": "The board: everything about the map but its shapes.",
@@ -16440,6 +16581,17 @@
             },
             "title": "Territories",
             "type": "array"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Weather"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -16648,6 +16800,15 @@
         "title": "Cause",
         "type": "string"
       },
+      "revisionist__core__realism__detect__Shift": {
+        "description": "How a wrong report is wrong. Engine only: never in a report or a view.",
+        "enum": [
+          "strength",
+          "area"
+        ],
+        "title": "Shift",
+        "type": "string"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -16728,6 +16889,37 @@
         ],
         "title": "Domain",
         "type": "string"
+      },
+      "revisionist__core__realism__weather__Shift": {
+        "additionalProperties": false,
+        "description": "A change to the attack or defence of the kinds or domains named (every kind when\nnone), held to the figures' range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          }
+        },
+        "title": "Shift",
+        "type": "object"
       }
     },
     "additionalProperties": false,
@@ -19814,6 +20006,35 @@
         ],
         "title": "ClockStatus",
         "type": "string"
+      },
+      "Closure": {
+        "additionalProperties": false,
+        "description": "The areas of a region closed to the kinds or domains named: those of the terrain\nnamed, or every area when none.",
+        "properties": {
+          "pieces": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pieces"
+        ],
+        "title": "Closure",
+        "type": "object"
       },
       "Commitment": {
         "additionalProperties": false,
@@ -27344,6 +27565,37 @@
         "title": "Settings",
         "type": "object"
       },
+      "Shift": {
+        "additionalProperties": false,
+        "description": "A change to the attack or defence of the kinds or domains named (every kind when\nnone), held to the figures' range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          }
+        },
+        "title": "Shift",
+        "type": "object"
+      },
       "ShiftDisposition": {
         "additionalProperties": false,
         "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
@@ -27433,6 +27685,40 @@
           "places"
         ],
         "title": "SightRef",
+        "type": "object"
+      },
+      "Slow": {
+        "additionalProperties": false,
+        "description": "Days a weather adds to a step into an area of its region: for a step into the\nterrain named (every terrain when none), by a piece of a kind or domain named (every\npiece when none).",
+        "properties": {
+          "days": {
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "Slow",
         "type": "object"
       },
       "Source": {
@@ -28312,6 +28598,93 @@
         "title": "WarNeed",
         "type": "object"
       },
+      "Weather": {
+        "additionalProperties": false,
+        "description": "The world's weather: its kinds by key, and for each region with a row the kind of\nweather that holds in each month, January first.",
+        "properties": {
+          "kinds": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WeatherKind"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Kinds",
+            "type": "object"
+          },
+          "regions": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 60,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Regions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kinds",
+          "regions"
+        ],
+        "title": "Weather",
+        "type": "object"
+      },
+      "WeatherKind": {
+        "additionalProperties": false,
+        "description": "One kind of weather the world names, and what it does where it holds.",
+        "properties": {
+          "closes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Closure"
+            },
+            "title": "Closes",
+            "type": "array"
+          },
+          "figures": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Shift"
+            },
+            "title": "Figures",
+            "type": "array"
+          },
+          "grounds_air": {
+            "default": false,
+            "title": "Grounds Air",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "slows": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Slow"
+            },
+            "title": "Slows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "WeatherKind",
+        "type": "object"
+      },
       "WorldMap": {
         "additionalProperties": false,
         "description": "The board: everything about the map but its shapes.",
@@ -28442,6 +28815,17 @@
             },
             "title": "Territories",
             "type": "array"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Weather"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -31154,6 +31538,35 @@
         ],
         "title": "ClockStatus",
         "type": "string"
+      },
+      "Closure": {
+        "additionalProperties": false,
+        "description": "The areas of a region closed to the kinds or domains named: those of the terrain\nnamed, or every area when none.",
+        "properties": {
+          "pieces": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pieces"
+        ],
+        "title": "Closure",
+        "type": "object"
       },
       "Commitment": {
         "additionalProperties": false,
@@ -37106,6 +37519,37 @@
         "title": "Settings",
         "type": "object"
       },
+      "Shift": {
+        "additionalProperties": false,
+        "description": "A change to the attack or defence of the kinds or domains named (every kind when\nnone), held to the figures' range.",
+        "properties": {
+          "attack": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Attack",
+            "type": "integer"
+          },
+          "defence": {
+            "default": 0,
+            "maximum": 4,
+            "minimum": -4,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          }
+        },
+        "title": "Shift",
+        "type": "object"
+      },
       "ShiftDisposition": {
         "additionalProperties": false,
         "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
@@ -37172,6 +37616,40 @@
           "places"
         ],
         "title": "Sight",
+        "type": "object"
+      },
+      "Slow": {
+        "additionalProperties": false,
+        "description": "Days a weather adds to a step into an area of its region: for a step into the\nterrain named (every terrain when none), by a piece of a kind or domain named (every\npiece when none).",
+        "properties": {
+          "days": {
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Terrain",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "Slow",
         "type": "object"
       },
       "Source": {
@@ -37748,6 +38226,93 @@
         "title": "WarNeed",
         "type": "object"
       },
+      "Weather": {
+        "additionalProperties": false,
+        "description": "The world's weather: its kinds by key, and for each region with a row the kind of\nweather that holds in each month, January first.",
+        "properties": {
+          "kinds": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WeatherKind"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Kinds",
+            "type": "object"
+          },
+          "regions": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 60,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Regions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kinds",
+          "regions"
+        ],
+        "title": "Weather",
+        "type": "object"
+      },
+      "WeatherKind": {
+        "additionalProperties": false,
+        "description": "One kind of weather the world names, and what it does where it holds.",
+        "properties": {
+          "closes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Closure"
+            },
+            "title": "Closes",
+            "type": "array"
+          },
+          "figures": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Shift"
+            },
+            "title": "Figures",
+            "type": "array"
+          },
+          "grounds_air": {
+            "default": false,
+            "title": "Grounds Air",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "slows": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Slow"
+            },
+            "title": "Slows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "WeatherKind",
+        "type": "object"
+      },
       "WorldMap": {
         "additionalProperties": false,
         "description": "The board: everything about the map but its shapes.",
@@ -37878,6 +38443,17 @@
             },
             "title": "Territories",
             "type": "array"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Weather"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [

@@ -117,7 +117,7 @@ def test_the_world_switches_on_the_territory_rules() -> None:
 
 def test_the_world_names_its_map_and_the_bytes_match() -> None:
     w = world()
-    assert w.map is not None and w.map.coords == "lonlat" and w.map.file == "autumn-1941.json"
+    assert w.map is not None and w.map.coords == "lonlat" and w.map.file == "autumn-1941-globe.json"
     assert w.map_data is not None
     assert len(w.territories) > 50 and len(w.sea_zones) > 20
 

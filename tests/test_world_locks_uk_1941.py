@@ -39,7 +39,7 @@ from tests.test_realism_resolvers import Rig
 from tests.test_rule_names import BASELINE_1941, THIRD_RUN
 from tests.test_world_locks_1941 import run_digest
 
-ON = "45f00e1d6cb09e84245f4a7affb44692"
+ON = "ab03df1be1ecad010be0b6534d879942"
 """The scripted run's digest with the 1941 world's third-run switches on, recorded once by
 this item. It equals the baseline: the script seats the President alone, files no order the
 two new locks hold, and no happening of the run moves the Commons' blocs."""

@@ -39,7 +39,7 @@ MIXED = (Happening.TERRITORY_LOST, Happening.BATTLE_LOSSES)
 """The kinds the first sort mixes: reported, each with a felt share."""
 PLACES_MAX = 5
 """The most places with political weight one nation lists (HFD rule 3)."""
-ON_1941 = "45f00e1d6cb09e84245f4a7affb44692"
+ON_1941 = "ab03df1be1ecad010be0b6534d879942"
 """The scripted run's digest with the three switches on, recorded once: the baseline's, as the
 scripted run walks no groups."""
 GAP = re.compile(r"#\s*gap:\s*true\b")

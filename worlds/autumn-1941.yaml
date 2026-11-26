@@ -45,7 +45,9 @@ entities:
   - {key: french_state, kind: polity, name: The French State, capital: vichy_france}
   - {key: sweden, kind: polity, name: Sweden, capital: sweden_area}
   - {key: spain, kind: polity, name: Spain, capital: iberia}
-  - {key: portugal, kind: polity, name: Portugal}
+  # Portugal's capital [proposed] is the Azores and Madeira, its land nearest Lisbon: Lisbon lies in a
+  # territory it does not hold on this map, and the whole globe gives it the islands and its colonies.
+  - {key: portugal, kind: polity, name: Portugal, capital: azores_madeira}
   - {key: ireland_state, kind: polity, name: Ireland, capital: ireland}
   - {key: finland_state, kind: polity, name: Finland, capital: finland}
   - {key: hungary, kind: polity, name: Hungary, capital: hungary_slovakia}
@@ -197,9 +199,145 @@ entities:
   # A neutral country with no people in play: it exists for its paper.
   - {key: switzerland, kind: polity, name: Switzerland, capital: switzerland_area}
   - {key: alpine_gazette, kind: org, name: "The Alpine Gazette", parent: switzerland, tags: [press, neutral]}
+  # The whole globe (WGD): the nations that hold the new lands, declared with their capitals so the
+  # compile accepts their holders (their standing and forces are WGN's), and the new places, each as
+  # maps/src/autumn-1941-globe/start.yaml restates it (Wake Island as wake_island: `wake` is a word
+  # the rules spell). Capitals [proposed]: the territory of the seat of government that held it on
+  # 1 September 1941; Belgium's is the Congo, its one free land.
+  - {key: mexico_state, kind: polity, name: Mexico, capital: mexico}
+  - {key: guatemala, kind: polity, name: Guatemala, capital: central_america}
+  - {key: venezuela, kind: polity, name: Venezuela, capital: colombia_venezuela}
+  - {key: peru, kind: polity, name: Peru, capital: andes}
+  - {key: brazil, kind: polity, name: Brazil, capital: brazil_south}
+  - {key: argentina, kind: polity, name: Argentina, capital: river_plate}
+  - {key: chile_state, kind: polity, name: Chile, capital: chile}
+  - {key: free_france, kind: polity, name: Free France, capital: french_equatorial_africa}
+  - {key: belgium, kind: polity, name: Belgium, capital: belgian_congo}
+  - {key: ethiopia_state, kind: polity, name: Ethiopia, capital: ethiopia}
+  - {key: saudi_arabia, kind: polity, name: Saudi Arabia, capital: arabia}
+  - {key: liberia_state, kind: polity, name: Liberia, capital: liberia}
+  - {key: afghanistan_state, kind: polity, name: Afghanistan, capital: afghanistan}
+  - {key: tibet, kind: polity, name: Tibet, capital: tibet_nepal}
+  - {key: mongolia_state, kind: polity, name: Mongolia, capital: mongolia}
+  - {key: dutch_harbor, kind: location, name: Dutch Harbor, at: [53.87, -166.53], theatre: Americas, within: alaska, base: {sides: [usa], domains: [land]}}
+  - {key: vancouver, kind: location, name: Vancouver, at: [49.28, -123.12], theatre: Americas, within: western_canada, base: {sides: [uk], domains: [land]}}
+  - {key: winnipeg, kind: location, name: Winnipeg, at: [49.9, -97.14], theatre: Americas, within: western_canada, base: {sides: [uk], domains: [land]}}
+  - {key: mexico_city, kind: location, name: Mexico City, at: [19.43, -99.13], theatre: Americas, within: mexico, base: {sides: [mexico_state], domains: [land]}}
+  - {key: tampico, kind: location, name: Tampico, at: [22.25, -97.86], theatre: Americas, within: mexico, base: {sides: [mexico_state], domains: [land]}}
+  - {key: guatemala_city, kind: location, name: Guatemala City, at: [14.63, -90.51], theatre: Americas, within: central_america, base: {sides: [guatemala], domains: [land]}}
+  - {key: balboa, kind: location, name: Balboa, at: [8.96, -79.56], theatre: Americas, within: central_america, base: {sides: [usa], domains: [land]}}
+  - {key: maracaibo, kind: location, name: Maracaibo, at: [10.65, -71.64], theatre: Americas, within: colombia_venezuela, base: {sides: [venezuela], domains: [land]}}
+  - {key: bogota, kind: location, name: Bogota, at: [4.71, -74.07], theatre: Americas, within: colombia_venezuela, base: {sides: [venezuela], domains: [land]}}
+  - {key: georgetown, kind: location, name: Georgetown, at: [6.8, -58.16], theatre: Americas, within: guianas, base: {sides: [uk], domains: [land]}}
+  - {key: paramaribo, kind: location, name: Paramaribo, at: [5.85, -55.2], theatre: Americas, within: guianas, base: {sides: [netherlands], domains: [land]}}
+  - {key: lima, kind: location, name: Lima, at: [-12.05, -77.04], theatre: Americas, within: andes, base: {sides: [peru], domains: [land]}}
+  - {key: guayaquil, kind: location, name: Guayaquil, at: [-2.19, -79.89], theatre: Americas, within: andes, base: {sides: [peru], domains: [land]}}
+  - {key: natal, kind: location, name: Natal, at: [-5.79, -35.21], theatre: Americas, within: brazil_north, base: {sides: [brazil], domains: [land]}}
+  - {key: recife, kind: location, name: Recife, at: [-8.05, -34.88], theatre: Americas, within: brazil_north, base: {sides: [brazil], domains: [land]}}
+  - {key: rio_de_janeiro, kind: location, name: Rio de Janeiro, at: [-22.91, -43.2], theatre: Americas, within: brazil_south, base: {sides: [brazil], domains: [land]}}
+  - {key: santos, kind: location, name: Santos, at: [-23.96, -46.33], theatre: Americas, within: brazil_south, base: {sides: [brazil], domains: [land]}}
+  - {key: buenos_aires, kind: location, name: Buenos Aires, at: [-34.62, -58.4], theatre: Americas, within: river_plate, base: {sides: [argentina], domains: [land]}}
+  - {key: montevideo, kind: location, name: Montevideo, at: [-34.9, -56.16], theatre: Americas, within: river_plate, base: {sides: [argentina], domains: [land]}}
+  - {key: valparaiso, kind: location, name: Valparaiso, at: [-33.05, -71.62], theatre: Americas, within: chile, base: {sides: [chile_state], domains: [land]}}
+  - {key: punta_arenas, kind: location, name: Punta Arenas, at: [-53.14, -70.94], theatre: Americas, within: chile, base: {sides: [chile_state], domains: [land]}}
+  - {key: port_stanley, kind: location, name: Port Stanley, at: [-51.69, -57.86], theatre: Americas, within: falklands, base: {sides: [uk], domains: [land]}}
+  - {key: port_of_spain, kind: location, name: Port of Spain, at: [10.65, -61.51], theatre: Americas, within: lesser_antilles, base: {sides: [uk], domains: [land]}}
+  - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03], theatre: Americas, within: lesser_antilles, base: {sides: [french_state], domains: [land]}}
+  - {key: dakar, kind: location, name: Dakar, at: [14.69, -17.44], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
+  - {key: bamako, kind: location, name: Bamako, at: [12.64, -8.0], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
+  - {key: freetown, kind: location, name: Freetown, at: [8.48, -13.23], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: lagos, kind: location, name: Lagos, at: [6.44, 3.37], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: takoradi, kind: location, name: Takoradi, at: [4.89, -1.75], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: brazzaville, kind: location, name: Brazzaville, at: [-4.27, 15.28], theatre: Africa, within: french_equatorial_africa, base: {sides: [free_france], domains: [land]}}
+  - {key: fort_lamy, kind: location, name: Fort-Lamy, at: [12.11, 15.04], theatre: Africa, within: french_equatorial_africa, base: {sides: [free_france], domains: [land]}}
+  - {key: leopoldville, kind: location, name: Leopoldville, at: [-4.32, 15.31], theatre: Africa, within: belgian_congo, base: {sides: [belgium], domains: [land]}}
+  - {key: elisabethville, kind: location, name: Elisabethville, at: [-11.66, 27.48], theatre: Africa, within: belgian_congo, base: {sides: [belgium], domains: [land]}}
+  - {key: khartoum, kind: location, name: Khartoum, at: [15.59, 32.53], theatre: Africa, within: sudan, base: {sides: [uk], domains: [land]}}
+  - {key: port_sudan, kind: location, name: Port Sudan, at: [19.62, 37.22], theatre: Africa, within: sudan, base: {sides: [uk], domains: [land]}}
+  - {key: addis_ababa, kind: location, name: Addis Ababa, at: [9.03, 38.74], theatre: Africa, within: ethiopia, base: {sides: [ethiopia_state], domains: [land]}}
+  - {key: dessie, kind: location, name: Dessie, at: [11.13, 39.63], theatre: Africa, within: ethiopia, base: {sides: [ethiopia_state], domains: [land]}}
+  - {key: gondar_town, kind: location, name: Gondar, at: [12.61, 37.47], theatre: Africa, within: gondar, base: {sides: [italy], domains: [land]}}
+  - {key: massawa, kind: location, name: Massawa, at: [15.63, 39.42], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: mogadishu, kind: location, name: Mogadishu, at: [2.05, 45.32], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: berbera, kind: location, name: Berbera, at: [10.44, 45.01], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: djibouti, kind: location, name: Djibouti, at: [11.55, 43.12], theatre: Africa, within: french_somaliland, base: {sides: [french_state], domains: [land]}}
+  - {key: mombasa, kind: location, name: Mombasa, at: [-4.0, 39.69], theatre: Africa, within: british_east_africa, base: {sides: [uk], domains: [land]}}
+  - {key: dar_es_salaam, kind: location, name: Dar es Salaam, at: [-6.79, 39.21], theatre: Africa, within: british_east_africa, base: {sides: [uk], domains: [land]}}
+  - {key: luanda, kind: location, name: Luanda, at: [-8.84, 13.23], theatre: Africa, within: angola, base: {sides: [portugal], domains: [land]}}
+  - {key: lobito, kind: location, name: Lobito, at: [-12.35, 13.55], theatre: Africa, within: angola, base: {sides: [portugal], domains: [land]}}
+  - {key: lourenco_marques, kind: location, name: Lourenco Marques, at: [-25.95, 32.54], theatre: Africa, within: mozambique, base: {sides: [portugal], domains: [land]}}
+  - {key: beira, kind: location, name: Beira, at: [-19.82, 34.87], theatre: Africa, within: mozambique, base: {sides: [portugal], domains: [land]}}
+  - {key: salisbury, kind: location, name: Salisbury, at: [-17.83, 31.05], theatre: Africa, within: rhodesias, base: {sides: [uk], domains: [land]}}
+  - {key: broken_hill, kind: location, name: Broken Hill, at: [-14.45, 28.45], theatre: Africa, within: rhodesias, base: {sides: [uk], domains: [land]}}
+  - {key: cape_town, kind: location, name: Cape Town, at: [-33.92, 18.42], theatre: Africa, within: south_africa, base: {sides: [uk], domains: [land]}}
+  - {key: durban, kind: location, name: Durban, at: [-29.86, 31.02], theatre: Africa, within: south_africa, base: {sides: [uk], domains: [land]}}
+  - {key: diego_suarez, kind: location, name: Diego-Suarez, at: [-12.28, 49.29], theatre: Africa, within: madagascar, base: {sides: [french_state], domains: [land]}}
+  - {key: tananarive, kind: location, name: Tananarive, at: [-18.91, 47.54], theatre: Africa, within: madagascar, base: {sides: [french_state], domains: [land]}}
+  - {key: riyadh, kind: location, name: Riyadh, at: [24.71, 46.68], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: jeddah, kind: location, name: Jeddah, at: [21.49, 39.19], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: dhahran, kind: location, name: Dhahran, at: [26.29, 50.11], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: aden, kind: location, name: Aden, at: [12.85, 45.03], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: manama, kind: location, name: Manama, at: [26.23, 50.59], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: kuwait_town, kind: location, name: Kuwait, at: [29.37, 47.98], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: las_palmas, kind: location, name: Las Palmas, at: [28.12, -15.43], theatre: Africa, within: spanish_sahara, base: {sides: [spain], domains: [land]}}
+  - {key: monrovia, kind: location, name: Monrovia, at: [6.31, -10.76], theatre: Africa, within: liberia, base: {sides: [liberia_state], domains: [land]}}
+  - {key: bissau, kind: location, name: Bissau, at: [11.86, -15.6], theatre: Africa, within: portuguese_guinea, base: {sides: [portugal], domains: [land]}}
+  - {key: mindelo, kind: location, name: Mindelo, at: [16.89, -24.98], theatre: Africa, within: portuguese_guinea, base: {sides: [portugal], domains: [land]}}
+  - {key: santa_isabel, kind: location, name: Santa Isabel, at: [3.75, 8.78], theatre: Africa, within: spanish_guinea, base: {sides: [spain], domains: [land]}}
+  - {key: ponta_delgada, kind: location, name: Ponta Delgada, at: [37.74, -25.67], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
+  - {key: lajes, kind: location, name: Lajes, at: [38.76, -27.09], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
+  - {key: kuibyshev, kind: location, name: Kuibyshev, at: [53.2, 50.14], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: kazan, kind: location, name: Kazan, at: [55.8, 49.11], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: astrakhan, kind: location, name: Astrakhan, at: [46.35, 48.03], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: sverdlovsk, kind: location, name: Sverdlovsk, at: [56.84, 60.61], theatre: Inner Asia, within: urals, base: {sides: [ussr], domains: [land]}}
+  - {key: magnitogorsk, kind: location, name: Magnitogorsk, at: [53.38, 59.03], theatre: Inner Asia, within: urals, base: {sides: [ussr], domains: [land]}}
+  - {key: novosibirsk, kind: location, name: Novosibirsk, at: [55.05, 82.95], theatre: Inner Asia, within: western_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: stalinsk, kind: location, name: Stalinsk, at: [53.77, 87.13], theatre: Inner Asia, within: western_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: alma_ata, kind: location, name: Alma-Ata, at: [43.23, 76.95], theatre: Inner Asia, within: kazakhstan, base: {sides: [ussr], domains: [land]}}
+  - {key: karaganda, kind: location, name: Karaganda, at: [49.8, 73.11], theatre: Inner Asia, within: kazakhstan, base: {sides: [ussr], domains: [land]}}
+  - {key: krasnoyarsk, kind: location, name: Krasnoyarsk, at: [56.01, 92.87], theatre: Inner Asia, within: eastern_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: irkutsk, kind: location, name: Irkutsk, at: [52.29, 104.28], theatre: Inner Asia, within: eastern_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: tashkent, kind: location, name: Tashkent, at: [41.31, 69.28], theatre: Inner Asia, within: turkestan, base: {sides: [ussr], domains: [land]}}
+  - {key: krasnovodsk, kind: location, name: Krasnovodsk, at: [40.02, 52.97], theatre: Inner Asia, within: turkestan, base: {sides: [ussr], domains: [land]}}
+  - {key: kabul, kind: location, name: Kabul, at: [34.53, 69.18], theatre: Inner Asia, within: afghanistan, base: {sides: [afghanistan_state], domains: [land]}}
+  - {key: karachi, kind: location, name: Karachi, at: [24.86, 67.01], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: lahore, kind: location, name: Lahore, at: [31.55, 74.34], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: rawalpindi, kind: location, name: Rawalpindi, at: [33.6, 73.03], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: new_delhi, kind: location, name: New Delhi, at: [28.61, 77.21], theatre: Inner Asia, within: ganges_bengal, base: {sides: [uk], domains: [land]}}
+  - {key: calcutta, kind: location, name: Calcutta, at: [22.57, 88.37], theatre: Inner Asia, within: ganges_bengal, base: {sides: [uk], domains: [land]}}
+  - {key: bombay, kind: location, name: Bombay, at: [19.08, 72.88], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: madras, kind: location, name: Madras, at: [13.08, 80.28], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: trincomalee, kind: location, name: Trincomalee, at: [8.57, 81.23], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: colombo, kind: location, name: Colombo, at: [6.93, 79.9], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: nova_goa, kind: location, name: Nova Goa, at: [15.5, 73.83], theatre: Inner Asia, within: portuguese_india, base: {sides: [portugal], domains: [land]}}
+  - {key: lhasa, kind: location, name: Lhasa, at: [29.65, 91.12], theatre: Inner Asia, within: tibet_nepal, base: {sides: [tibet], domains: [land]}}
+  - {key: urumchi, kind: location, name: Urumchi, at: [43.82, 87.61], theatre: Inner Asia, within: sinkiang, base: {sides: [china], domains: [land]}}
+  - {key: hami, kind: location, name: Hami, at: [42.82, 93.52], theatre: Inner Asia, within: sinkiang, base: {sides: [china], domains: [land]}}
+  - {key: ulan_bator, kind: location, name: Ulan Bator, at: [47.92, 106.92], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
+  - {key: kyzyl, kind: location, name: Kyzyl, at: [51.72, 94.45], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
+  - {key: darwin, kind: location, name: Darwin, at: [-12.42, 130.88], theatre: Asia-Pacific, within: australia_west, base: {sides: [uk], domains: [land]}}
+  - {key: perth, kind: location, name: Perth, at: [-31.95, 115.86], theatre: Asia-Pacific, within: australia_west, base: {sides: [uk], domains: [land]}}
+  - {key: sydney, kind: location, name: Sydney, at: [-33.87, 151.21], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: melbourne, kind: location, name: Melbourne, at: [-37.81, 144.96], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: brisbane, kind: location, name: Brisbane, at: [-27.47, 153.03], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: wellington, kind: location, name: Wellington, at: [-41.28, 174.75], theatre: Asia-Pacific, within: new_zealand, base: {sides: [uk], domains: [land]}}
+  - {key: auckland, kind: location, name: Auckland, at: [-36.85, 174.76], theatre: Asia-Pacific, within: new_zealand, base: {sides: [uk], domains: [land]}}
+  - {key: port_moresby, kind: location, name: Port Moresby, at: [-9.44, 147.18], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: rabaul, kind: location, name: Rabaul, at: [-4.2, 152.18], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: tulagi, kind: location, name: Tulagi, at: [-9.06, 160.17], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: saipan, kind: location, name: Saipan, at: [15.18, 145.75], theatre: Asia-Pacific, within: japanese_mandate, base: {sides: [japan], domains: [land]}}
+  - {key: koror, kind: location, name: Koror, at: [7.34, 134.48], theatre: Asia-Pacific, within: japanese_mandate, base: {sides: [japan], domains: [land]}}
+  - {key: suva, kind: location, name: Suva, at: [-18.14, 178.44], theatre: Asia-Pacific, within: south_pacific, base: {sides: [uk], domains: [land]}}
+  - {key: pago_pago, kind: location, name: Pago Pago, at: [-14.3, -170.74], theatre: Asia-Pacific, within: south_pacific, base: {sides: [usa], domains: [land]}}
+  - {key: papeete, kind: location, name: Papeete, at: [-17.54, -149.57], theatre: Asia-Pacific, within: south_pacific, base: {sides: [free_france], domains: [land]}}
+  - {key: noumea, kind: location, name: Nouméa, at: [-22.27, 166.44], theatre: Asia-Pacific, within: new_caledonia, base: {sides: [free_france], domains: [land]}}
+  - {key: espiritu_santo, kind: location, name: Espiritu Santo, at: [-15.51, 167.18], theatre: Asia-Pacific, within: new_caledonia, base: {sides: [free_france], domains: [land]}}
+  - {key: truk, kind: location, name: Truk, at: [7.45, 151.85], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
+  - {key: kwajalein, kind: location, name: Kwajalein, at: [8.72, 167.73], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
+  - {key: wake_island, kind: location, name: Wake Island, at: [19.28, 166.65], theatre: Asia-Pacific, within: central_pacific, base: {sides: [usa], domains: [sea, air]}}
 
-# The board: the 1941 map built from the recipes under maps/src/autumn-1941 (maps/README.md).
-map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
+# The board: the whole 1941 globe built from the recipes under maps/src/autumn-1941-globe (maps/README.md).
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 07142a76288bad221c021cf8e43c0b38ca56fc21d50b7a2089d1ef72532bb86d, box: [-126, -60, 234, 84]}
 
 # The map's terrain. No defence values yet.
 terrain:
@@ -220,6 +358,12 @@ regions:
   - {key: war_zone, name: The war zone, parent: atlantic}
   - {key: mediterranean, name: The Mediterranean and the Middle East}
   - {key: pacific, name: China}
+  # The whole globe (WGD): four regions of new land [proposed], and the seas the old map left out.
+  - {key: americas, name: The Americas}
+  - {key: africa, name: Africa and Arabia}
+  - {key: inner_asia, name: India and Inner Asia}
+  - {key: australasia, name: Australasia}
+  - {key: southern_seas, name: The Southern and Polar Seas}
 
 # Every land territory: its holder on 1 September 1941 and its yields (maps/src/autumn-1941/
 # start.yaml and yields.yaml, where each figure's basis and named source are kept). All gaps.
@@ -306,6 +450,65 @@ territories:
   - {key: philippines, name: The Philippines, region: pacific, terrain: forest, holder: usa, yields: {industry: 0.3, manpower: 16.0, oil: 0, supply: 2, prestige: 4}, gap: true}
   - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, holder: usa, yields: {industry: 0.2, manpower: 0.4, oil: 0, supply: 1, prestige: 3}, sites: [pearl_harbor_base], gap: true}
   - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest, holder: ussr, yields: {industry: 0.5, manpower: 3.0, oil: 0, supply: 2, prestige: 2}, gap: true}
+  # The whole globe (WGD): the land the old map left out, from the recipes under
+  # maps/src/autumn-1941-globe; each holder and yield from its start.yaml and yields.yaml, where each
+  # figure's basis and named source are kept. All gaps.
+  - {key: alaska, name: Alaska, region: americas, terrain: mountain, holder: usa, yields: {industry: 0, manpower: 0.07, oil: 0, supply: 1, prestige: 1}, sites: [dutch_harbor], gap: true}
+  - {key: western_canada, name: Western Canada and the Arctic, region: americas, terrain: forest, holder: uk, yields: {industry: 0, manpower: 3.3, oil: 0.3, supply: 2, prestige: 2}, sites: [vancouver, winnipeg], gap: true}
+  - {key: mexico, name: Mexico, region: americas, terrain: mountain, holder: mexico_state, yields: {industry: 0.2, manpower: 19.7, oil: 2.0, supply: 2, prestige: 4}, sites: [mexico_city, tampico], gap: true}
+  - {key: central_america, name: Central America, region: americas, terrain: forest, holder: guatemala, yields: {industry: 0.02, manpower: 7.0, oil: 0, supply: 2, prestige: 2}, sites: [guatemala_city, balboa], gap: true}
+  - {key: colombia_venezuela, name: Colombia and Venezuela, region: americas, terrain: forest, holder: venezuela, yields: {industry: 0.1, manpower: 12.9, oil: 12.2, supply: 2, prestige: 3}, sites: [maracaibo, bogota], gap: true}
+  - {key: guianas, name: The Guianas, region: americas, terrain: forest, holder: uk, yields: {industry: 0, manpower: 0.55, oil: 0, supply: 2, prestige: 1}, sites: [georgetown, paramaribo], gap: true}
+  - {key: andes, name: The Andes, region: americas, terrain: mountain, holder: peru, yields: {industry: 0.05, manpower: 13.0, oil: 0.6, supply: 2, prestige: 3}, sites: [lima, guayaquil], gap: true}
+  - {key: brazil_north, name: Northern Brazil, region: americas, terrain: forest, holder: brazil, yields: {industry: 0.05, manpower: 19.5, oil: 0, supply: 2, prestige: 2}, sites: [natal, recife], gap: true}
+  - {key: brazil_south, name: Southern Brazil, region: americas, terrain: plain, holder: brazil, yields: {industry: 0.3, manpower: 21.7, oil: 0, supply: 2, prestige: 5}, sites: [rio_de_janeiro, santos], gap: true}
+  - {key: river_plate, name: The River Plate, region: americas, terrain: plain, holder: argentina, yields: {industry: 0.4, manpower: 17.3, oil: 1.1, supply: 2, prestige: 5}, sites: [buenos_aires, montevideo], gap: true}
+  - {key: chile, name: Chile, region: americas, terrain: mountain, holder: chile_state, yields: {industry: 0.1, manpower: 5.0, oil: 0, supply: 2, prestige: 3}, sites: [valparaiso, punta_arenas], gap: true}
+  - {key: falklands, name: The Falkland Islands, region: americas, terrain: plain, holder: uk, yields: {industry: 0, manpower: 0.0, oil: 0, supply: 1, prestige: 1}, sites: [port_stanley], gap: true}
+  - {key: lesser_antilles, name: The Lesser Antilles and Trinidad, region: americas, terrain: mountain, holder: uk, yields: {industry: 0, manpower: 1.9, oil: 1.0, supply: 2, prestige: 2}, sites: [port_of_spain, fort_de_france], gap: true}
+  - {key: french_west_africa, name: French West Africa, region: africa, terrain: plain, holder: french_state, yields: {industry: 0, manpower: 15.0, oil: 0, supply: 2, prestige: 3}, sites: [dakar, bamako], gap: true}
+  - {key: british_west_africa, name: British West Africa, region: africa, terrain: forest, holder: uk, yields: {industry: 0, manpower: 25.0, oil: 0, supply: 3, prestige: 2}, sites: [freetown, lagos, takoradi], gap: true}
+  - {key: french_equatorial_africa, name: French Equatorial Africa and the Cameroons, region: africa, terrain: plain, holder: free_france, yields: {industry: 0, manpower: 6.5, oil: 0, supply: 2, prestige: 3}, sites: [brazzaville, fort_lamy], gap: true}
+  - {key: belgian_congo, name: The Belgian Congo, region: africa, terrain: forest, holder: belgium, yields: {industry: 0.05, manpower: 14.0, oil: 0, supply: 2, prestige: 3}, sites: [leopoldville, elisabethville], gap: true}
+  - {key: sudan, name: The Sudan, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 6.3, oil: 0, supply: 2, prestige: 2}, sites: [khartoum, port_sudan], gap: true}
+  - {key: ethiopia, name: Ethiopia, region: africa, terrain: mountain, holder: ethiopia_state, yields: {industry: 0, manpower: 9.0, oil: 0, supply: 2, prestige: 4}, sites: [addis_ababa, dessie], gap: true}
+  - {key: gondar, name: Gondar, region: africa, terrain: mountain, holder: italy, yields: {industry: 0, manpower: 0.5, oil: 0, supply: 1, prestige: 1}, sites: [gondar_town], gap: true}
+  - {key: horn_of_africa, name: Eritrea and the Somalilands, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 2.7, oil: 0, supply: 3, prestige: 2}, sites: [massawa, mogadishu, berbera], gap: true}
+  - {key: french_somaliland, name: French Somaliland, region: africa, terrain: plain, holder: french_state, yields: {industry: 0, manpower: 0.05, oil: 0, supply: 1, prestige: 1}, sites: [djibouti], gap: true}
+  - {key: british_east_africa, name: British East Africa, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 13.0, oil: 0, supply: 2, prestige: 2}, sites: [mombasa, dar_es_salaam], gap: true}
+  - {key: angola, name: Angola, region: africa, terrain: plain, holder: portugal, yields: {industry: 0, manpower: 3.8, oil: 0, supply: 2, prestige: 1}, sites: [luanda, lobito], gap: true}
+  - {key: mozambique, name: Mozambique, region: africa, terrain: forest, holder: portugal, yields: {industry: 0, manpower: 5.1, oil: 0, supply: 2, prestige: 1}, sites: [lourenco_marques, beira], gap: true}
+  - {key: rhodesias, name: The Rhodesias and Nyasaland, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 4.5, oil: 0, supply: 2, prestige: 2}, sites: [salisbury, broken_hill], gap: true}
+  - {key: south_africa, name: South Africa, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 11.9, oil: 0, supply: 2, prestige: 4}, sites: [cape_town, durban], gap: true}
+  - {key: madagascar, name: Madagascar, region: africa, terrain: forest, holder: french_state, yields: {industry: 0, manpower: 4.5, oil: 0, supply: 2, prestige: 2}, sites: [diego_suarez, tananarive], gap: true}
+  - {key: arabia, name: Arabia, region: africa, terrain: plain, holder: saudi_arabia, yields: {industry: 0, manpower: 6.0, oil: 0.2, supply: 3, prestige: 3}, sites: [riyadh, jeddah, dhahran], gap: true}
+  - {key: aden_gulf, name: Aden and the Gulf coast, region: africa, terrain: plain, holder: uk, yields: {industry: 0, manpower: 1.4, oil: 0.3, supply: 3, prestige: 2}, sites: [aden, manama, kuwait_town], gap: true}
+  - {key: spanish_sahara, name: Spanish Sahara and the Canaries, region: africa, terrain: plain, holder: spain, yields: {industry: 0, manpower: 0.7, oil: 0, supply: 1, prestige: 1}, sites: [las_palmas], gap: true}
+  - {key: liberia, name: Liberia, region: africa, terrain: forest, holder: liberia_state, yields: {industry: 0, manpower: 1.5, oil: 0, supply: 1, prestige: 1}, sites: [monrovia], gap: true}
+  - {key: portuguese_guinea, name: Portuguese Guinea and Cape Verde, region: africa, terrain: forest, holder: portugal, yields: {industry: 0, manpower: 0.7, oil: 0, supply: 2, prestige: 1}, sites: [bissau, mindelo], gap: true}
+  - {key: spanish_guinea, name: Spanish Guinea, region: africa, terrain: forest, holder: spain, yields: {industry: 0, manpower: 0.17, oil: 0, supply: 1, prestige: 1}, sites: [santa_isabel], gap: true}
+  - {key: azores_madeira, name: The Azores and Madeira, region: africa, terrain: mountain, holder: portugal, yields: {industry: 0, manpower: 0.5, oil: 0, supply: 2, prestige: 2}, sites: [ponta_delgada, lajes], gap: true}
+  - {key: middle_volga, name: The Middle Volga, region: inner_asia, terrain: plain, holder: ussr, yields: {industry: 0, manpower: 10.0, oil: 0.1, supply: 3, prestige: 2}, sites: [kuibyshev, kazan, astrakhan], gap: true}
+  - {key: urals, name: The Urals, region: inner_asia, terrain: mountain, holder: ussr, yields: {industry: 0, manpower: 12.5, oil: 0.5, supply: 3, prestige: 3}, sites: [sverdlovsk, magnitogorsk], gap: true}
+  - {key: western_siberia, name: Western Siberia, region: inner_asia, terrain: marsh, holder: ussr, yields: {industry: 0, manpower: 9.0, oil: 0, supply: 2, prestige: 2}, sites: [novosibirsk, stalinsk], gap: true}
+  - {key: kazakhstan, name: Kazakhstan, region: inner_asia, terrain: plain, holder: ussr, yields: {industry: 0, manpower: 6.1, oil: 0.2, supply: 2, prestige: 2}, sites: [alma_ata, karaganda], gap: true}
+  - {key: eastern_siberia, name: Eastern Siberia, region: inner_asia, terrain: forest, holder: ussr, yields: {industry: 0, manpower: 4.3, oil: 0, supply: 2, prestige: 2}, sites: [krasnoyarsk, irkutsk], gap: true}
+  - {key: turkestan, name: Turkestan, region: inner_asia, terrain: mountain, holder: ussr, yields: {industry: 0, manpower: 10.5, oil: 0.4, supply: 2, prestige: 2}, sites: [tashkent, krasnovodsk], gap: true}
+  - {key: afghanistan, name: Afghanistan, region: inner_asia, terrain: mountain, holder: afghanistan_state, yields: {industry: 0, manpower: 10.0, oil: 0, supply: 1, prestige: 1}, sites: [kabul], gap: true}
+  - {key: indus_northwest, name: The Indus and the North-West, region: inner_asia, terrain: plain, holder: uk, yields: {industry: 0, manpower: 70.0, oil: 0.03, supply: 3, prestige: 3}, sites: [karachi, lahore, rawalpindi], gap: true}
+  - {key: ganges_bengal, name: The Ganges Plain and Bengal, region: inner_asia, terrain: plain, holder: uk, yields: {industry: 0, manpower: 200.0, oil: 0.1, supply: 2, prestige: 4}, sites: [new_delhi, calcutta], gap: true}
+  - {key: southern_india, name: Southern India and Ceylon, region: inner_asia, terrain: plain, holder: uk, yields: {industry: 0, manpower: 120.0, oil: 0, supply: 4, prestige: 3}, sites: [bombay, madras, trincomalee, colombo], gap: true}
+  - {key: portuguese_india, name: Goa, region: inner_asia, terrain: plain, holder: portugal, yields: {industry: 0, manpower: 0.6, oil: 0, supply: 1, prestige: 1}, sites: [nova_goa], gap: true}
+  - {key: tibet_nepal, name: 'Tibet, Nepal and Bhutan', region: inner_asia, terrain: mountain, holder: tibet, yields: {industry: 0, manpower: 7.6, oil: 0, supply: 1, prestige: 1}, sites: [lhasa], gap: true}
+  - {key: sinkiang, name: Sinkiang, region: inner_asia, terrain: mountain, holder: china, yields: {industry: 0, manpower: 3.7, oil: 0, supply: 2, prestige: 1}, sites: [urumchi, hami], gap: true}
+  - {key: mongolia, name: Mongolia and Tannu Tuva, region: inner_asia, terrain: plain, holder: mongolia_state, yields: {industry: 0, manpower: 0.8, oil: 0, supply: 1, prestige: 1}, sites: [ulan_bator, kyzyl], gap: true}
+  - {key: australia_west, name: Western Australia and the North, region: australasia, terrain: plain, holder: uk, yields: {industry: 0.05, manpower: 0.5, oil: 0, supply: 2, prestige: 2}, sites: [darwin, perth], gap: true}
+  - {key: australia_east, name: Eastern Australia, region: australasia, terrain: plain, holder: uk, yields: {industry: 0.6, manpower: 6.6, oil: 0, supply: 3, prestige: 5}, sites: [sydney, melbourne, brisbane], gap: true}
+  - {key: new_zealand, name: New Zealand, region: australasia, terrain: mountain, holder: uk, yields: {industry: 0.2, manpower: 1.6, oil: 0, supply: 2, prestige: 4}, sites: [wellington, auckland], gap: true}
+  - {key: new_guinea, name: New Guinea and the Solomons, region: australasia, terrain: forest, holder: uk, yields: {industry: 0, manpower: 1.5, oil: 0, supply: 2, prestige: 2}, sites: [port_moresby, rabaul, tulagi], gap: true}
+  - {key: japanese_mandate, name: The Japanese Mandate, region: australasia, terrain: forest, holder: japan, yields: {industry: 0, manpower: 0.13, oil: 0, supply: 1, prestige: 2}, sites: [saipan, koror], gap: true}
+  - {key: south_pacific, name: The South Pacific Islands, region: australasia, terrain: mountain, holder: uk, yields: {industry: 0, manpower: 0.5, oil: 0, supply: 2, prestige: 2}, sites: [suva, pago_pago, papeete], gap: true}
+  - {key: new_caledonia, name: New Caledonia and the New Hebrides, region: australasia, terrain: mountain, holder: free_france, yields: {industry: 0.02, manpower: 0.1, oil: 0, supply: 1, prestige: 2}, sites: [noumea, espiritu_santo], gap: true}
 
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
@@ -337,26 +540,123 @@ sea_zones:
   - {key: north_pacific, name: The North Pacific, region: pacific, terrain: sea}
   - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
   - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
+  # The whole globe (WGD): the seas the old map left out.
+  - {key: central_atlantic, name: The Central Atlantic, region: southern_seas, terrain: sea}
+  - {key: gulf_of_guinea, name: The Gulf of Guinea, region: southern_seas, terrain: sea}
+  - {key: south_atlantic_west, name: The Western South Atlantic, region: southern_seas, terrain: sea}
+  - {key: south_atlantic_east, name: The Eastern South Atlantic, region: southern_seas, terrain: sea}
+  - {key: cape_waters, name: The Cape Waters, region: southern_seas, terrain: sea}
+  - {key: western_indian_ocean, name: The Western Indian Ocean, region: southern_seas, terrain: sea}
+  - {key: eastern_indian_ocean, name: The Eastern Indian Ocean, region: southern_seas, terrain: sea}
+  - {key: arabian_sea, name: The Arabian Sea, region: southern_seas, terrain: sea}
+  - {key: bay_of_bengal, name: The Bay of Bengal, region: southern_seas, terrain: sea}
+  - {key: red_sea, name: The Red Sea, region: southern_seas, terrain: sea}
+  - {key: persian_gulf, name: The Gulf, region: southern_seas, terrain: sea}
+  - {key: coral_sea, name: The Coral Sea, region: southern_seas, terrain: sea}
+  - {key: tasman_sea, name: The Tasman Sea, region: southern_seas, terrain: sea}
+  - {key: south_pacific_west, name: The Western South Pacific, region: southern_seas, terrain: sea}
+  - {key: south_pacific_central, name: The Central South Pacific, region: southern_seas, terrain: sea}
+  - {key: south_pacific_east, name: The Eastern South Pacific, region: southern_seas, terrain: sea}
+  - {key: chile_peru_waters, name: The Waters off Chile and Peru, region: southern_seas, terrain: sea}
+  - {key: american_pacific, name: The Pacific off North and Central America, region: southern_seas, terrain: sea}
+  - {key: arctic_off_canada, name: The Arctic off Canada, region: southern_seas, terrain: sea}
+  - {key: greenland_sea, name: The Greenland Sea and the Barents Sea, region: southern_seas, terrain: sea}
+  - {key: arctic_off_siberia, name: The Arctic off Siberia, region: southern_seas, terrain: sea}
+  - {key: caspian_sea, name: The Caspian Sea, region: southern_seas, terrain: sea}
 
 adjacency:
+  - [aden_gulf, arabia]
+  - [aden_gulf, arabian_sea]
+  - [aden_gulf, iraq]
+  - [aden_gulf, persian_gulf]
+  - [aden_gulf, red_sea]
   - [aegean_sea, central_mediterranean]
   - [aegean_sea, dodecanese]
   - [aegean_sea, eastern_mediterranean]
   - [aegean_sea, greece]
   - [aegean_sea, turkey]
+  - [afghanistan, indus_northwest]
+  - [afghanistan, iran]
+  - [afghanistan, sinkiang]
+  - [afghanistan, turkestan]
+  - [alaska, arctic_off_siberia]
+  - [alaska, eastern_pacific]
+  - [alaska, north_pacific]
+  - [alaska, western_canada]
+  - [american_pacific, andes]
+  - [american_pacific, central_america]
+  - [american_pacific, chile_peru_waters]
+  - [american_pacific, colombia_venezuela]
+  - [american_pacific, mexico]
+  - [american_pacific, south_pacific_east]
+  - [american_pacific, us_west]
+  - [american_pacific, western_canada]
+  - [andaman_sea, bay_of_bengal]
   - [andaman_sea, burma]
   - [andaman_sea, dutch_east_indies]
+  - [andaman_sea, ganges_bengal]
   - [andaman_sea, malaya]
   - [andaman_sea, south_china_sea]
   - [andaman_sea, thailand]
+  - [andes, brazil_north]
+  - [andes, brazil_south]
+  - [andes, chile]
+  - [andes, chile_peru_waters]
+  - [andes, colombia_venezuela]
+  - [andes, river_plate]
+  - [andes, south_pacific_east]
+  - [angola, belgian_congo]
+  - [angola, french_equatorial_africa]
+  - [angola, gulf_of_guinea]
+  - [angola, rhodesias]
+  - [angola, south_africa]
+  - [angola, south_atlantic_east]
+  - [arabia, iraq]
+  - [arabia, levant]
+  - [arabia, persian_gulf]
+  - [arabia, red_sea]
+  - [arabian_sea, bay_of_bengal]
+  - [arabian_sea, eastern_indian_ocean]
+  - [arabian_sea, horn_of_africa]
+  - [arabian_sea, indus_northwest]
+  - [arabian_sea, iran]
+  - [arabian_sea, persian_gulf]
+  - [arabian_sea, portuguese_india]
+  - [arabian_sea, red_sea]
+  - [arabian_sea, southern_india]
+  - [arabian_sea, western_indian_ocean]
+  - [arctic_off_canada, eastern_canada]
+  - [arctic_off_canada, greenland]
+  - [arctic_off_canada, greenland_sea]
+  - [arctic_off_canada, labrador_sea]
+  - [arctic_off_canada, western_atlantic]
+  - [arctic_off_canada, western_canada]
+  - [arctic_off_siberia, eastern_siberia]
+  - [arctic_off_siberia, greenland_sea]
+  - [arctic_off_siberia, north_pacific]
+  - [arctic_off_siberia, the_north]
+  - [arctic_off_siberia, urals]
+  - [arctic_off_siberia, western_canada]
+  - [arctic_off_siberia, western_siberia]
+  - [arctic_off_siberia, white_sea]
+  - [arctic_route_area, britain_north]
   - [arctic_route_area, denmark_strait]
   - [arctic_route_area, greenland]
+  - [arctic_route_area, greenland_sea]
   - [arctic_route_area, iceland]
   - [arctic_route_area, mid_ocean_gap]
   - [arctic_route_area, north_sea]
   - [arctic_route_area, norway]
   - [arctic_route_area, western_approaches_area]
   - [arctic_route_area, white_sea]
+  - [australia_east, australia_west]
+  - [australia_east, coral_sea]
+  - [australia_east, eastern_indian_ocean]
+  - [australia_east, south_pacific_west]
+  - [australia_east, tasman_sea]
+  - [australia_west, eastern_indian_ocean]
+  - [azores_madeira, central_atlantic]
+  - [azores_madeira, gibraltar_approaches]
   - [balkans, black_sea]
   - [balkans, central_mediterranean]
   - [balkans, germany_south]
@@ -376,11 +676,21 @@ adjacency:
   - [baltic_states, belorussia]
   - [baltic_states, east_prussia]
   - [baltic_states, leningrad_area]
+  - [bay_of_bengal, burma]
+  - [bay_of_bengal, dutch_east_indies]
+  - [bay_of_bengal, eastern_indian_ocean]
+  - [bay_of_bengal, ganges_bengal]
+  - [bay_of_bengal, southern_india]
   - [bay_of_biscay, english_channel]
   - [bay_of_biscay, gibraltar_approaches]
   - [bay_of_biscay, iberia]
   - [bay_of_biscay, mid_ocean_gap]
   - [bay_of_biscay, occupied_france]
+  - [belgian_congo, british_east_africa]
+  - [belgian_congo, french_equatorial_africa]
+  - [belgian_congo, rhodesias]
+  - [belgian_congo, south_atlantic_east]
+  - [belgian_congo, sudan]
   - [belorussia, east_prussia]
   - [belorussia, kiev_area]
   - [belorussia, leningrad_area]
@@ -393,6 +703,13 @@ adjacency:
   - [black_sea, odessa_area]
   - [black_sea, romania]
   - [black_sea, turkey]
+  - [brazil_north, brazil_south]
+  - [brazil_north, central_atlantic]
+  - [brazil_north, colombia_venezuela]
+  - [brazil_north, guianas]
+  - [brazil_north, south_atlantic_west]
+  - [brazil_south, river_plate]
+  - [brazil_south, south_atlantic_west]
   - [britain_north, britain_south]
   - [britain_north, ireland]
   - [britain_north, north_sea]
@@ -400,18 +717,61 @@ adjacency:
   - [britain_south, english_channel]
   - [britain_south, north_sea]
   - [britain_south, western_approaches_area]
+  - [british_east_africa, ethiopia]
+  - [british_east_africa, horn_of_africa]
+  - [british_east_africa, mozambique]
+  - [british_east_africa, rhodesias]
+  - [british_east_africa, sudan]
+  - [british_east_africa, western_indian_ocean]
   - [british_islands, central_mediterranean]
   - [british_islands, eastern_mediterranean]
+  - [british_west_africa, central_atlantic]
+  - [british_west_africa, french_equatorial_africa]
+  - [british_west_africa, french_west_africa]
+  - [british_west_africa, gulf_of_guinea]
+  - [british_west_africa, liberia]
+  - [british_west_africa, south_atlantic_east]
+  - [burma, ganges_bengal]
   - [burma, indochina]
   - [burma, szechwan]
   - [burma, thailand]
+  - [burma, tibet_nepal]
+  - [cape_waters, south_africa]
+  - [cape_waters, south_atlantic_east]
+  - [cape_waters, western_indian_ocean]
   - [caribbean, caribbean_sea]
+  - [caribbean_sea, central_america]
+  - [caribbean_sea, central_atlantic]
+  - [caribbean_sea, colombia_venezuela]
+  - [caribbean_sea, lesser_antilles]
+  - [caribbean_sea, mexico]
   - [caribbean_sea, us_central]
   - [caribbean_sea, us_east]
   - [caribbean_sea, western_atlantic]
+  - [caspian_sea, caucasus]
+  - [caspian_sea, iran]
+  - [caspian_sea, kazakhstan]
+  - [caspian_sea, middle_volga]
+  - [caspian_sea, turkestan]
   - [caucasus, donbas]
   - [caucasus, iran]
+  - [caucasus, middle_volga]
   - [caucasus, turkey]
+  - [central_america, colombia_venezuela]
+  - [central_america, mexico]
+  - [central_atlantic, french_north_africa]
+  - [central_atlantic, french_west_africa]
+  - [central_atlantic, gibraltar_approaches]
+  - [central_atlantic, guianas]
+  - [central_atlantic, gulf_of_guinea]
+  - [central_atlantic, lesser_antilles]
+  - [central_atlantic, liberia]
+  - [central_atlantic, mid_ocean_gap]
+  - [central_atlantic, portuguese_guinea]
+  - [central_atlantic, south_atlantic_east]
+  - [central_atlantic, south_atlantic_west]
+  - [central_atlantic, spanish_sahara]
+  - [central_atlantic, western_atlantic]
   - [central_mediterranean, cyrenaica]
   - [central_mediterranean, eastern_mediterranean]
   - [central_mediterranean, greece]
@@ -420,14 +780,35 @@ adjacency:
   - [central_mediterranean, tripolitania]
   - [central_mediterranean, tunisia]
   - [central_mediterranean, western_mediterranean]
+  - [central_pacific, coral_sea]
   - [central_pacific, eastern_pacific]
   - [central_pacific, hawaii]
   - [central_pacific, japan_east]
+  - [central_pacific, japanese_mandate]
   - [central_pacific, north_pacific]
   - [central_pacific, philippine_sea]
+  - [central_pacific, south_pacific]
+  - [central_pacific, south_pacific_central]
+  - [central_pacific, south_pacific_west]
+  - [chile, chile_peru_waters]
+  - [chile, river_plate]
+  - [chile, south_atlantic_west]
+  - [chile, south_pacific_east]
+  - [chile_peru_waters, river_plate]
+  - [chile_peru_waters, south_atlantic_west]
+  - [chile_peru_waters, south_pacific_east]
+  - [colombia_venezuela, guianas]
+  - [coral_sea, eastern_indian_ocean]
+  - [coral_sea, new_caledonia]
+  - [coral_sea, new_guinea]
+  - [coral_sea, philippine_sea]
+  - [coral_sea, south_pacific_west]
+  - [coral_sea, tasman_sea]
   - [crimea, odessa_area]
   - [cyrenaica, eastern_mediterranean]
   - [cyrenaica, egypt]
+  - [cyrenaica, french_equatorial_africa]
+  - [cyrenaica, sudan]
   - [cyrenaica, tobruk_area]
   - [cyrenaica, tripolitania]
   - [danish_straits, denmark]
@@ -438,14 +819,18 @@ adjacency:
   - [denmark, germany_west]
   - [denmark, north_sea]
   - [denmark_strait, greenland]
+  - [denmark_strait, greenland_sea]
   - [denmark_strait, mid_ocean_gap]
   - [dodecanese, eastern_mediterranean]
   - [donbas, kharkov_area]
+  - [donbas, middle_volga]
   - [donbas, odessa_area]
   - [donbas, stalingrad]
   - [donbas, voronezh]
+  - [dutch_east_indies, eastern_indian_ocean]
   - [dutch_east_indies, java_sea]
   - [dutch_east_indies, malaya]
+  - [dutch_east_indies, new_guinea]
   - [dutch_east_indies, philippine_sea]
   - [dutch_east_indies, south_china_sea]
   - [east_china_sea, formosa]
@@ -465,6 +850,11 @@ adjacency:
   - [eastern_canada, us_central]
   - [eastern_canada, us_east]
   - [eastern_canada, western_atlantic]
+  - [eastern_canada, western_canada]
+  - [eastern_indian_ocean, java_sea]
+  - [eastern_indian_ocean, southern_india]
+  - [eastern_indian_ocean, tasman_sea]
+  - [eastern_indian_ocean, western_indian_ocean]
   - [eastern_mediterranean, egypt]
   - [eastern_mediterranean, greece]
   - [eastern_mediterranean, levant]
@@ -472,10 +862,24 @@ adjacency:
   - [eastern_mediterranean, tobruk_area]
   - [eastern_mediterranean, turkey]
   - [eastern_pacific, north_pacific]
+  - [eastern_pacific, south_pacific_central]
+  - [eastern_pacific, western_canada]
+  - [eastern_siberia, mongolia]
+  - [eastern_siberia, north_pacific]
+  - [eastern_siberia, soviet_far_east]
+  - [eastern_siberia, western_siberia]
   - [egypt, levant]
+  - [egypt, red_sea]
+  - [egypt, sudan]
   - [english_channel, mid_ocean_gap]
   - [english_channel, occupied_france]
   - [english_channel, western_approaches_area]
+  - [ethiopia, french_somaliland]
+  - [ethiopia, gondar]
+  - [ethiopia, horn_of_africa]
+  - [ethiopia, sudan]
+  - [falklands, south_atlantic_east]
+  - [falklands, south_atlantic_west]
   - [finland, gulf_of_bothnia]
   - [finland, leningrad_area]
   - [finland, norway]
@@ -484,10 +888,28 @@ adjacency:
   - [finland, white_sea]
   - [formosa, philippine_sea]
   - [formosa, south_china_sea]
+  - [french_equatorial_africa, french_west_africa]
+  - [french_equatorial_africa, gulf_of_guinea]
+  - [french_equatorial_africa, spanish_guinea]
+  - [french_equatorial_africa, sudan]
+  - [french_equatorial_africa, tripolitania]
+  - [french_north_africa, french_west_africa]
   - [french_north_africa, gibraltar_approaches]
+  - [french_north_africa, iberia]
+  - [french_north_africa, spanish_sahara]
   - [french_north_africa, tripolitania]
   - [french_north_africa, tunisia]
   - [french_north_africa, western_mediterranean]
+  - [french_somaliland, horn_of_africa]
+  - [french_somaliland, red_sea]
+  - [french_west_africa, gulf_of_guinea]
+  - [french_west_africa, liberia]
+  - [french_west_africa, portuguese_guinea]
+  - [french_west_africa, spanish_sahara]
+  - [french_west_africa, tripolitania]
+  - [ganges_bengal, indus_northwest]
+  - [ganges_bengal, southern_india]
+  - [ganges_bengal, tibet_nepal]
   - [germany_east, germany_south]
   - [germany_east, germany_west]
   - [germany_east, hungary_slovakia]
@@ -503,11 +925,19 @@ adjacency:
   - [gibraltar_approaches, iberia]
   - [gibraltar_approaches, mid_ocean_gap]
   - [greece, turkey]
+  - [greenland, greenland_sea]
   - [greenland, labrador_sea]
   - [greenland, mid_ocean_gap]
+  - [greenland_sea, norway]
+  - [greenland_sea, white_sea]
   - [gulf_of_bothnia, sweden_area]
+  - [gulf_of_guinea, south_atlantic_east]
+  - [gulf_of_guinea, spanish_guinea]
   - [hong_kong, south_china_coast]
   - [hong_kong, south_china_sea]
+  - [horn_of_africa, red_sea]
+  - [horn_of_africa, sudan]
+  - [horn_of_africa, western_indian_ocean]
   - [hunan, south_china]
   - [hunan, szechwan]
   - [hunan, wuhan_area]
@@ -521,9 +951,16 @@ adjacency:
   - [indochina, south_china_sea]
   - [indochina, szechwan]
   - [indochina, thailand]
+  - [indus_northwest, iran]
+  - [indus_northwest, sinkiang]
+  - [indus_northwest, southern_india]
+  - [indus_northwest, tibet_nepal]
   - [iran, iraq]
+  - [iran, persian_gulf]
+  - [iran, turkestan]
   - [iran, turkey]
   - [iraq, levant]
+  - [iraq, persian_gulf]
   - [iraq, syria]
   - [iraq, turkey]
   - [ireland, western_approaches_area]
@@ -539,6 +976,7 @@ adjacency:
   - [japan_east, soviet_far_east]
   - [japan_west, philippine_sea]
   - [japan_west, sea_of_japan]
+  - [japanese_mandate, philippine_sea]
   - [java_sea, malaya]
   - [java_sea, philippine_sea]
   - [java_sea, philippines]
@@ -548,6 +986,12 @@ adjacency:
   - [kalinin_area, smolensk_area]
   - [kalinin_area, the_north]
   - [kalinin_area, upper_volga]
+  - [kazakhstan, middle_volga]
+  - [kazakhstan, sinkiang]
+  - [kazakhstan, stalingrad]
+  - [kazakhstan, turkestan]
+  - [kazakhstan, urals]
+  - [kazakhstan, western_siberia]
   - [kharkov_area, kiev_area]
   - [kharkov_area, odessa_area]
   - [kharkov_area, smolensk_area]
@@ -561,22 +1005,46 @@ adjacency:
   - [labrador_sea, mid_ocean_gap]
   - [labrador_sea, newfoundland]
   - [labrador_sea, western_atlantic]
+  - [labrador_sea, western_canada]
   - [leningrad_area, smolensk_area]
   - [leningrad_area, the_north]
+  - [levant, red_sea]
   - [levant, syria]
   - [low_countries, north_sea]
   - [low_countries, occupied_france]
+  - [madagascar, western_indian_ocean]
   - [malaya, philippine_sea]
   - [malaya, south_china_sea]
   - [malaya, thailand]
+  - [manchuria, mongolia]
   - [manchuria, north_china]
   - [manchuria, soviet_far_east]
+  - [mexico, us_central]
+  - [mexico, us_west]
   - [mid_ocean_gap, western_approaches_area]
   - [mid_ocean_gap, western_atlantic]
+  - [middle_volga, stalingrad]
+  - [middle_volga, the_north]
+  - [middle_volga, upper_volga]
+  - [middle_volga, urals]
+  - [mongolia, north_china]
+  - [mongolia, northwest_china]
+  - [mongolia, sinkiang]
+  - [mongolia, soviet_far_east]
+  - [mongolia, western_siberia]
   - [moscow_area, smolensk_area]
   - [moscow_area, upper_volga]
   - [moscow_area, voronezh]
+  - [mozambique, rhodesias]
+  - [mozambique, south_africa]
+  - [mozambique, western_indian_ocean]
+  - [new_caledonia, south_pacific_west]
+  - [new_guinea, philippine_sea]
+  - [new_guinea, south_pacific_west]
+  - [new_zealand, south_pacific_west]
+  - [new_zealand, tasman_sea]
   - [newfoundland, western_atlantic]
+  - [newfoundland, western_canada]
   - [north_china, northwest_china]
   - [north_china, wuhan_area]
   - [north_pacific, philippine_sea]
@@ -586,7 +1054,9 @@ adjacency:
   - [north_sea, occupied_france]
   - [north_sea, sweden_area]
   - [north_sea, western_approaches_area]
+  - [northwest_china, sinkiang]
   - [northwest_china, szechwan]
+  - [northwest_china, tibet_nepal]
   - [northwest_china, wuhan_area]
   - [norway, sweden_area]
   - [norway, white_sea]
@@ -598,33 +1068,61 @@ adjacency:
   - [philippine_sea, philippines]
   - [philippine_sea, south_china_sea]
   - [philippines, south_china_sea]
+  - [portuguese_india, southern_india]
+  - [red_sea, sudan]
+  - [rhodesias, south_africa]
+  - [river_plate, south_atlantic_west]
   - [romania, western_ukraine]
   - [sea_of_japan, soviet_far_east]
+  - [sinkiang, tibet_nepal]
+  - [sinkiang, turkestan]
+  - [sinkiang, western_siberia]
   - [smolensk_area, voronezh]
+  - [south_africa, south_atlantic_east]
+  - [south_africa, western_indian_ocean]
+  - [south_atlantic_east, south_atlantic_west]
   - [south_china, south_china_coast]
   - [south_china, south_china_sea]
   - [south_china, szechwan]
   - [south_china, wuhan_area]
   - [south_china_coast, south_china_sea]
   - [south_china_sea, thailand]
+  - [south_pacific, south_pacific_central]
+  - [south_pacific, south_pacific_west]
+  - [south_pacific_central, south_pacific_west]
+  - [south_pacific_west, tasman_sea]
+  - [southern_india, western_indian_ocean]
   - [stalingrad, upper_volga]
   - [stalingrad, voronezh]
   - [switzerland_area, vichy_france]
   - [syria, turkey]
+  - [szechwan, tibet_nepal]
   - [szechwan, wuhan_area]
   - [the_north, upper_volga]
+  - [the_north, urals]
   - [the_north, white_sea]
   - [tripolitania, tunisia]
   - [tunisia, western_mediterranean]
   - [upper_volga, voronezh]
+  - [urals, western_siberia]
+  - [urals, white_sea]
   - [us_central, us_east]
   - [us_central, us_west]
+  - [us_central, western_canada]
   - [us_east, western_atlantic]
+  - [us_west, western_canada]
   - [vichy_france, western_mediterranean]
+  - [western_atlantic, western_canada]
   - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
+  - {a: american_pacific, b: caribbean_sea, crossing: the Panama Canal}
+  - {a: american_pacific, b: eastern_pacific, crossing: the box's seam at 126 W}
+  - {a: american_pacific, b: south_pacific_central, crossing: the box's seam at 126 W}
+  - {a: arctic_off_canada, b: arctic_off_siberia, crossing: the box's seam at 126 W}
+  - {a: eastern_mediterranean, b: red_sea, crossing: the Suez Canal}
   - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
   - {a: english_channel, b: north_sea, crossing: the Strait of Dover}
   - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}
+  - {a: south_pacific_central, b: south_pacific_east, crossing: the box's seam at 126 W}
 
 # The five yields a territory has.
 resources:

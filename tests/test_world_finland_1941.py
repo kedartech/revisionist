@@ -44,7 +44,7 @@ from tests.test_rule_names import BASELINE_1941
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 
-ON = "45f00e1d6cb09e84245f4a7affb44692"
+ON = "ab03df1be1ecad010be0b6534d879942"
 """The scripted run's digest with the 1941 world's third-run switches on, as the nation items
 before this one recorded it: Finland's two cards leave it as it was."""
 

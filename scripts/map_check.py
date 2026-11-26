@@ -42,7 +42,7 @@ MIN_SHARED = {"lonlat": 0.1, "flat": 2.0}
 """The shortest shared border that makes two areas adjacent: degrees, or units. [proposed]"""
 WHOLE_LAT = (-60, 84)
 """A whole map on real coordinates runs from 60 S to 84 N: Antarctica is left off. [proposed]"""
-NOT_WHOLE_YET = ("autumn-1941", "civil-war-1862")
+NOT_WHOLE_YET = ("civil-war-1862",)
 """Worlds on real coordinates still allowed a map with a backdrop, until each is converted."""
 EPS = 1e-9
 

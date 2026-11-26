@@ -645,12 +645,14 @@ def test_a_world_on_real_coordinates_must_use_a_whole_map(tmp_path: Path) -> Non
 def test_a_world_not_yet_converted_is_let_through_by_name(tmp_path: Path) -> None:
     part = globe()
     del part["cover"]
-    assert mc.check_world(_globe_world(tmp_path, part, "autumn-1941.yaml")).problems == []
+    assert mc.check_world(_globe_world(tmp_path, part, "civil-war-1862.yaml")).problems == []
+    problems = mc.check_world(_globe_world(tmp_path, part, "autumn-1941.yaml")).problems
+    assert ("whole", "map") in codes(problems), [str(p) for p in problems]
     assert mc.check_region(_globe_world(tmp_path, part)).problems == []
 
 
-def test_the_worlds_not_yet_converted_start_with_the_1941_world() -> None:
-    assert mc.NOT_WHOLE_YET[0] == "autumn-1941"
+def test_the_1941_world_is_converted_and_the_civil_war_is_not_yet() -> None:
+    assert mc.NOT_WHOLE_YET == ("civil-war-1862",)
     on_disk = {p.stem for p in (ROOT / "worlds").glob("*.yaml")}
     assert set(mc.NOT_WHOLE_YET) <= on_disk
 

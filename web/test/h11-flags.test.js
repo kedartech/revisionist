@@ -41,9 +41,14 @@ test('rule 1: a file name that is not a plain lowercase svg name is never answer
   for (const k of ['a', 'b', 'c', 'd']) assert.equal(flagFor('w', k), null, k);
 });
 
-test('every nation of the 1941 world answers an address', () => {
+test('every nation of the 1941 world with a file answers an address, and one with none answers null', () => {
   setFlagIndex(INDEX);
-  for (const key of Object.keys(real['autumn-1941'])) assert.match(flagFor('autumn-1941', key), /^\/assets\/flags\/[a-z_-]+\.svg$/, key);
+  const rows = Object.entries(real['autumn-1941']);
+  assert.ok(rows.filter(([, name]) => name).length >= 21);
+  for (const [key, name] of rows) {
+    if (name) assert.match(flagFor('autumn-1941', key), /^\/assets\/flags\/[a-z_-]+\.svg$/, key);
+    else assert.equal(flagFor('autumn-1941', key), null, key);
+  }
 });
 
 test('rule 5: a flag is an image in a fixed 3 by 2 box, never under 16 px high', () => {

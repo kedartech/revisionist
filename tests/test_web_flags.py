@@ -76,10 +76,32 @@ def test_every_playable_nation_has_a_file_and_every_named_file_exists() -> None:
                 assert (FLAGS / name).is_file(), f"{world}/{nation}: {name}"
 
 
+GLOBE_NATIONS = {
+    "mexico_state",
+    "guatemala",
+    "venezuela",
+    "peru",
+    "brazil",
+    "argentina",
+    "chile_state",
+    "free_france",
+    "belgium",
+    "ethiopia_state",
+    "saudi_arabia",
+    "liberia_state",
+    "afghanistan_state",
+    "tibet",
+    "mongolia_state",
+}
+"""The nations the whole globe added to the 1941 world (WGD): nobody plays them, and until a flag
+file is drawn for one it has the plain block."""
+
+
 def test_every_nation_of_the_1941_world_has_its_flag_file() -> None:
-    nations, _ = _world()
+    nations, playable = _world()
     rows = _index()["autumn-1941"]
-    assert sorted(n for n in nations if not rows.get(n)) == []
+    assert sorted(n for n in nations - GLOBE_NATIONS if not rows.get(n)) == []
+    assert not GLOBE_NATIONS & playable
 
 
 def test_every_flag_file_is_an_svg_with_a_view_box_and_nothing_that_runs() -> None:

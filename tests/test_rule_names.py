@@ -114,7 +114,7 @@ SHIPPED_ON: dict[str, frozenset[str]] = {
 """The names a shipped world's own lane has switched on, by world; each one whose reader
 has been built."""
 
-BASELINE_1941 = "45f00e1d6cb09e84245f4a7affb44692"
+BASELINE_1941 = "ab03df1be1ecad010be0b6534d879942"
 """The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
 
 

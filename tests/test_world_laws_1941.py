@@ -41,7 +41,7 @@ which gives 1941 its first council."""
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "4e27cd7d8406f1aa1685ab7b4c4b4052"
+LOCKED_ON = "b59e8343c60b947b83b576c1db39aac5"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
 carries everything the world declares, Britain's, Germany's, Japan's, Italy's, the Soviet
 Union's, China's and Finland's commanders, Finland's President, the Commons' blocs, every bloc's

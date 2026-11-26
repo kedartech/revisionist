@@ -24,6 +24,12 @@ person, dated the day made, carries it. A source no one is named for does not se
 except contact, which then reaches the seats the day it is made with no page. A world with
 no ``intelligence`` has contact only.
 
+With ``kinds_in_battle`` on, a report names the piece's kind only when the sighting is
+good enough (``names_kind``): a searching piece's ``detect`` beats the piece's
+``conceal`` by ``KIND_MARGIN``; with no searching piece (contact, a reconnaissance
+flight alone, an agent), at confidence A; broken codes name it always. Otherwise the
+report names no kind.
+
 A report can be wrong: at ``WRONG_BASE`` less ``WRONG_PER_COMPETENCE`` for each point of
 the person's competence, its strength range is shifted by 2 or it names a bordering area;
 the person's ``skew`` shifts every range one way. Nothing in a report says it is wrong.
@@ -79,6 +85,7 @@ CODE_COST = 10  # [proposed] output points funding codebreaking spends
 CODE_DAYS = 30  # [proposed] days from the funding until the level rises
 CONCEAL_BONUS = 30  # [proposed] what concealment adds to a piece's ``conceal``
 RECON_CHANCE = 100  # a reconnaissance flight's search, less the target's ``conceal``
+KIND_MARGIN = 20  # [proposed] what ``detect`` must beat ``conceal`` by to name a kind
 
 
 class Source(StrEnum):
@@ -345,6 +352,9 @@ class Sighting(NamedTuple):
     region: str | None
     exact: bool
     """True: the true strength; False: within 1; with no area, no strength."""
+    detect: int | None = None
+    """The best ``detect`` of the searching pieces that saw it; None: no searching piece
+    (contact, a reconnaissance flight alone, codebreaking, an agent)."""
 
 
 def _forces(state: "State") -> list["Feature"]:
@@ -372,11 +382,15 @@ def nations(state: "State") -> list[EntityId]:
     return sorted(n for n in found if n is not None)
 
 
-def _chance(state: "State", searcher: "Feature", target: "Feature") -> int:
+def _detect(state: "State", searcher: "Feature") -> int:
     from revisionist.core.realism import kinds
 
     a = kinds.of(state, searcher)
-    return max(0, (a.detect if a else 0) - conceal(state, target))
+    return a.detect if a else 0
+
+
+def _chance(state: "State", searcher: "Feature", target: "Feature") -> int:
+    return max(0, _detect(state, searcher) - conceal(state, target))
 
 
 def concealed(piece: "Feature") -> bool:
@@ -491,10 +505,13 @@ def sightings(state: "State", start: "State", day: date, nation: EntityId) -> li
             if not searchers and e.places[0] not in flown:
                 continue
             chances = [_chance(state, s, e) for s in searchers]
+            searched = max(chances, default=0)
             if e.places[0] in flown:
                 chances.append(max(0, RECON_CHANCE - conceal(state, e)))
-            if roll(state, day, nation, source.value, str(e.feature_id)) < max(chances):
-                out.append(Sighting(source, e, Confidence.B, e.places[0], None, False))
+            hit = roll(state, day, nation, source.value, str(e.feature_id))
+            if hit < max(chances):
+                best = max(_detect(state, s) for s in searchers) if hit < searched else None
+                out.append(Sighting(source, e, Confidence.B, e.places[0], None, False, best))
     intel = state.intelligence.get(nation)
     if intel is not None and _informant(state, nation, Source.CODEBREAKING) is not None:
         chance = CODEBREAKING_CHANCE[level(state, nation, day)]
@@ -545,6 +562,20 @@ def _clamp(lo: int, hi: int, top: int) -> tuple[int, int]:
     return (min(max(lo, 0), top), min(max(hi, 0), top))
 
 
+def names_kind(state: "State", s: Sighting) -> bool:
+    """Whether the sighting's report names the piece's kind. With ``kinds_in_battle`` on,
+    a searching piece names it when its ``detect`` beats the piece's ``conceal`` by
+    ``KIND_MARGIN``; a sighting with no searching piece names it at confidence A only
+    [proposed]; broken codes name it whatever the confidence. Off: always."""
+    from revisionist.core.state import Rule
+
+    if Rule.KINDS_IN_BATTLE not in state.rules or s.source is Source.CODEBREAKING:
+        return True
+    if s.detect is None:
+        return s.confidence is Confidence.A
+    return s.detect - conceal(state, s.force) >= KIND_MARGIN
+
+
 def report(state: "State", day: date, nation: EntityId, s: Sighting) -> tuple[Report, Shift | None]:
     """The report a sighting makes, and how it is wrong, if it is."""
     from revisionist.core.realism import kinds
@@ -588,7 +619,7 @@ def report(state: "State", day: date, nation: EntityId, s: Sighting) -> tuple[Re
     arrives = day + timedelta(days=transit_days(who.channel) if who is not None else 0)
     made_report = Report(
         key=report_key(state, nation, piece.feature_id),
-        kind=None if kind is None else kind.key,
+        kind=None if kind is None or not names_kind(state, s) else kind.key,
         strength=strength,
         area=area,
         region=region if area is None else None,

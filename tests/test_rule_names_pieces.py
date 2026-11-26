@@ -17,6 +17,7 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId
+from revisionist.core.realism import detect
 from revisionist.core.state import MODEL_READ_RULES, Rule, State
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world
@@ -139,6 +140,9 @@ def test_salt_strait_with_the_piece_names_on_plays_as_with_them_off(
     def played(cast: ssp.Cast) -> State:
         (tmp_path / cast.name).mkdir()
         with monkeypatch.context() as mp:
+            # With kinds in battle on, a sighting short of the margin names no kind
+            # (tests/test_report_kind.py); everything else plays as with the names off.
+            mp.setattr(detect, "names_kind", lambda state, s: True)
             return ssp.Game(cast, tmp_path / cast.name, mp).play().state
 
     on_cast = dataclasses.replace(

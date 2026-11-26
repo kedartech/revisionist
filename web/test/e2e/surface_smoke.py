@@ -1070,7 +1070,8 @@ MOVE_JS = """async (ms) => {
 }"""
 
 WATCH_JS = """() => {
-  // the length of each order line drawn after now, in every frame for 2.5 s
+  // the length of each order line drawn after now, in every frame for 2.5 s from the line's
+  // first frame (the server's reply comes first, within the 10 s the caller waits for it)
   // an order is new when its piece and goal are: a piece sent again keeps its order id and
   // takes a new goal, and an order's holder may change in the same reply
   const said = (g) => g.getAttribute('aria-label').split(':')[0];
@@ -1086,7 +1087,8 @@ WATCH_JS = """() => {
       const length = Math.hypot(v('x2') - v('x1'), v('y2') - v('y1'));
       window.__drawn.push([Math.round(t), Math.round(length * 100) / 100]);
     }
-    if (t < 2500) requestAnimationFrame(step);
+    const first = window.__drawn[0]?.[0] ?? t;
+    if (t - first < 2500 && t < 10000) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }"""

@@ -182,6 +182,12 @@
 .rl-tm-overlay .rl-filter[aria-pressed="true"] { background: var(--surface-3); }
 .rl-tm-fold { display: none; min-height: 44px; max-width: 7rem; padding: 0 var(--space-2); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.3 var(--font-chrome); }
 .rl-tm-fold-region { max-width: 12rem; }
+/* At desk width a world with many regions would wrap the picker into rows that cover the map's
+   top, so over the map the regions keep to one row that scrolls. */
+@media (min-width: 768px) {
+  .rl-tm-overlay .rl-tm-regions { flex: 1 1 100%; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: var(--space-1); scrollbar-width: thin; }
+  .rl-tm-overlay .rl-tm-regions > * { flex: 0 0 auto; white-space: nowrap; }
+}
 .rl-tm-full { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
 .rl-tm-full-glyph path { fill: none; stroke: currentColor; stroke-width: 1.8px; }
 .rl-tm-full .rl-tm-full-out { display: none; }

@@ -126,6 +126,12 @@ WARS_1941 = {
     (frozenset({"italy", "ussr"}), "1941-06-22"),
     (frozenset({"japan", "china"}), "1937-07-07"),
     (frozenset({"ussr", "finland_state"}), "1941-06-25"),
+    # The new lands' wars (WGN).
+    (frozenset({"germany", "belgium"}), "1940-05-10"),
+    (frozenset({"belgium", "italy"}), "1940-11-23"),
+    (frozenset({"free_france", "germany"}), "1940-06-18"),
+    (frozenset({"free_france", "italy"}), "1940-06-18"),
+    (frozenset({"italy", "ethiopia_state"}), "1935-10-03"),
 }
 
 
@@ -146,7 +152,7 @@ def test_the_reply_carries_every_war_of_the_record_with_the_day_it_began() -> No
 def test_the_wars_are_oldest_first() -> None:
     days = [w["since"] for w in block("hitler")["wars"]]
     assert days == sorted(days)
-    assert days[0] == "1937-07-07"
+    assert days[0] == "1935-10-03"
 
 
 # --- Rule 4: the count that carries a vote ------------------------------------------

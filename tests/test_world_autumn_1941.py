@@ -436,7 +436,7 @@ RENAMED = {"wake": "wake_island"}
 """Places the world keys apart from the globe's start: a key that is also a word the rules spell
 (``tests/test_no_fixed_names.py``)."""
 
-AT_WAR = ("uk", "ussr", "italy", "japan", "china")
+AT_WAR = ("uk", "ussr", "italy", "japan", "china", "free_france", "belgium", "ethiopia_state")
 """The holders of new territory at war on 1 September 1941 (the world's ``wars``)."""
 
 
@@ -484,3 +484,156 @@ _OLD_POLITIES = {
     "switzerland",
 }
 """The nations of the 1941 world before it took in the whole globe."""
+
+
+# --- the nations and forces of the new lands (WGN) --------------------------------------
+
+NEW_NATIONS = (
+    "mexico_state",
+    "guatemala",
+    "venezuela",
+    "peru",
+    "brazil",
+    "argentina",
+    "chile_state",
+    "free_france",
+    "belgium",
+    "ethiopia_state",
+    "saudi_arabia",
+    "liberia_state",
+    "afghanistan_state",
+    "tibet",
+    "mongolia_state",
+)
+"""The nations the whole globe added (WGD), completed here as polities nobody plays."""
+
+AT_WAR_WITH = {
+    "free_france": {"germany", "italy"},
+    "belgium": {"germany", "italy"},
+    "ethiopia_state": {"italy"},
+}
+"""Each new nation's wars on 1 September 1941; every other new nation is at peace with all."""
+
+
+def _enemies(state: State, ids: dict[str, str], nation: str) -> set[str]:
+    keys = {v: k for k, v in ids.items()}
+    me = ids[nation]
+    out: set[str] = set()
+    for w in state.wars.values():
+        if me in (w.a, w.b):
+            out.add(keys[w.b if w.a == me else w.a])
+    return out
+
+
+def test_each_new_nation_stands_to_the_wars_as_the_record_gives_it() -> None:
+    world = _world()
+    state, ids = _state()
+    got = {n: _enemies(state, ids, n) for n in NEW_NATIONS}
+    assert got == {n: AT_WAR_WITH.get(n, set()) for n in NEW_NATIONS}
+    theirs = [w for w in world.wars if {w.a, w.b} & set(NEW_NATIONS)]
+    assert len(theirs) == sum(len(v) for v in AT_WAR_WITH.values())
+
+
+def test_mongolia_and_the_soviet_union_are_bound_by_their_protocol() -> None:
+    """The protocol of 1936 bound each to help the other if attacked. Its wording is kept as an
+    unchecked clause: the typed defence clause calls a party at every attack, and Mongolia
+    stayed out of the war with Germany."""
+    world = _world()
+    (pact,) = [p for p in world.pacts if set(p.parties) & set(NEW_NATIONS)]
+    assert set(pact.parties) == {"ussr", "mongolia_state"} and pact.public
+    assert pact.source in {s.key for s in world.sources}
+    assert {(c.type.value, c.binds) for c in pact.clauses} == {
+        ("unchecked", "ussr"),
+        ("unchecked", "mongolia_state"),
+    }
+    state, ids = _state()
+    made = [a for a in state.agreements.made.values() if ids["mongolia_state"] in a.parties]
+    assert [set(a.parties) for a in made] == [{ids["ussr"], ids["mongolia_state"]}]
+
+
+def test_a_new_nation_is_one_nobody_plays_as_the_neutrals_of_today_are() -> None:
+    """No card, no roster place, no person, no groups, no intelligence and no relationship: a
+    seat's dealings with it are by its wars and pacts alone, as with Sweden or Turkey."""
+    world = _world()
+    new = set(NEW_NATIONS)
+    parents = {e.key: e.parent for e in world.entities}
+    people = {e.key for e in world.entities if e.kind is EntityKind.PERSON}
+
+    def nation_of(key: str | None) -> str | None:
+        while key is not None and key not in new:
+            key = parents.get(key)
+        return key
+
+    assert [p for p in people if nation_of(p)] == []
+    assert [c.person for c in world.cards if nation_of(c.person)] == []
+    assert [g.nation for g in world.groups if g.nation in new] == []
+    assert [i.nation for i in world.intelligence if i.nation in new] == []
+    assert not {r.a for r in world.relationships} & new
+    assert not {r.b for r in world.relationships} & new
+
+
+def test_a_declaration_of_war_on_a_new_nation_moves_the_declaring_nations_groups() -> None:
+    from revisionist.core import events as ev
+    from revisionist.core.realism import groups
+    from revisionist.core.realism.war import War, war_id_for
+
+    state, ids = _state()
+    usa, mexico = EntityId(ids["usa"]), EntityId(ids["mexico_state"])
+    day = state.in_world_date
+    assert day is not None
+    war = War(war_id=war_id_for(usa, mexico), a=usa, b=mexico, since=day, declared_by=usa)
+    moved = groups.react(state, state, [ev.WarDeclared(war=war)], day)
+    named = {g.key for g in groups.of(state, usa) if g.moved_by.get(groups.Happening.WAR_DECLARED)}
+    assert named
+    assert {m.group for m in moved if m.polity == usa} == named
+    assert all(m.cause.value == "war_declared" for m in moved)
+    assert [m for m in moved if m.polity == mexico] == []
+
+
+FOG_SEATS = ("roosevelt", "churchill", "stalin", "hitler", "tojo", "mussolini", "chiang", "ryti")
+"""One playable person of each playable nation."""
+
+
+def _views(world: WorldFile) -> dict[str, str]:
+    from revisionist.core import events as ev
+    from revisionist.core.fold import apply
+    from revisionist.core.ids import EventId, SeatId, derived_id
+    from revisionist.core.project import project
+    from revisionist.core.visibility import PUBLIC
+
+    ids = resolve_keys(world, CAMPAIGN)
+    events = compile_world(world, CAMPAIGN, cmp.versions())
+    base = replay(events)
+    out: dict[str, str] = {}
+    for who in FOG_SEATS:
+        seat = SeatId(derived_id(CAMPAIGN, "seat", who))
+        claim = ev.Event(
+            event_id=EventId(derived_id(CAMPAIGN, "test-event", len(events))),
+            campaign_id=CAMPAIGN,
+            seq=len(events),
+            tick=0,
+            scope=PUBLIC,
+            payload=ev.CharacterClaimed(seat_id=seat, entity_id=EntityId(ids[who])),
+            versions=cmp.versions(),
+        )
+        out[who] = project(apply(base, claim), seat).model_dump_json()
+    return out
+
+
+def test_a_new_nations_private_state_reaches_no_seat() -> None:
+    """Two games that differ only in which territory Mexico's army stands in and how strong it
+    is, and in the strength of Free France's force in Africa, read the same to every playable
+    nation."""
+    world = _world()
+    moved = {"mexican_army": ("guatemala_city", 3), "free_french_africa": ("brazzaville", 2)}
+    features = []
+    for f in world.features:
+        if f.key in moved:
+            place, tier = moved[f.key]
+            assert (f.places[0], f.tier) != (place, tier), f.key
+            f = f.model_copy(update={"places": (place,), "tier": tier})
+        features.append(f)
+    assert set(moved) <= {f.key for f in world.features}
+    twin = world.model_copy(update={"features": tuple(features)})
+    a, b = _views(world), _views(twin)
+    assert [who for who in FOG_SEATS if a[who] != b[who]] == []

@@ -245,7 +245,7 @@ entities:
   - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03], theatre: Americas, within: lesser_antilles, base: {sides: [french_state], domains: [land]}}
   - {key: dakar, kind: location, name: Dakar, at: [14.69, -17.44], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
   - {key: bamako, kind: location, name: Bamako, at: [12.64, -8.0], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
-  - {key: freetown, kind: location, name: Freetown, at: [8.48, -13.23], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: freetown, kind: location, name: Freetown, at: [8.48, -13.23], theatre: Africa, within: british_west_africa, port_on: central_atlantic, base: {sides: [uk], domains: [sea, land]}}
   - {key: lagos, kind: location, name: Lagos, at: [6.44, 3.37], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
   - {key: takoradi, kind: location, name: Takoradi, at: [4.89, -1.75], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
   - {key: brazzaville, kind: location, name: Brazzaville, at: [-4.27, 15.28], theatre: Africa, within: french_equatorial_africa, base: {sides: [free_france], domains: [land]}}
@@ -307,7 +307,7 @@ entities:
   - {key: calcutta, kind: location, name: Calcutta, at: [22.57, 88.37], theatre: Inner Asia, within: ganges_bengal, base: {sides: [uk], domains: [land]}}
   - {key: bombay, kind: location, name: Bombay, at: [19.08, 72.88], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
   - {key: madras, kind: location, name: Madras, at: [13.08, 80.28], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
-  - {key: trincomalee, kind: location, name: Trincomalee, at: [8.57, 81.23], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: trincomalee, kind: location, name: Trincomalee, at: [8.57, 81.23], theatre: Inner Asia, within: southern_india, port_on: bay_of_bengal, base: {sides: [uk], domains: [sea, land]}}
   - {key: colombo, kind: location, name: Colombo, at: [6.93, 79.9], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
   - {key: nova_goa, kind: location, name: Nova Goa, at: [15.5, 73.83], theatre: Inner Asia, within: portuguese_india, base: {sides: [portugal], domains: [land]}}
   - {key: lhasa, kind: location, name: Lhasa, at: [29.65, 91.12], theatre: Inner Asia, within: tibet_nepal, base: {sides: [tibet], domains: [land]}}
@@ -335,6 +335,12 @@ entities:
   - {key: truk, kind: location, name: Truk, at: [7.45, 151.85], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
   - {key: kwajalein, kind: location, name: Kwajalein, at: [8.72, 167.73], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
   - {key: wake_island, kind: location, name: Wake Island, at: [19.28, 166.65], theatre: Asia-Pacific, within: central_pacific, base: {sides: [usa], domains: [sea, air]}}
+  # The new lands' forces (WGN): Freetown and Trincomalee are the South Atlantic and East Indies
+  # stations' fleet bases, so each serves the sea as well; the Soviet Far East has the Far Eastern
+  # Front's headquarters at Khabarovsk and the Transbaikal command's at Chita. Positions and bases
+  # [proposed].
+  - {key: khabarovsk, kind: location, name: Khabarovsk, at: [48.48, 135.08], theatre: Asia-Pacific, within: soviet_far_east, base: {sides: [ussr], domains: [land]}}
+  - {key: chita, kind: location, name: Chita, at: [52.03, 113.5], theatre: Asia-Pacific, within: soviet_far_east, base: {sides: [ussr], domains: [land]}}
 
 # The board: the whole 1941 globe built from the recipes under maps/src/autumn-1941-globe (maps/README.md).
 map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 07142a76288bad221c021cf8e43c0b38ca56fc21d50b7a2089d1ef72532bb86d, box: [-126, -60, 234, 84]}
@@ -1840,6 +1846,18 @@ wars:
   # The day is read two ways (amendment 9): the night of 25 June (ziemke_1959) and 26 June
   # (loc_finland_country_study). The world keeps the first; the second stays in the source.
   - {a: ussr, b: finland_state, since: 1941-06-25, source: ziemke_1959}
+  # The new lands (WGN): the wars of the nations the whole globe added, as the record has them on
+  # 1 September 1941; every other new nation is at peace with all. No lane has read a document for
+  # these: each is a gap. Germany invaded Belgium on 10 May 1940 without a declaration, and the
+  # Belgian government in London declared war on Italy on 23 November 1940; the Free French carried
+  # on France's war from de Gaulle's call of 18 June 1940 and fought Italy in Libya and Eritrea;
+  # Italy invaded Ethiopia on 3 October 1935 without a declaration, and Ethiopia's forces fought on
+  # with Britain's until Gondar fell in November 1941.
+  - {a: germany, b: belgium, since: 1940-05-10, declared: false, gap: true}
+  - {a: belgium, b: italy, since: 1940-11-23, gap: true}
+  - {a: free_france, b: germany, since: 1940-06-18, declared: false, gap: true}
+  - {a: free_france, b: italy, since: 1940-06-18, declared: false, gap: true}
+  - {a: italy, b: ethiopia_state, since: 1935-10-03, declared: false, gap: true}
 
 # Trade lines in force on 1 September 1941, in points a month (yields.yaml). All gaps.
 trade_lines:
@@ -2109,6 +2127,7 @@ sources:
   - {key: soviet_japanese_1941, title: "Soviet-Japanese Neutrality Pact, Moscow, 13 April 1941: Article 2, neutrality if either is the object of hostilities by a third power", note: "Named citation; not read. Confirm the text before release."}
   - {key: moscow_conference_1941, title: "The Moscow Conference of 29 September to 1 October 1941 (Beaverbrook and Harriman with Stalin and Molotov): the supply protocol", note: "Named citation (FRUS 1941, vol. I); not read. The mission left London on 22 September and reached Moscow on 28 September. Confirm the dates and the protocol before release."}
   - {key: anti_comintern_1941, title: "Protocol prolonging the Anti-Comintern Pact for five years, Berlin, 25 November 1941, with the adhering states' signatures", note: "Named citation (Documents on German Foreign Policy, Series D, vol. XIII); not read. Confirm the date, the signatories and the term before release."}
+  - {key: soviet_mongolian_1936, title: "Protocol of Mutual Assistance between the Soviet Union and the Mongolian People's Republic, Ulan Bator, 12 March 1936", note: "Named citation; the lane had no network and read no document. Confirm the text before release."}
   - {key: kurusu_arrival, title: "Special Ambassador Saburo Kurusu's journey from Tokyo on 5 November to Washington on 15 November 1941", note: "Named citation (FRUS: Japan, 1931-1941, vol. II); not read. Confirm the dates before release."}
 
 quantities:
@@ -2242,6 +2261,44 @@ features:
   # NFI: the Finnish field army, standing in Finland at the Commander-in-Chief's headquarters.
   # Its strength and its place are [proposed]: gap: true.
   - {key: finnish_army, kind: piece, piece: army, name: Finnish Army, side: finland_state, tier: 3, places: [mikkeli], gap: true}
+  # The forces of the new lands (WGN): the commands the record has there, each at the base of its
+  # side and kind nearest where it stood, as pieces of the world's kinds (the 1941 kinds item gives
+  # each its kind). Strengths are tiers [proposed]; no lane has read an order of battle for them,
+  # so each is a gap. India Command under Wavell from July 1941; Australia's home army (the AIF's
+  # divisions are abroad, in the Western Desert Force's tier); the East Indies Station at
+  # Trincomalee and the South Atlantic Station at Freetown; the Soviet commands east of the Volga
+  # (the Far Eastern Front, the Transbaikal command and the Central Asian Military District, whose
+  # divisions went west from October); Italy's last garrison in East Africa, holding Gondar until
+  # 27 November 1941. The Panama Canal Department is left out: at this grain the Canal Zone lies in
+  # Central America, which Guatemala holds, so the piece would stand on ground its side does not hold.
+  - {key: india_command, kind: piece, piece: army, name: India Command, side: uk, tier: 3, places: [new_delhi], gap: true}
+  - {key: australian_home_forces, kind: piece, piece: army, name: Australian Home Forces, side: uk, tier: 2, places: [sydney], gap: true}
+  - {key: east_indies_station, kind: piece, piece: fleet, name: East Indies Station, side: uk, tier: 2, places: [trincomalee], gap: true}
+  - {key: south_atlantic_station, kind: piece, piece: fleet, name: South Atlantic Station, side: uk, tier: 2, places: [freetown], gap: true}
+  - {key: far_eastern_front, kind: piece, piece: army, name: Far Eastern Front, side: ussr, tier: 3, places: [khabarovsk], gap: true}
+  - {key: transbaikal_front, kind: piece, piece: army, name: Transbaikal Front, side: ussr, tier: 2, places: [chita], gap: true}
+  - {key: central_asian_district, kind: piece, piece: army, name: Central Asian Military District, side: ussr, tier: 1, places: [tashkent], gap: true}
+  - {key: gondar_garrison, kind: piece, piece: army, name: Gondar garrison, side: italy, tier: 2, places: [gondar_town], gap: true}
+  # The new nations' own forces: each nation nobody plays fields one, in its capital territory. The
+  # record gives each an army, but no strength at the world's grain that a lane has read: tier 1 is
+  # a design value [proposed] (the review's no-answer default). Free France's stands with Leclerc
+  # at Fort-Lamy, Belgium's Force Publique at Leopoldville, and Venezuela's at Maracaibo, as the
+  # map has no place at Caracas.
+  - {key: free_french_africa, kind: piece, piece: army, name: Free French Forces in Africa, side: free_france, tier: 1, places: [fort_lamy], gap: true}
+  - {key: force_publique, kind: piece, piece: army, name: Force Publique, side: belgium, tier: 1, places: [leopoldville], gap: true}
+  - {key: ethiopian_army, kind: piece, piece: army, name: Ethiopian Army, side: ethiopia_state, tier: 1, places: [addis_ababa], gap: true}
+  - {key: mexican_army, kind: piece, piece: army, name: Mexican Army, side: mexico_state, tier: 1, places: [mexico_city], gap: true}
+  - {key: guatemalan_army, kind: piece, piece: army, name: Guatemalan Army, side: guatemala, tier: 1, places: [guatemala_city], gap: true}
+  - {key: venezuelan_army, kind: piece, piece: army, name: Venezuelan Army, side: venezuela, tier: 1, places: [maracaibo], gap: true}
+  - {key: peruvian_army, kind: piece, piece: army, name: Peruvian Army, side: peru, tier: 1, places: [lima], gap: true}
+  - {key: brazilian_army, kind: piece, piece: army, name: Brazilian Army, side: brazil, tier: 1, places: [rio_de_janeiro], gap: true}
+  - {key: argentine_army, kind: piece, piece: army, name: Argentine Army, side: argentina, tier: 1, places: [buenos_aires], gap: true}
+  - {key: chilean_army, kind: piece, piece: army, name: Chilean Army, side: chile_state, tier: 1, places: [valparaiso], gap: true}
+  - {key: saudi_army, kind: piece, piece: army, name: Saudi Army, side: saudi_arabia, tier: 1, places: [riyadh], gap: true}
+  - {key: liberian_frontier_force, kind: piece, piece: army, name: Liberian Frontier Force, side: liberia_state, tier: 1, places: [monrovia], gap: true}
+  - {key: afghan_army, kind: piece, piece: army, name: Afghan Army, side: afghanistan_state, tier: 1, places: [kabul], gap: true}
+  - {key: tibetan_army, kind: piece, piece: army, name: Tibetan Army, side: tibet, tier: 1, places: [lhasa], gap: true}
+  - {key: mongolian_army, kind: piece, piece: army, name: Mongolian People's Army, side: mongolia_state, tier: 1, places: [ulan_bator], gap: true}
   # Envoys (PCW): scripted missions, each a leg that sets the piece going on the day named. The record has
   # the Moscow mission leave London on 22 September and arrive on 28th; the map's route is longer than the
   # real one, so the leg starts on 16 September [proposed] to bring it to Moscow on the record's day.
@@ -5380,6 +5437,19 @@ pacts:
     clauses:
       - {type: no_attack, binds: ussr, nation: japan}
       - {type: no_attack, binds: japan, nation: ussr}
+  # The new lands (WGN): the protocol of 1936 bound each party to give the other every help,
+  # military included, if a third state attacked it. Kept as wording, unchecked: the typed defence
+  # clause would call Mongolia to war at every German attack on the Soviet Union, and Mongolia
+  # stayed out of that war. [proposed]
+  - key: soviet_mongolian_protocol
+    name: The Soviet-Mongolian Protocol of Mutual Assistance
+    parties: [ussr, mongolia_state]
+    public: true
+    wording: In the event of a military attack on either party, each will render the other every assistance, military assistance included.
+    source: soviet_mongolian_1936
+    clauses:
+      - {type: unchecked, binds: ussr, text: "Render Mongolia every assistance, military included, if a third state attacks it."}
+      - {type: unchecked, binds: mongolia_state, text: "Render the Soviet Union every assistance, military included, if a third state attacks it."}
 
 # Conferences (PCW): the sourced last day is the voting day; the call opens CONF_DAYS earlier [proposed].
 conferences:

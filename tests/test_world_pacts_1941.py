@@ -1,9 +1,10 @@
 """1941 pacts, capitals, envoys and the two conferences (PCW).
 
-Autumn 1941 switches on ``agreements`` and ``conference``. It carries three pacts in force on
-the start date, each cited; a capital for each nation; two envoys with scripted missions as
-``legs``, each cited; and two scheduled conferences whose sourced last day is the voting day,
-called ``CONF_DAYS`` earlier. A source line is a comment, ``# source: <key>``, on the line it
+Autumn 1941 switches on ``agreements`` and ``conference``. It carries four pacts in force on
+the start date, each cited (the fourth, Mongolia's with the Soviet Union, came with the new
+lands); a capital for each nation; two envoys with scripted missions as ``legs``, each cited;
+and two scheduled conferences whose sourced last day is the voting day, called ``CONF_DAYS``
+earlier. A source line is a comment, ``# source: <key>``, on the line it
 cites where the declaration has no citation field of its own (a leg).
 
 With ``peace`` on (PED), each of the eight nations with a seat has one row of the kind peace
@@ -67,12 +68,13 @@ def test_the_world_switches_on_agreements_and_conference() -> None:
 # --- pacts ------------------------------------------------------------------------------
 
 
-def test_three_pacts_each_between_named_nations_with_a_source() -> None:
+def test_four_pacts_each_between_named_nations_with_a_source() -> None:
     found = pacts()
     assert {k: (tuple(p["parties"]), p["public"]) for k, p in found.items()} == {
         "tripartite_pact": (("japan", "germany", "italy"), True),
         "anglo_soviet_agreement": (("uk", "ussr"), True),
         "soviet_japanese_neutrality": (("ussr", "japan"), True),
+        "soviet_mongolian_protocol": (("ussr", "mongolia_state"), True),
     }
     for key, p in found.items():
         assert p["source"] in sources(), key

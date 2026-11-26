@@ -24,6 +24,7 @@ from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from tests.test_realism_resolvers import CAMPAIGN, Rig
+from tests.test_world_forces import NEW_FORCES
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
@@ -162,7 +163,7 @@ def test_every_force_is_a_piece_standing_in_an_area() -> None:
     assert board is not None
     areas = set(board.areas())
     forces = _forces(r)
-    assert len(forces) == 30
+    assert len(forces) == 30 + len(NEW_FORCES)
     assert [key_of(r, f.feature_id) for f in forces if f.kind is not FeatureKind.PIECE] == []
     assert [key_of(r, f.feature_id) for f in forces if f.places[0] not in areas] == []
 
@@ -187,13 +188,16 @@ start now (ITD)."""
 
 
 def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
+    """The forces of the new lands are not in the 1941 start; their places are checked with
+    the world's forces (``tests/test_world_forces.py``)."""
     r = Rig()
     want = _start_areas()
     got = {}
     for f in _forces(r):
         key = key_of(r, f.feature_id)
         assert key is not None
-        got[key] = key_of(r, f.places[0])
+        if key not in NEW_FORCES:
+            got[key] = key_of(r, f.places[0])
     assert got == {k: ON_STATION.get(k, area) for k, (area, _) in want.items()}
 
 
@@ -217,7 +221,8 @@ def test_each_scripted_leg_lands_in_the_area_the_start_gives_it() -> None:
         domain = kinds.domain(r.state, f)
         assert domain is not None
         legs = [key_of(r, territory.area_of(r.state, leg.places[0], domain)) for leg in f.legs]
-        assert legs == LEGS.get(key, want[key][1]), key
+        start_legs = [] if key in NEW_FORCES else want[key][1]
+        assert legs == LEGS.get(key, start_legs), key
 
 
 def test_every_destination_a_form_offers_resolves_to_an_area() -> None:

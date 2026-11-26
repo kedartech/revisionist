@@ -36,7 +36,10 @@ orders from above refused, and how each incident was answered, backed, disowned 
 dismissed, and how many of those answers the superior's card gave (DFR): counts only,
 never an order, a commander or a superior. In a game with ``peace`` on, each wake also
 counts the armistices agreed and the wars ended by terms while it was the latest wake
-opened (PER): counts only, never a nation or an agreement.
+opened (PER): counts only, never a nation or an agreement. In a game with ``raising`` on,
+each wake also counts the pieces raised and the raisings that failed, each on the day the
+rule decided it, by the latest wake opened when the world reached that day (RNR): counts
+only, never a nation, a kind or a place.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -67,6 +70,8 @@ from revisionist.core.realism import (
 )
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.realism.effect import ClauseType
+from revisionist.core.realism.pipeline import OrderStatus
+from revisionist.core.realism.resolvers import production
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 from revisionist.engine.store import EventStore
@@ -239,6 +244,15 @@ class Peace:
 
 
 @dataclass(frozen=True)
+class Raising:
+    """One wake's orders to raise decided (RNR): pieces raised, and raisings that failed."""
+
+    number: int
+    raised: int
+    failed: int
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -270,6 +284,8 @@ class Report:
     """One per wake opened, in a game with ``defiance`` on; else empty."""
     peace: tuple[Peace, ...] = ()
     """One per wake opened, in a game with ``peace`` on; else empty."""
+    raising: tuple[Raising, ...] = ()
+    """One per wake opened, in a game with ``raising`` on; else empty."""
 
 
 @dataclass
@@ -350,6 +366,7 @@ def build(events: Sequence[Event]) -> Report:
         _questions(events, state),
         _defiance(events, state),
         _peace(events, state),
+        _raising(events, state),
     )
 
 
@@ -532,6 +549,32 @@ def _peace(events: Sequence[Event], state: State) -> tuple[Peace, ...]:
     return tuple(Peace(n, *c) for n, c in sorted(counts.items()))
 
 
+def _raising(events: Sequence[Event], state: State) -> tuple[Raising, ...]:
+    """Each wake's orders to raise decided, raised or not: an order is decided in the walk
+    that follows the first date advanced to its day or past it, and counts for the latest
+    wake opened then. Empty with ``raising`` off."""
+    if not production.raising_on(state):
+        return ()
+    entered = {e.payload.feature.feature_id for e in events if isinstance(e.payload, ev.FeatureSet)}
+    due = sorted(
+        (production.raise_day(state, o), production.raised_id(state, o.order_id) in entered)
+        for o in state.orders.values()
+        if o.status is OrderStatus.ENACTED and production.raises(state, o)
+    )
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0])
+        elif number is not None and isinstance(p, ev.DateAdvanced):
+            while due and due[0][0] <= p.to:
+                _, made = due.pop(0)
+                counts[number][0 if made else 1] += 1
+    return tuple(Raising(n, *c) for n, c in sorted(counts.items()))
+
+
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
     """Each wake's reports by source and how many were wrong, in a game with ``reports``
     on. A report counts in the wake last opened when it was made; none is made before
@@ -702,6 +745,7 @@ def render(report: Report) -> list[str]:
     asked = {q.number: q for q in report.questions}
     defied = {d.number: d for d in report.defiance}
     peace = {x.number: x for x in report.peace}
+    raising = {x.number: x for x in report.raising}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -743,6 +787,9 @@ def render(report: Report) -> list[str]:
                 f"    peace: {_plural(x.armistices, 'armistice')} agreed,"
                 f" {_plural(x.ended, 'war')} ended"
             )  # [proposed]
+        if w.number in raising:
+            made = raising[w.number]
+            lines.append(f"    raising: {made.raised} raised, {made.failed} failed")  # [proposed]
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -826,6 +873,7 @@ __all__ = [
     "Holding",
     "Locked",
     "Peace",
+    "Raising",
     "Report",
     "Return",
     "SeatRow",

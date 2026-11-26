@@ -24,7 +24,11 @@ named here become steps:
   measures on their way that the move changed: the votes rule's count
   (``votes.floor_counts``) with each group at the support the feed last gave it, a group
   the feed has not yet moved at the support before its first fed move, or where it stands
-  now if the feed never moves it. A move of another nation's group is never a step.
+  now if the feed never moves it. A move of another nation's group is never a step;
+- its own nation's pieces as they are raised (RNR): the event that brings a raised piece in
+  is engine only and never fed by the seam, so ``raised`` reads it from the whole log, as
+  ``held_orders`` does, for the seat's own nation only, and each takes the wake of the
+  last date the seam fed before it, the wake the seam gives every event of that walk.
 
 Commit and close events, hand-overs and who played a seat are never fed by the seam
 and are refused here too. A dateless event takes the day of the step before it in its
@@ -40,7 +44,7 @@ from revisionist.core.project import project, untold_goals
 from revisionist.core.realism import apply, groups, locks, territory
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.pipelines import order_words
-from revisionist.core.realism.resolvers import votes
+from revisionist.core.realism.resolvers import production, votes
 from revisionist.core.state import State, View
 from revisionist.engine.catchup import GOAL_NEWS, SeatEvent
 from revisionist.engine.web import economy_api, home_api, map_api
@@ -54,6 +58,7 @@ from revisionist.engine.web.realism_api import (
     PlaybackMove,
     PlaybackOrder,
     PlaybackPaper,
+    PlaybackRaised,
     PlaybackStake,
     PlaybackStep,
 )
@@ -355,17 +360,71 @@ def _held(p: ev.OrderHeld | ev.HeldOrderEnded, on: str, names: _Names) -> Playba
     return PlaybackHeld(kind="held", on=on, what=p.end.value, line=line)
 
 
+def raised(events: Iterable[ev.Event], state: State, seat: SeatId) -> list[tuple[int, ev.Event]]:
+    """The events that brought in each piece of ``seat``'s own nation an order raised, from
+    a log already read: the first that set each, in the log's order, each with the ``seq``
+    of the last date advanced before it."""
+    own = economy_api.own_nation(project(state, seat))
+    ids = {production.raised_id(state, oid) for oid in state.orders}
+    out: dict[str, tuple[int, ev.Event]] = {}
+    dated = -1
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.DateAdvanced):
+            dated = e.seq
+        if not isinstance(p, ev.FeatureSet) or p.feature.feature_id not in ids:
+            continue
+        if own is not None and territory.nation(state, p.feature.side) == own:
+            out.setdefault(p.feature.feature_id, (dated, e))
+    return list(out.values())
+
+
+def _raised(state: State, view: View, p: ev.FeatureSet, on: str) -> PlaybackRaised:
+    piece = p.feature
+    nation = territory.nation(state, piece.side)
+    assert nation is not None
+    place = piece.places[0]
+    found = state.entities.get(place)
+    return PlaybackRaised(
+        kind="raised",
+        on=on,
+        piece=map_api.mark_key(view.campaign_id, nation, territory.mark_key(state, nation, piece)),
+        name=piece.name,
+        place=found.name if found is not None else "",
+        area=economy_api.area_key(state, place),
+    )
+
+
+def _raised_steps(
+    fed: list[SeatEvent], state: State, view: View, entered: Iterable[tuple[int, ev.Event]]
+) -> list[tuple[int, date, int, PlaybackStep]]:
+    """Each raised piece's step, in the wake the seam gave the last date advanced before
+    it; none when the seam did not feed that date, as for a wake outside the range."""
+    wakes = {f.event.seq: f.wake for f in fed if isinstance(f.event.payload, ev.DateAdvanced)}
+    out: list[tuple[int, date, int, PlaybackStep]] = []
+    for dated, e in entered:
+        assert isinstance(e.payload, ev.FeatureSet)
+        wake = wakes.get(dated)
+        if wake is None:
+            continue
+        on = e.payload.feature.as_of
+        out.append((wake, on, e.seq, _raised(state, view, e.payload, on.isoformat())))
+    return out
+
+
 def steps(
     fed: Iterable[SeatEvent],
     state: State,
     seat: SeatId,
     held: Mapping[OrderId, locks.HeldOrder] | None = None,
+    entered: Iterable[tuple[int, ev.Event]] = (),
 ) -> dict[int, list[PlaybackStep]]:
     """The steps of each wake in ``fed``, the seam's events for ``seat``, in the order they
     happened. ``state`` names things (area keys, nations, stake names); it never says
     where anything went. ``held``: the seat's own held orders as they were held, from
     the whole log, so an order held in a wake before ``fed`` begins is named when it ends;
-    those held within ``fed`` are read from it."""
+    those held within ``fed`` are read from it. ``entered``: the events that brought in
+    the seat's own nation's raised pieces (``raised``)."""
     ordered = sorted(fed, key=lambda f: (f.wake, f.event.seq))
     holds = dict(held or {})
     for f in ordered:
@@ -400,6 +459,8 @@ def steps(
         if found:
             today[f.wake] = day
         out.setdefault(f.wake, []).extend((day, f.event.seq, s) for s in found)
+    for wake, on, seq, step in _raised_steps(ordered, state, names.view, entered):
+        out.setdefault(wake, []).append((on, seq, step))
     return {
         w: [s for _, _, s in sorted(found, key=lambda t: t[:2])]
         for w, found in out.items()
@@ -416,4 +477,4 @@ def held_orders(events: Iterable[ev.Event], seat: SeatId) -> dict[OrderId, locks
     }
 
 
-__all__ = ["STEP_KINDS", "held_orders", "steps"]
+__all__ = ["STEP_KINDS", "held_orders", "raised", "steps"]

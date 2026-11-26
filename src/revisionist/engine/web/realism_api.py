@@ -1096,6 +1096,57 @@ class EconomyPools(TypedDict):
     """The fuel stock; sent only in a game with ``fuel`` on."""
 
 
+class RaiseCost(TypedDict):
+    output: float
+    manpower: float
+
+
+class RaiseKind(TypedDict):
+    """A kind of piece a place can raise, as filing an order for it today would go."""
+
+    kind: str
+    """The kind's key, the value the form's ``kind`` takes."""
+    name: str
+    cost: RaiseCost
+    lead_days: int
+    arrives: str
+    """The day the piece would arrive if each step of the order is taken on its day."""
+    pools_after: EconomyPools
+    """Output and manpower after its cost, and after the cost of every raising of the
+    nation due on or before that day."""
+    refusal: str
+    """Why the check refuses it now, in its fixed words; empty when it may be filed."""
+
+
+class RaisePlace(TypedDict):
+    """A place of the nation's own where the seat's form can raise a piece."""
+
+    place: str
+    """The place's key, the value the form's ``place`` takes."""
+    name: str
+    area: str
+    """The key in the map file of the territory it stands in."""
+    form: str
+    """The form that raises there."""
+    kinds: list[RaiseKind]
+
+
+class RaisingLine(TypedDict):
+    """A piece the seat's nation is raising."""
+
+    kind: str
+    name: str
+    """The kind's name."""
+    place: str
+    place_name: str
+    area: str
+    day: str
+    """The day it arrives: the day the rule decides it once the order is enacted, else the
+    day it would if each step is taken on its day."""
+    fixed: bool
+    """Whether the order is enacted, so the day is the rule's."""
+
+
 class EconomyOwn(TypedDict):
     """The seat's own nation's economy. No other nation's is ever sent."""
 
@@ -1109,6 +1160,11 @@ class EconomyOwn(TypedDict):
     the game keeps no stock or the nation has no fuel income."""
     territories: list[EconomyTerritory]
     """Every territory it holds, by area key."""
+    places: NotRequired[list[RaisePlace]]
+    """With ``raising`` on: each place where the seat's own forms can raise, by key; empty
+    for a seat with no such form or held to its post."""
+    raising: NotRequired[list[RaisingLine]]
+    """With ``raising`` on: every piece the nation is raising, by day."""
 
 
 class EconomyBlock(TypedDict):
@@ -2481,6 +2537,21 @@ class PlaybackHalt(TypedDict):
     reason: str
 
 
+class PlaybackRaised(TypedDict):
+    """A piece of the seat's own nation was raised."""
+
+    kind: Literal["raised"]
+    on: str
+    """The day it entered."""
+    piece: str
+    """The piece's key, as ``MapMark.key`` names it."""
+    name: str
+    place: str
+    """The name of the place it entered at."""
+    area: str
+    """The key in the map file of the territory that place stands in."""
+
+
 class PlaybackPaper(TypedDict):
     """A paper reached the seat: a report, the press, a battle report."""
 
@@ -2570,6 +2641,7 @@ PlaybackStep = (
     | PlaybackHeld
     | PlaybackGroup
     | PlaybackCount
+    | PlaybackRaised
 )
 """One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
 
@@ -2756,6 +2828,7 @@ __all__ = [
     "PlaybackMove",
     "PlaybackOrder",
     "PlaybackPaper",
+    "PlaybackRaised",
     "PlaybackStake",
     "PlaybackStep",
     "PostMoveLine",
@@ -2763,6 +2836,10 @@ __all__ = [
     "PostRoom",
     "PostsBlock",
     "PublicWar",
+    "RaiseCost",
+    "RaiseKind",
+    "RaisePlace",
+    "RaisingLine",
     "ReachContact",
     "ReachGroups",
     "Receipt",

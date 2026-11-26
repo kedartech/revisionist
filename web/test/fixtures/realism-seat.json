@@ -5240,5 +5240,156 @@
         }
       ]
     }
-  ]
+  ],
+  "raising_economy": {
+    "day": "1900-04-02",
+    "figures": [
+      {
+        "nation": {
+          "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "name": "Norra",
+          "relation": "own"
+        },
+        "figure": 100.0
+      },
+      {
+        "nation": {
+          "key": "TZHP5CPZR27M6255484EX48TQ6",
+          "name": "Sudland",
+          "relation": "enemy"
+        },
+        "figure": 1.2
+      }
+    ],
+    "own": {
+      "nation": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "income": [
+        {
+          "key": "grain",
+          "name": "Grain",
+          "unit": "tons",
+          "role": "output",
+          "amount": 10.0
+        },
+        {
+          "key": "iron",
+          "name": "Iron",
+          "unit": "tons",
+          "role": "output",
+          "amount": 0.0
+        },
+        {
+          "key": "levies",
+          "name": "Levies",
+          "unit": "men",
+          "role": "manpower",
+          "amount": 2000.0
+        },
+        {
+          "key": "pitch",
+          "name": "Pitch",
+          "unit": "barrels",
+          "role": "fuel",
+          "amount": 0.0
+        }
+      ],
+      "pools": {
+        "output": 50.0,
+        "manpower": 5.0
+      },
+      "fuel_months": null,
+      "territories": [
+        {
+          "area": "norra_hills",
+          "name": "The Norra Hills",
+          "yields": {},
+          "factors": {
+            "output": 1.0,
+            "manpower": 1.0,
+            "fuel": 1.0,
+            "supply": 1.0,
+            "prestige": 1.0
+          }
+        },
+        {
+          "area": "norra_plain",
+          "name": "The Norra Plain",
+          "yields": {
+            "grain": 10.0,
+            "levies": 2000.0
+          },
+          "factors": {
+            "output": 1.0,
+            "manpower": 1.0,
+            "fuel": 1.0,
+            "supply": 1.0,
+            "prestige": 1.0
+          }
+        }
+      ],
+      "places": [
+        {
+          "place": "hillfort",
+          "name": "The Hillfort",
+          "area": "norra_hills",
+          "form": "raise_piece",
+          "kinds": [
+            {
+              "kind": "fire_kite",
+              "name": "Fire Kites",
+              "cost": {
+                "output": 10,
+                "manpower": 1
+              },
+              "lead_days": 30,
+              "arrives": "1900-05-03",
+              "pools_after": {
+                "output": 30.0,
+                "manpower": 3.0
+              },
+              "refusal": ""
+            }
+          ]
+        },
+        {
+          "place": "norrhavn",
+          "name": "Norrhavn",
+          "area": "norra_plain",
+          "form": "raise_piece",
+          "kinds": [
+            {
+              "kind": "levy",
+              "name": "Levy",
+              "cost": {
+                "output": 10,
+                "manpower": 1
+              },
+              "lead_days": 20,
+              "arrives": "1900-04-23",
+              "pools_after": {
+                "output": 30.0,
+                "manpower": 3.0
+              },
+              "refusal": "A piece is already being raised there"
+            }
+          ]
+        }
+      ],
+      "raising": [
+        {
+          "kind": "levy",
+          "name": "Levy",
+          "place": "norrhavn",
+          "place_name": "Norrhavn",
+          "area": "norra_plain",
+          "day": "1900-04-22",
+          "fixed": true
+        }
+      ]
+    }
+  }
 }

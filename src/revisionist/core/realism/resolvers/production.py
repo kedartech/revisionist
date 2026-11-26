@@ -282,7 +282,7 @@ def _requested(state: State, order: Order) -> "_Aid | None":
     that builds, sends aid itself, is a finding, or that no other nation decides."""
     if FORCE in order.params or ADDS_TO in order.params or _finding(state, order):
         return None
-    if _raises(state, order) or _aid(state, order) is not None:
+    if raises(state, order) or _aid(state, order) is not None:
         return None
     asker = polity_of(state, state.seats[order.issuer].embodies)
     giver = _giver(state, order)
@@ -320,7 +320,7 @@ def _due(state: State, today: date) -> list[Order]:
             continue
         if (
             resolver == "economy"
-            or _raises(state, o)
+            or raises(state, o)
             or (resolver == "production" and (_builds(state, o) or _mobilises(state, o)))
         ):
             due.append(o)
@@ -453,7 +453,7 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         return ()
     out: list[rs.Change] = []
     for order in _due(state, today):
-        if _raises(state, order):
+        if raises(state, order):
             changes = _raise(state, order, today)
         elif rs.resolver_for(state, order) == "production" and (
             _mobilises(state, order) or _output_short(state, order)
@@ -544,25 +544,26 @@ def raising_on(state: State) -> bool:
     return economy.on(state) and Rule.RAISING in state.rules
 
 
-def _raising_form(state: State, seat: SeatId, lever: str) -> bool:
+def raising_form(state: State, seat: SeatId, lever: str) -> bool:
+    """Whether ``lever`` on the seat's card is a form of the economy or of production."""
     held = state.seats.get(seat)
     card = state.cards.get(held.embodies) if held is not None else None
     found = next((x for x in card.levers if x.name == lever), None) if card else None
     return found is not None and found.resolver in ("economy", "production")
 
 
-def _raises(state: State, order: Order) -> bool:
+def raises(state: State, order: Order) -> bool:
     """Whether ``order`` raises a piece: the rule on, and an economy or production form
     that names a kind and a place."""
     return (
         raising_on(state)
         and KIND in order.params
         and PLACE in order.params
-        and _raising_form(state, order.issuer, order.lever)
+        and raising_form(state, order.issuer, order.lever)
     )
 
 
-def _kind(state: State, key: object) -> PieceKind | None:
+def raised_kind(state: State, key: object) -> PieceKind | None:
     """The world's kind ``key``, if it is raised: it has a cost, lead days and a base."""
     found = state.kinds.pieces.get(str(key)) if state.kinds is not None else None
     if found is None or found.cost is None or found.lead_days is None or found.raised_at is None:
@@ -572,11 +573,17 @@ def _kind(state: State, key: object) -> PieceKind | None:
 
 def _lead(state: State, order: Order) -> int:
     """Days from the order leaving its last step to its day: a raising kind's own."""
-    kind = _kind(state, order.params.get(KIND)) if _raises(state, order) else None
+    kind = raised_kind(state, order.params.get(KIND)) if raises(state, order) else None
     return kind.lead_days if kind is not None and kind.lead_days is not None else LEAD_DAYS
 
 
-def _place(state: State, key: object) -> EntityId:
+def raised_id(state: State, order_id: OrderId) -> FeatureId:
+    """The id of the piece an order to raise brings in."""
+    return FeatureId(derived_id(state.campaign_id, "raised", order_id))
+
+
+def place_id(state: State, key: object) -> EntityId:
+    """The place a form names by its world key."""
     return EntityId(object_id(state.campaign_id, "entity", str(key)))
 
 
@@ -600,7 +607,7 @@ def _piece(
         if territory.nation(state, f.side) == nation and (m := pattern.fullmatch(f.name))
     ]
     return Feature(
-        feature_id=FeatureId(derived_id(state.campaign_id, "raised", order.order_id)),
+        feature_id=raised_id(state, order.order_id),
         kind=FeatureKind.PIECE,
         name=f"{kind.name} {max(used, default=0) + 1}",
         side=nation,
@@ -617,7 +624,7 @@ def _site(
     """The base the order's place is and why nothing is raised there (None when it can
     be): no base takes the kind, it is not the nation's own, or it is out of supply."""
     assert state.map is not None and kind.raised_at is not None
-    place = _place(state, order.params[PLACE])
+    place = place_id(state, order.params[PLACE])
     bases = [b for b in state.map.bases if b.place == place and kind.raised_at in b.domains]
     if not bases:
         return None, NO_BASE
@@ -630,42 +637,51 @@ def _site(
     return own[0], None
 
 
-def _due_on(state: State, order: Order) -> date:
+def raise_day(state: State, order: Order) -> date:
+    """The day an order to raise is decided: its kind's lead days after its last step."""
     return rs.settled_on(order) + timedelta(_lead(state, order))
 
 
 def _same_place(state: State, order: Order, place: EntityId) -> bool:
-    return _raises(state, order) and _place(state, order.params[PLACE]) == place
+    return raises(state, order) and place_id(state, order.params[PLACE]) == place
+
+
+def being_raised(state: State, today: date) -> list[Order]:
+    """The orders whose piece is being raised on ``today``, by order id: still moving, or
+    enacted with their day not passed and their piece not entered."""
+    return sorted(
+        (
+            o
+            for o in state.orders.values()
+            if raises(state, o)
+            and (
+                o.status is OrderStatus.MOVING
+                or (
+                    o.status is OrderStatus.ENACTED
+                    and raise_day(state, o) >= today
+                    and raised_id(state, o.order_id) not in state.features
+                )
+            )
+        ),
+        key=lambda o: o.order_id,
+    )
 
 
 def _under_way(state: State, place: EntityId, today: date) -> bool:
-    """Whether a piece is being raised at ``place``: an order for it still moving, or one
-    enacted whose day has not passed and whose piece has not entered."""
-    for o in state.orders.values():
-        if not _same_place(state, o, place):
-            continue
-        if o.status is OrderStatus.MOVING:
-            return True
-        raised = FeatureId(derived_id(state.campaign_id, "raised", o.order_id))
-        if (
-            o.status is OrderStatus.ENACTED
-            and _due_on(state, o) >= today
-            and raised not in state.features
-        ):
-            return True
-    return False
+    """Whether a piece is being raised at ``place``."""
+    return any(place_id(state, o.params[PLACE]) == place for o in being_raised(state, today))
 
 
 def _behind(state: State, order: Order) -> bool:
     """Whether another enacted order for the same place, settled before it, was still
     being raised when ``order`` left its last step."""
-    place, settled = _place(state, order.params[PLACE]), rs.settled_on(order)
+    place, settled = place_id(state, order.params[PLACE]), rs.settled_on(order)
     return any(
         o.order_id != order.order_id
         and o.status is OrderStatus.ENACTED
         and _same_place(state, o, place)
         and (rs.settled_on(o), o.order_id) < (settled, order.order_id)
-        and _due_on(state, o) >= settled
+        and raise_day(state, o) >= settled
         for o in state.orders.values()
     )
 
@@ -676,10 +692,10 @@ def raise_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
     second order for a place where a piece is being raised is refused."""
     if not raising_on(state) or KIND not in params or PLACE not in params:
         return ""
-    if not _raising_form(state, seat, lever):
+    if not raising_form(state, seat, lever):
         return ""
     nation = polity_of(state, state.seats[seat].embodies)
-    kind = _kind(state, params[KIND])
+    kind = raised_kind(state, params[KIND])
     today = state.in_world_date
     if nation is None or state.map is None or today is None:
         return ""
@@ -696,7 +712,7 @@ def raise_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
     _, why = _site(state, draft, nation, kind, today)
     if why is not None:
         return why
-    return BUSY if _under_way(state, _place(state, params[PLACE]), today) else ""
+    return BUSY if _under_way(state, place_id(state, params[PLACE]), today) else ""
 
 
 def _enemy_at(state: State, nation: EntityId, base: Base, domain: str) -> bool:
@@ -759,9 +775,9 @@ def _raise(state: State, order: Order, today: date) -> list["rs.Change"]:
     nation = polity_of(state, state.seats[order.issuer].embodies)
     if nation is None or state.map is None:
         return []
-    place = state.entities.get(_place(state, order.params[PLACE]))
+    place = state.entities.get(place_id(state, order.params[PLACE]))
     where = place.name if place is not None else str(order.params[PLACE])
-    kind = _kind(state, order.params[KIND])
+    kind = raised_kind(state, order.params[KIND])
     what = kind.name if kind is not None else str(order.params[KIND])
     pools = state.economy.pools.get(nation, Pools())
     site, why = (None, NOT_RAISED) if kind is None else _site(state, order, nation, kind, today)
@@ -980,7 +996,7 @@ def _asked(state: State, order: Order) -> list[ev.MandateIssued]:
     opportunity met by filing the form for the asker, due ``AID_ANSWER_DAYS`` later. An
     order is a request to the nations whose people decide a step of its pipeline. A full
     desk gets none; nothing waits on the answer."""
-    if not economy.on(state) or _aid(state, order) is not None or _raises(state, order):
+    if not economy.on(state) or _aid(state, order) is not None or raises(state, order):
         return []
     asker = polity_of(state, state.seats[order.issuer].embodies)
     if asker is None:

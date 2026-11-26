@@ -722,6 +722,12 @@ class PieceCourse(TypedDict):
     territories, the one place it is bound for."""
     step_due: str | None
     """The day the step into ``path[0]`` completes."""
+    step_began: str | None
+    """The day the step into ``path[0]`` began: the day whose step, counted by the step
+    rule with that day's weather, falls due on ``step_due``. None without territories, or
+    when no such day is found."""
+    step_days: int | None
+    """The days the step into ``path[0]`` takes, by the step rule on ``step_began``."""
     arrives: str | None
 
 
@@ -2353,6 +2359,9 @@ class PlaybackMove(TypedDict):
     left: str
     """The area's key in the map file."""
     entered: str
+    days: int | None
+    """The days the step took, by the step rule on the day it began
+    (``map_api.step_began``); None when that day is not found."""
 
 
 class PlaybackHalt(TypedDict):

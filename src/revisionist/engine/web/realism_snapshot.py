@@ -534,9 +534,13 @@ def _course(
     state: State, view: View, keys: Mapping[EntityId, str], f: Feature, domain: kinds.Domain
 ) -> PieceCourse | None:
     if f.path:
+        due = f.step_due
+        begun = map_api.step_began(state, f, f.path[0], due, f.as_of) if due else None
         return PieceCourse(
             path=[_area(state, view, keys, a, domain) for a in f.path],
             step_due=_iso(f.step_due),
+            step_began=_iso(begun[0]) if begun is not None else None,
+            step_days=begun[1] if begun is not None else None,
             arrives=_iso(f.arrives),
         )
     if f.bound_for is None:
@@ -544,6 +548,8 @@ def _course(
     return PieceCourse(
         path=[_area(state, view, keys, f.bound_for, domain)],
         step_due=_iso(f.arrives),
+        step_began=None,
+        step_days=None,
         arrives=_iso(f.arrives),
     )
 

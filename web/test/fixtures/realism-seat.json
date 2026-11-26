@@ -3465,21 +3465,24 @@
         "on": "1900-04-07",
         "piece": "maf6dd971388abc7ca05f3cfc8241a5b1",
         "left": "norra_plain",
-        "entered": "the_gulf"
+        "entered": "the_gulf",
+        "days": 2
       },
       {
         "kind": "move",
         "on": "1900-04-09",
         "piece": "ma24bc38825c2d89204a037c707fb8784",
         "left": "norra_plain",
-        "entered": "norra_hills"
+        "entered": "norra_hills",
+        "days": 7
       },
       {
         "kind": "move",
         "on": "1900-04-14",
         "piece": "ma24bc38825c2d89204a037c707fb8784",
         "left": "norra_hills",
-        "entered": "sudland_coast"
+        "entered": "sudland_coast",
+        "days": 5
       },
       {
         "kind": "paper",

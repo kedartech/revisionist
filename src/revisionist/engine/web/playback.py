@@ -7,8 +7,9 @@ named here become steps:
 - the seat's own order steps (``order_drafted`` and ``order_routed`` as filed,
   ``order_step_taken``, ``order_settled``, ``order_executed``), keyed by the record line
   they move, the aide's filings shaped exactly like the seat's own;
-- its own nation's pieces, a step at a time (``piece_stepped``), and a refused step
-  (``step_refused``). A move the record made, the aide's and a battle's forced move are
+- its own nation's pieces, a step at a time (``piece_stepped``), each with the days the
+  step took by the step rule (MVD), and a refused step (``step_refused``) on the day it
+  was refused. A move the record made, the aide's and a battle's forced move are
   shaped exactly like a seat's ordered move: the cause never leaves;
 - its papers, on the day each arrived (``document_issued``): reports, the press, and the
   battle reports and news that reach a seat only as papers;
@@ -36,7 +37,8 @@ from datetime import date
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, SeatId
 from revisionist.core.project import project, untold_goals
-from revisionist.core.realism import apply, groups, locks
+from revisionist.core.realism import apply, groups, locks, territory
+from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.pipelines import order_words
 from revisionist.core.realism.resolvers import votes
 from revisionist.core.state import State, View
@@ -109,9 +111,33 @@ class _Names:
         """Each own group's support as the feed last gave it (``moved``)."""
         self.counts: dict[tuple[str, str], tuple[str, str, int, int]] | None = None
         """Each vote's count as the steps last showed it, by order and vote."""
+        self.pieces: dict[tuple[EntityId, str], Feature] | None = None
+        """Every piece with a side, by its nation and core mark."""
+        self.stepped: dict[str, date] = {}
+        """The day each piece's last step fed so far was taken, by core mark."""
 
     def area(self, area: EntityId) -> str:
         return self.areas.get(area, "")
+
+    def days(self, p: ev.PieceStepped) -> int | None:
+        """The days the step ``p`` took, by the step rule on the day it began
+        (``map_api.step_began``): the day the piece's step before it was taken when the
+        step counted from then falls due on ``p.on``, else the latest day that does. The
+        piece's kind is read from ``state``, which holds every piece, lost or not."""
+        if self.pieces is None:
+            self.pieces = {
+                (own, territory.mark_key(self.state, own, f)): f
+                for f in self.state.features.values()
+                if f.kind is FeatureKind.PIECE
+                if (own := territory.nation(self.state, f.side)) is not None
+            }
+        hint = self.stepped.get(p.mark)
+        self.stepped[p.mark] = p.on
+        found = self.pieces.get((p.nation, p.mark))
+        if found is None:
+            return None
+        begun = map_api.step_began(self.state, found, p.entered, p.on, hint=hint)
+        return begun[1] if begun is not None else None
 
     def nation(self, polity: EntityId | None) -> MapNation | None:
         if polity is None:
@@ -256,6 +282,7 @@ def _step(p: ev.Payload, on: str, names: _Names) -> PlaybackStep | None:
                 piece=map_api.step_key(campaign, p),
                 left=names.area(p.left),
                 entered=names.area(p.entered),
+                days=names.days(p),
             )
         case ev.StepRefused():
             return PlaybackHalt(

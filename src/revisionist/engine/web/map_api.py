@@ -21,13 +21,14 @@ import json
 import os
 import re
 from collections.abc import Callable, Sequence
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal, NamedTuple
 
 from revisionist.core.events import PieceStepped
 from revisionist.core.ids import CampaignId, EntityId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import bases, kinds, territory
+from revisionist.core.realism import bases, detect, kinds, territory
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import State, View
@@ -265,6 +266,54 @@ def lit(
     return out
 
 
+LOOKBACK_DAYS = 60
+"""How far before a step's due day ``step_began`` looks for the day it began: past the
+slowest step any world's kinds and weather make. [proposed]"""
+
+
+def _concealment_flipped(piece: Feature) -> Feature:
+    """``piece`` as it would step with its concealment the other way (IOR)."""
+    if detect.concealed(piece):
+        return piece.model_copy(update={"concealed": False, "concealed_leg": False})
+    return piece.model_copy(update={"concealed": True})
+
+
+def step_began(
+    state: State,
+    piece: Feature,
+    to: EntityId,
+    due: date,
+    latest: date | None = None,
+    hint: date | None = None,
+) -> tuple[date, int] | None:
+    """The day a step of ``piece`` into ``to`` falling due on ``due`` began, and the days it
+    takes by the step rule (``territory.step_days``). The day is not stored: it is the
+    latest day, no later than ``latest`` (and before ``due``), whose step counted with that
+    day's weather falls due on ``due``; ``hint`` first, when its step does. The piece's
+    concealment may have changed since the step began, so each day is counted with it
+    either way. None when no day in the ``LOOKBACK_DAYS`` before ``due`` gives ``due``."""
+    either = (piece, _concealment_flipped(piece))
+
+    def takes(on: date) -> int | None:
+        for p in either:
+            days = territory.step_days(state, p, to, on)
+            if days is not None and on + timedelta(days=days) == due:
+                return days
+        return None
+
+    if hint is not None and hint < due and (days := takes(hint)) is not None:
+        return hint, days
+    on = due - timedelta(days=1)
+    if latest is not None:
+        on = min(on, latest)
+    while on >= due - timedelta(days=LOOKBACK_DAYS):
+        days = takes(on)
+        if days is not None:
+            return on, days
+        on -= timedelta(days=1)
+    return None
+
+
 def map_reply(state: State, shapes: bool = True) -> MapReply:
     """The ``map`` action's answer: the same for every seat. Without ``shapes`` the reply
     carries the file and its hash and no map object."""
@@ -394,6 +443,7 @@ def copy_all_objects(to: Path) -> tuple[list[str], bool]:
 
 
 __all__ = [
+    "LOOKBACK_DAYS",
     "MARK_SECRET_ENV",
     "MISSING",
     "NO_MAP",
@@ -410,6 +460,7 @@ __all__ = [
     "references",
     "report_keys",
     "seat_board",
+    "step_began",
     "step_key",
     "verify_objects",
     "viewing_nation",

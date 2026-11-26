@@ -211,6 +211,19 @@
 .rl-fall-note { fill: var(--danger); }
 .rl-held-glyph { fill: var(--fg-strong); stroke: var(--chart-sea); stroke-width: 1px; }
 .rl-area-sheet .rl-hold-line { margin: var(--space-2) 0 0; font-weight: 600; }
+/* weather and pieces being raised (KMS): weather that changes the seat's kinds is a hatch of its
+   own with its name at the region's label; a piece being raised is its picture in a dashed, unfilled frame */
+.rl-wx { pointer-events: none; }
+.rl-wx-line { fill: none; stroke: var(--fg-muted); stroke-width: 2px; stroke-opacity: 0.55; }
+.rl-wx-name { fill: var(--warn); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; paint-order: stroke; stroke: var(--chart-sea); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-wx-tag, .rl-tm-raise { cursor: pointer; }
+.rl-wx-tag:focus-visible .rl-wx-name { text-decoration: underline; }
+.rl-tm-raise .rl-mk-shape { fill: none; stroke: var(--side); stroke-width: 1.5px; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.rl-tm-raise .rl-mk-pic { fill: none; stroke: var(--side); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.rl-tm-raise:focus-visible .rl-mk-shape { stroke: var(--focus); stroke-width: 3px; }
+.rl-tm-raise-day { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-wx-sheet ul { margin: var(--space-2) 0; padding-left: var(--space-4); }
+.rl-wx-sheet .rl-wx-now { margin: var(--space-2) 0 0; font-weight: 600; }
 .rl-area-sheet .rl-find { margin-top: var(--space-3); min-height: 44px; min-width: 44px; }
 .rl-area-sheet { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
 .rl-area-sheet h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }

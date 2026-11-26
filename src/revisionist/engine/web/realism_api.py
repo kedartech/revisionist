@@ -1148,6 +1148,8 @@ class RaisingLine(TypedDict):
     day it would if each step is taken on its day."""
     fixed: bool
     """Whether the order is enacted, so the day is the rule's."""
+    picture: str | None
+    """The key of the picture the client draws the kind with; None when the world names none."""
 
 
 class EconomyOwn(TypedDict):

@@ -376,6 +376,9 @@ export function theatreBoard(rv, ui, { pick, act, open, onCapital, hooks = {} } 
     today: rv.clock?.world_date ?? null,
     onReport: (report, mode) => pick?.({ theatre: { ...theatre, report, ...(mode ? { mode } : {}) } }),
     onThreats: (threats) => pick?.({ theatre: { ...theatre, threats } }),
+    raisings: rv.economy?.own?.raising ?? [], // the nation's pieces being raised, each drawn at its place
+    onWeather: (weatherAt) => pick?.({ theatre: { ...theatre, weatherAt } }),
+    onRaising: (raiseAt) => pick?.({ theatre: { ...theatre, raiseAt } }),
     onOpen: (p) => open?.(p),
     battles: battleMarksOf(rv),
     battle: theatre.battle ?? null,

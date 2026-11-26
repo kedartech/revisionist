@@ -247,6 +247,9 @@ def raising_lines(state: State, own: EntityId, today: date) -> list[RaisingLine]
                 area=area_key(state, place),
                 day=day.isoformat(),
                 fixed=order.status is OrderStatus.ENACTED,
+                picture=kind.picture.value
+                if kind is not None and kind.picture is not None
+                else None,
             )
         )
     return out

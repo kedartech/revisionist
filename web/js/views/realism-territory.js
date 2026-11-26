@@ -6,7 +6,8 @@
 // minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
 // One of the seat's own pieces can be carried by the finger to a lit area, as a tap picks it
 // and a tap on the lit area puts it down. In the map-first room the controls sit over the map's
-// corners, and the map can take the whole viewport.
+// corners, and the map can take the whole viewport. On the Military layer, weather that changes
+// the seat's kinds is hatched with its name, and a piece being raised stands at its place.
 
 import { h, svg } from '../dom.js';
 import {
@@ -82,6 +83,12 @@ const HOLD_PATTERNS = Object.freeze({
   neutral: { name: 'dots', d: 'M2 2h0.01M6 6h0.01', round: true },
 });
 
+/**
+ * How weather that changes a move or a fight is hatched [proposed]: wide strokes falling to the
+ * right, on a 12 px tile, with no ground; apart from every holder's pattern, the enemy's cross too.
+ */
+const WEATHER_PATTERN = Object.freeze({ name: 'weather', size: 12, d: 'M-2 -2L14 14M-2 10L4 16M10 -2L16 4' });
+
 /** The text twin of an area's holder: "held by Norra (yours)" for a held area, else ''. */
 const heldBy = (a) => (a.holder ? `, held by ${holderWords(a)}` : '');
 
@@ -93,6 +100,44 @@ function holdPatterns(standings, tag) {
       svg('rect', { width: 8, height: 8, class: `rl-hp-ground rl-hold-${rel}` }),
       svg('path', { d: p.d, class: `rl-hp-line rl-hold-${rel}${p.round ? ' rl-hp-dot' : ''}` }));
   });
+}
+
+/**
+ * The areas under weather that changes one of the seat's own kinds there this month, by key:
+ * { region, weather, acts }. An effect bound to terrains acts only on an area of one of them; a
+ * weather the reply says does nothing to the seat's kinds hatches nothing.
+ */
+export function weatherAreas(map) {
+  const w = map.weather;
+  const out = new Map();
+  if (!w) return out;
+  const kinds = new Map((w.kinds ?? []).map((k) => [k.key, k]));
+  const rows = new Map((w.regions ?? []).map((r) => [r.region, r]));
+  for (const a of map.areas ?? []) {
+    const weather = kinds.get(rows.get(a.region)?.now);
+    const acts = (weather?.does ?? []).filter((e) => !e.terrain?.length || e.terrain.includes(a.terrain));
+    if (acts.length) out.set(a.key, { region: a.region, weather, acts });
+  }
+  return out;
+}
+
+/** A kind's name as the seat's own pieces carry it, else its key. */
+const kindName = (map, key) => (map.marks ?? []).find((m) => m.piece?.figures?.key === key)?.piece.figures.name ?? key;
+
+/**
+ * The weather's line for `region`: this month's weather and what it does to each of the seat's
+ * own kinds, then next month's. Null for a region the reply does not reach.
+ */
+export function weatherLine(map, region) {
+  const w = map.weather;
+  const row = (w?.regions ?? []).find((r) => r.region === region);
+  if (!row) return null;
+  const kinds = new Map((w.kinds ?? []).map((k) => [k.key, k]));
+  const named = (key) => kinds.get(key)?.name ?? 'No weather given';
+  const where = (e, word) => (e.terrain?.length ? `${word}${e.terrain.join(', ')}` : '');
+  const does = (kinds.get(row.now)?.does ?? []).map((e) => `${kindName(map, e.kind)}: `
+    + (e.direction === 'closed' ? `cannot enter${where(e, ' ') || ' the region'}` : `${e.figure} ${e.direction}${where(e, ' on ')}`));
+  return { now: `${named(row.now)} in ${w.month}`, does, next: `${named(row.next)} in ${w.next_month}` };
 }
 
 /** The layers with something to draw, Military first: a layer with nothing yet is not offered. */
@@ -543,6 +588,73 @@ function holdMarks(areas, labelAt) {
   });
 }
 
+/** The hatch over each area under weather that changes the seat's kinds there (`weatherAreas`). */
+function weatherHatch(wx, shapes, line, tag) {
+  return [...wx].map(([key, { weather }]) => svg('path', {
+    d: ringsPath(shapes.vertices, shapes.areas[key].rings, line), class: 'rl-wx',
+    'data-area': key, 'data-weather': weather.key, fill: `url(#${tag}-weather)`, 'aria-hidden': 'true',
+  }));
+}
+
+/** The weather's pattern fill, id made from `tag`. */
+function weatherPattern(tag) {
+  const p = WEATHER_PATTERN;
+  return svg('pattern', { id: `${tag}-weather`, width: p.size, height: p.size, patternUnits: 'userSpaceOnUse', 'data-pattern': p.name },
+    svg('path', { d: p.d, class: 'rl-wx-line' }));
+}
+
+/**
+ * The weather's name once for each region it hatches, a line above the middle of the label points
+ * of the region's hatched areas, clear of a piece at its place below; a tap asks for the weather's
+ * line (`opts.onWeather(region)`).
+ */
+function weatherTags(map, wx, labelAt, opts) {
+  const by = new Map();
+  for (const [key, { region, weather }] of wx) {
+    const was = by.get(region) ?? { weather, points: [] };
+    was.points.push(labelAt.get(key));
+    by.set(region, was);
+  }
+  const names = new Map((map.regions ?? []).map((r) => [r.key, r.name]));
+  return [...by].map(([region, { weather, points }]) => {
+    const x = points.reduce((s, p) => s + p[0], 0) / points.length;
+    const y = points.reduce((s, p) => s + p[1], 0) / points.length;
+    const said = `${names.get(region) ?? region}: ${weather.name} this month`;
+    const wide = Math.max(MIN_TAP_PX, weather.name.length * LABEL_PX * 0.7);
+    return atPx({
+      class: 'rl-wx-tag', 'data-region': region, 'aria-label': `${said}. Open the weather`,
+      ...(opts.still ? { role: 'img' } : activate(() => opts.onWeather?.(region))),
+    }, x, y,
+    svg('rect', { x: -wide / 2, y: -LABEL_PX * 1.4 - MIN_TAP_PX / 2, width: wide, height: MIN_TAP_PX, class: 'rl-tm-hit' }),
+    svg('text', { y: -LABEL_PX * 1.4, dy: '0.35em', 'text-anchor': 'middle', 'font-size': LABEL_PX, class: 'rl-wx-name' }, weather.name),
+    svg('title', {}, said));
+  });
+}
+
+/**
+ * Each piece the seat's nation is raising (`opts.raisings`, the economy block's lines): its kind's
+ * picture in an outlined own frame at its place (else at its area's label point), with the day it
+ * arrives; a tap asks for its sheet (`opts.onRaising(place)`).
+ */
+function raisingsLayer(map, labelAt, at, opts) {
+  const places = new Map((map.places ?? []).map((p) => [p.name, p]));
+  return (opts.raisings ?? []).map((r) => {
+    const place = places.get(r.place_name);
+    const xy = place ? at([place.lon, place.lat]) : labelAt.get(r.area);
+    if (!xy) return null;
+    const said = `${r.name} being raised at ${r.place_name}: arrives ${shortDate(r.day)}`;
+    const lift = place ? 0 : MARK_LIFT;
+    return atPx({
+      class: 'rl-mk rl-side-own rl-tm-raise', 'data-raise': r.place, 'aria-label': `${said}. Open the raising`,
+      ...(opts.still ? { role: 'img' } : activate(() => opts.onRaising?.(r.place))),
+    }, xy[0], xy[1], svg('g', { transform: `translate(0 ${lift})` },
+      svg('rect', { x: -MIN_TAP_PX / 2, y: -MIN_TAP_PX / 2, width: MIN_TAP_PX, height: MIN_TAP_PX, class: 'rl-tm-hit' }),
+      forceGlyph({ side: 'own', kind: null, certainty: 'known', picture: r.picture ?? null }, MIN_MARK_PX),
+      svg('text', { y: r2(MIN_MARK_PX / 2 + LABEL_PX + 2), 'text-anchor': 'middle', 'font-size': LABEL_PX * 0.9, class: 'rl-tm-raise-day' }, `arrives ${shortDate(r.day)}`)),
+    svg('title', {}, said));
+  });
+}
+
 function targetsLayer(targets, at, onTarget, nav) {
   return targets.map((t, i) => {
     const [x, y] = at([t.place.lon, t.place.lat]);
@@ -666,6 +778,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const tag = `rl-hp-${clips}`;
   const byKey = new Map((map.areas ?? []).map((a) => [a.key, a]));
   const held = areas.filter((a) => a.kind === 'land' && a.holder && HOLD_PATTERNS[holderRelation(a)]);
+  // weather is the Military layer's: an area hatched only where it changes one of the seat's kinds
+  const wx = diplomatic || economy ? new Map() : new Map([...weatherAreas(map)].filter(([key]) => shapes.areas?.[key]));
   // a territory that changed hands since the last drawing fills evenly with its new holder's tone
   const taken = new Set(moving ? areas.filter((a) => changed(shown.holders, a.key, a.holder ? `${a.holder.name} ${a.holder.relation}` : '')).map((a) => a.key) : []);
   // the frame, not the window: land past the window shows while the view moves, none past the frame
@@ -675,7 +789,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
     role: opts.still ? 'img' : 'group', 'aria-label': opts.label ?? 'Map of the board', 'data-frame': opts.frame ?? '',
     tabindex: opts.still ? null : 0,
   },
-  svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox)), holdPatterns(new Set(held.map(holderRelation)), tag)),
+  svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox)), holdPatterns(new Set(held.map(holderRelation)), tag),
+    wx.size ? weatherPattern(tag) : null),
   svg('g', { class: 'rl-tm-frame', 'clip-path': `url(#${clip})` },
   proj.step
     ? svg('path', { d: `M${line([[box.west, box.north], [box.east, box.north], [box.east, box.south], [box.west, box.south], [box.west, box.north]]).map((xy) => xy.join(' ')).join('L')}Z`, class: 'rl-map-sea' })
@@ -691,6 +806,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
     d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-hold rl-hold-${holderRelation(a)}`,
     'data-area': a.key, fill: `url(#${tag}-${holderRelation(a)})`, 'aria-hidden': 'true',
   })).map((path) => (taken.has(path.getAttribute('data-area')) ? (fillIn(path, moving), path) : path)),
+  weatherHatch(wx, shapes, line, tag),
   borders(shapes).filter(({ between }) => kinds.has(between[0])).map(({ between, edges }) => svg('path', {
     d: edges.map(([p, q]) => `M${line([shapes.vertices[p], shapes.vertices[q]]).map((xy) => xy.join(' ')).join('L')}`).join(''),
     class: `rl-border rl-border-${borderKind(between)}${front(between) ? ' rl-border-front' : ''}`,
@@ -701,6 +817,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
   holdMarks(areas, labelAt),
+  weatherTags(map, wx, labelAt, opts),
   economy ? null : coursesLayer(diplomatic ? { ...map, marks: envoyMarks(map) } : map, labelAt, at, opts.today, moving, sent),
   diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at, opts.today, moving, sent),
   diplomatic || economy ? null : routeLayer(opts.route, labelAt),
@@ -710,6 +827,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
     : diplomatic ? [capitalsLayer(map, at, opts), marksLayer({ ...map, marks: envoyMarks(map) }, labelAt, at, opts)]
       : marksLayer(map, labelAt, at, opts),
+  diplomatic || economy ? null : raisingsLayer(map, labelAt, at, opts),
   diplomatic || economy ? null : reportMarks({ map, labelAt, atPx, activate, opts }),
   diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
   diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
@@ -805,7 +923,8 @@ function overlayKeys(section, opts, sheet) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'Escape' && sheet) {
       e.preventDefault();
-      keepFocus('map', sheet === 'area' ? () => opts.onArea?.(null) : () => opts.onReport?.(null));
+      const close = { area: opts.onArea, report: opts.onReport, weather: opts.onWeather, raise: opts.onRaising }[sheet];
+      keepFocus('map', () => close?.(null));
     } else if ((e.key === 'f' || e.key === 'F') && e.target?.closest?.('figure.rl-map-figure')) {
       e.preventDefault();
       askFull(section, opts, 'map');
@@ -853,6 +972,31 @@ function areaSheet(map, key, onArea, standings) {
     rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])) : null,
     notes.map((t) => h('p', { class: 'rl-hold-line' }, t)),
     h('button', { type: 'button', class: 'rl-find', onclick: () => onArea?.(null) }, 'Close'));
+}
+
+/** The weather's line for region `region` as a sheet; null for a region the reply does not reach. */
+function weatherSheet(map, region, onWeather) {
+  const said = weatherLine(map, region);
+  if (!said) return null;
+  const name = (map.regions ?? []).find((r) => r.key === region)?.name ?? region;
+  return h('section', { class: 'rl-area-sheet rl-wx-sheet', 'aria-labelledby': 'rl-wx-sheet-h', 'data-region': region },
+    h('h3', { id: 'rl-wx-sheet-h' }, name),
+    h('p', { class: 'rl-wx-now' }, said.now),
+    said.does.length ? h('ul', { role: 'list' }, said.does.map((t) => h('li', {}, t))) : null,
+    h('p', { class: 'muted' }, said.next),
+    h('button', { type: 'button', class: 'rl-find', onclick: () => onWeather?.(null) }, 'Close'));
+}
+
+/** The sheet of the piece being raised at `place` (`raisings`, the economy block's lines); null for none. */
+function raisingSheet(raisings, place, onRaising) {
+  const r = (raisings ?? []).find((x) => x.place === place);
+  if (!r) return null;
+  const rows = [['Place', r.place_name], ['Arrives', shortDate(r.day)]];
+  return h('section', { class: 'rl-area-sheet rl-raise-sheet', 'aria-labelledby': 'rl-raise-sheet-h', 'data-raise': r.place },
+    h('h3', { id: 'rl-raise-sheet-h' }, `${r.name}, being raised`),
+    h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+    h('p', { class: 'muted' }, r.fixed ? 'The order is enacted: the day is fixed.' : 'The day it arrives if each step of the order is taken on its day.'),
+    h('button', { type: 'button', class: 'rl-find', onclick: () => onRaising?.(null) }, 'Close'));
 }
 
 function areaTable(map) {
@@ -918,6 +1062,9 @@ export function territoryView(map, shapes, opts = {}) {
   const find = (name) => opts.onSelect?.(name, 'map');
   const area = mode === 'map' && opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null;
   const report = mode === 'map' && layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null;
+  const military = mode === 'map' && layer === 'military';
+  const weather = military && opts.weatherAt ? weatherSheet(map, opts.weatherAt, opts.onWeather) : null;
+  const raise = military && opts.raiseAt ? raisingSheet(opts.raisings, opts.raiseAt, opts.onRaising) : null;
   const figure = mode === 'map' ? h('figure', { class: 'rl-map-figure' },
     shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')) : null;
   const body = mode === 'list'
@@ -928,8 +1075,8 @@ export function territoryView(map, shapes, opts = {}) {
           h('div', { class: 'rl-tm-tools rl-tm-tools-start' }, layers, threats, regions),
           h('div', { class: 'rl-tm-tools rl-tm-tools-end' }, showAs, full)),
         zooms ? h('div', { class: 'rl-tm-corner rl-tm-zoomcorner' }, zooms) : null,
-        figure, area, report)]
-      : [figure, area, report];
+        figure, area, report, weather, raise)]
+      : [figure, area, report, weather, raise];
   const bar = mode === 'map' && over ? null : h('div', { class: 'rl-bar' }, layers, threats, showAs, regions, zooms, full);
   // the Diplomatic layer's key (realism-diplomacy.js): nations, capitals, public pacts and envoys
   const key = layer === 'diplomatic' ? (typeof opts.diplomacy === 'function' ? opts.diplomacy() : opts.diplomacy) : null;
@@ -940,7 +1087,7 @@ export function territoryView(map, shapes, opts = {}) {
     body,
     key ?? null);
   if (over) {
-    section.addEventListener('keydown', overlayKeys(section, opts, area ? 'area' : report ? 'report' : null));
+    section.addEventListener('keydown', overlayKeys(section, opts, area ? 'area' : report ? 'report' : weather ? 'weather' : raise ? 'raise' : null));
     afterDrawn(section);
   }
   return section;

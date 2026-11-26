@@ -5387,7 +5387,8 @@
           "place_name": "Norrhavn",
           "area": "norra_plain",
           "day": "1900-04-22",
-          "fixed": true
+          "fixed": true,
+          "picture": null
         }
       ]
     }

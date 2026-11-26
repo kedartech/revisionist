@@ -172,10 +172,18 @@ def test_the_block_lists_each_piece_being_raised_with_its_place_and_day(tmp_path
         "area": "norra_plain",
         "day": iso(20),
         "fixed": True,
+        "picture": None,
     }
     assert date.fromisoformat(line["day"]) == day(20)
     walk_days(g, 1, 20)
     assert own(g.state)["raising"] == []
+
+
+def test_a_piece_being_raised_carries_its_kinds_picture(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    enact(g)
+    (line,) = own(g.state)["raising"]
+    assert (line["kind"], line["picture"]) == (KITE, "bombers")
 
 
 def test_an_order_still_on_its_way_is_listed_with_the_day_it_would_arrive(

@@ -19,6 +19,7 @@ import { gestures } from '../map/gestures.js';
 import { askedForFull, browserFull, clampZoom } from '../map/view.js';
 import { areaAt } from '../map/hit.js';
 import { trace } from '../map/projection.js';
+import { drawOn, fillIn, underWay } from '../map/motion.js';
 import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
@@ -38,8 +39,28 @@ const MARK_GAP = 44;
 /** Where each mark last stood, by its key, so that a mark whose area changes slides there. */
 const lastAt = new Map();
 
-/** Forget where every mark stood (tests). */
-export function forgetMarks() { lastAt.clear(); }
+/**
+ * What the last drawings showed, so that a course or an order just sent draws itself once and a
+ * territory that changed hands fills: each own mark's course, each order, each area's holder.
+ * Nothing is new to the first drawing after `forgetMarks`.
+ */
+const shown = { courses: new Map(), orders: new Map(), holders: new Map(), primed: false };
+
+/** Forget where every mark stood and what the drawings showed (tests). */
+export function forgetMarks() {
+  lastAt.clear();
+  shown.courses.clear();
+  shown.orders.clear();
+  shown.holders.clear();
+  shown.primed = false;
+}
+
+/** Whether `value` under `key` in `memory` (a Map) is new since the last drawing; notes it. */
+function changed(memory, key, value) {
+  const was = memory.has(key) ? memory.get(key) : '';
+  memory.set(key, value);
+  return shown.primed && was !== value;
+}
 
 export { forgetFull } from '../map/view.js';
 
@@ -267,12 +288,13 @@ const markWhere = (m) => m.piece?.area?.name ?? m.area?.name ?? whereLine(m);
 /** The seat's held orders on mark `m`, as the drawing's `held` option gives them (none in a still drawing). */
 const heldOf = (m, opts) => opts.held?.(m) ?? [];
 
-function markLabel(m, where, held = []) {
+function markLabel(m, where, held = [], tag = null) {
   const p = m.piece;
   const said = [
     `${m.name}: ${markWhat(m)}, ${sideLine(m)}, ${certaintyWord(m.certainty)}${where ? `, ${where}` : ''}`,
     p?.posture ? postureWord(p.posture) : null,
     p?.under_way ? courseLine(p.under_way) : null,
+    tag,
     p?.waiting ? `Order ${waitWords(p.waiting)}` : null,
     ...held.map(heldWords),
   ];
@@ -280,10 +302,13 @@ function markLabel(m, where, held = []) {
 }
 
 /**
- * Where a mark stands: an own piece at its area's label point, a reported one at the label
- * point of the area its page names, else at its one place.
+ * Where a mark stands: an own piece under way on its step, at the share of the step's days gone
+ * by `today`; any other own piece at its area's label point, a reported one at the label point
+ * of the area its page names, else at its one place.
  */
-function markAt(m, labelAt, at) {
+function markAt(m, labelAt, at, today = null) {
+  const way = underWay(m, labelAt, today);
+  if (way) return way.at;
   if (m.piece?.area?.key && labelAt.has(m.piece.area.key)) return labelAt.get(m.piece.area.key);
   if (m.area?.key && labelAt.has(m.area.key)) return labelAt.get(m.area.key);
   return m.places?.length === 1 ? at([m.places[0].lon, m.places[0].lat]) : null;
@@ -291,20 +316,21 @@ function markAt(m, labelAt, at) {
 
 /**
  * `child`, drawn at `xy`, in a group that slides it there from `from` over SLIDE_MS; with no
- * `from`, or under reduced motion, it stands there at once.
+ * `from`, or under reduced motion, it stands there at once. An own piece travels linearly, so
+ * that it reads as a rate; another side's sighting keeps its eased slide.
  */
-function sliding(child, xy, from) {
+function sliding(child, xy, from, own = false) {
   const g = svg('g', { class: 'rl-tm-slide' }, child);
   if (!from || reducedMotion()) return g;
   g.setAttribute('data-slide-from', from.join(' '));
   g.animate?.([
     { transform: `translate(${r2(from[0] - xy[0])}px, ${r2(from[1] - xy[1])}px)` }, { transform: 'translate(0px, 0px)' },
-  ], { duration: SLIDE_MS, easing: 'ease-in-out' });
+  ], { duration: SLIDE_MS, easing: own ? 'linear' : 'ease-in-out' });
   return g;
 }
 
-/** The marker of mark `m`, centred on (0, 0): an own piece with its pips under it, its posture as a word, and its strength in figures only when it is picked. */
-function markBody(m, chosen) {
+/** The marker of mark `m`, centred on (0, 0): an own piece with its pips under it, its posture as a word, its step's tag when it is under way, and its strength in figures only when it is picked. */
+function markBody(m, chosen, tag = null) {
   const pips = pipsOf(m.piece);
   const r = MIN_MARK_PX / 2;
   const below = r + 3;
@@ -322,6 +348,9 @@ function markBody(m, chosen) {
     posture
       ? svg('text', { y: r2(below + (pips ? pip : 0) + LABEL_PX), 'text-anchor': 'middle', 'font-size': LABEL_PX * 0.9, class: 'rl-mk-posture' }, posture)
       : null,
+    tag
+      ? svg('text', { y: r2(below + (pips ? pip : 0) + LABEL_PX * (posture ? 2.1 : 1)), 'text-anchor': 'middle', 'font-size': LABEL_PX * 0.9, class: 'rl-tm-tag' }, tag)
+      : null,
   ];
 }
 
@@ -330,10 +359,10 @@ const carriable = (m) => m.side === 'own' && Boolean(m.piece) && !m.piece.under_
 
 const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty} rl-tm-mark${chosen ? ' selected' : ''}`;
 
-/** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it). */
-function oneMark(m, xy, dx, from, opts, extra = {}) {
+/** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it); `tag` says how far along its step it is. */
+function oneMark(m, xy, dx, from, opts, extra = {}, tag = null) {
   const held = heldOf(m, opts);
-  const words = markLabel(m, markWhere(m), held);
+  const words = markLabel(m, markWhere(m), held, tag);
   const chosen = opts.selected === m.name;
   const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
@@ -341,10 +370,10 @@ function oneMark(m, xy, dx, from, opts, extra = {}) {
     'data-grab': carriable(m) ? m.name : null,
   };
   return sliding(atPx({ ...common, 'data-key': markKey(m) }, xy[0], xy[1],
-    svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen),
+    svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen, tag),
       // a held order on this piece: the padlock, and who can allow it as text (LKM)
       held.length ? svg('g', { class: 'rl-tm-held' }, lockMark(held[0].who, MIN_MARK_PX / 2 + 2, -MIN_MARK_PX / 2, LABEL_PX * 0.9)) : null),
-    svg('title', {}, words)), xy, from);
+    svg('title', {}, words)), xy, from, m.side === 'own');
 }
 
 /**
@@ -367,7 +396,7 @@ function closedStack(here, key, xy, froms, opts) {
       svg('rect', { x: -MIN_TAP_PX / 2, y: -MIN_TAP_PX / 2, width: MIN_TAP_PX, height: MIN_TAP_PX, class: 'rl-tm-hit' }),
       [2, 1].map((n) => svg('rect', { x: -r * 1.4 + n * 3, y: -r - n * 3, width: r * 2.8, height: r * 2, class: 'rl-tm-stack-edge' })))),
     sliding(atPx({ class: markLook(top, false).replace(' rl-tm-mark', ' rl-tm-stack-top') }, xy[0], xy[1], svg('g', { transform: `translate(0 ${lift})` },
-      forceGlyph({ ...top, kind: top.piece ? GLYPH[top.piece.domain] : top.kind }, MIN_MARK_PX))), xy, froms.get(top)),
+      forceGlyph({ ...top, kind: top.piece ? GLYPH[top.piece.domain] : top.kind }, MIN_MARK_PX))), xy, froms.get(top), top.side === 'own'),
     atPx({ class: 'rl-tm-count' }, xy[0], xy[1], svg('g', { transform: `translate(${r * 1.4 + 4} ${lift - r - 4})` },
       svg('circle', { r: 9 }), svg('text', { 'text-anchor': 'middle', dy: '0.35em', 'font-size': LABEL_PX }, String(here.length)))),
     // a held order on a piece in the stack: the padlock alone, opposite the count (LKM)
@@ -397,16 +426,17 @@ function marksLayer(map, labelAt, at, opts) {
     const points = m.places.map((p) => at([p.lon, p.lat]).join(',')).join(' ');
     return svg('g', common, svg('polyline', { points, class: 'rl-mk-hit' }), svg('polyline', { points, class: 'rl-mk-line' }), svg('title', {}, words));
   });
+  const tags = new Map(marks.map((m) => [m, underWay(m, labelAt, opts.today)?.tag ?? null]));
   const crowd = new Map();
   for (const m of marks) {
-    const xy = m.places?.length > 1 ? null : markAt(m, labelAt, at);
+    const xy = m.places?.length > 1 ? null : markAt(m, labelAt, at, opts.today);
     if (xy) crowd.set(xy.join(), { xy, here: [...(crowd.get(xy.join())?.here ?? []), m] });
   }
   const out = [lines];
   for (const { xy, here } of crowd.values()) {
     const froms = new Map(here.map((m) => [m, opts.still ? null : slideFrom(lastAt, markKey(m), markArea(m), xy)]));
     if (here.length === 1) {
-      out.push(oneMark(here[0], xy, 0, froms.get(here[0]), opts));
+      out.push(oneMark(here[0], xy, 0, froms.get(here[0]), opts, {}, tags.get(here[0])));
       continue;
     }
     const key = markArea(here[0]) ?? xy.join();
@@ -416,7 +446,7 @@ function marksLayer(map, labelAt, at, opts) {
       continue;
     }
     const close = { 'data-stack': key, onkeyup: (e) => { if (e.key === 'Escape') opts.onFan?.(null); } };
-    here.forEach((m, i) => out.push(oneMark(m, xy, (i - (here.length - 1) / 2) * MARK_GAP, froms.get(m), opts, close)));
+    here.forEach((m, i) => out.push(oneMark(m, xy, (i - (here.length - 1) / 2) * MARK_GAP, froms.get(m), opts, close, tags.get(m))));
     out.push(fanCloser(here, key, xy, opts));
   }
   return out;
@@ -446,20 +476,23 @@ function goalAt(to, areaAt, at) {
 }
 
 /**
- * The seat's own orders: an arrow to each goal; for a piece whose order is still with a holder,
+ * The seat's own orders: an arrow to each goal, which draws itself once when the order is new
+ * (`moving`: the clock, null when nothing moves); for a piece whose order is still with a holder,
  * a ghost of the piece at the goal, dashed, with whom it is with and until when.
  */
-function ordersLayer(map, labelAt, areaAt, at) {
+function ordersLayer(map, labelAt, areaAt, at, today, moving, sent) {
   const marks = map.marks ?? [];
   return (map.orders ?? []).map((o) => {
     const goal = goalAt(o.to, areaAt, at);
     if (!goal) return null;
     const m = marks.find((k) => k.name === o.mark);
-    const f = m ? markAt(m, labelAt, at) : null;
+    const f = m ? markAt(m, labelAt, at, today) : null;
+    const arrow = f ? svg('line', { x1: f[0], y1: f[1], x2: goal[0], y2: goal[1], class: 'rl-mk-arrow' }) : null;
+    if (arrow && sent.has(o.order)) drawOn(arrow, moving);
     const wait = m?.piece?.waiting?.order === o.order ? m.piece.waiting : null;
     const words = wait ? `${o.force} to ${o.to.name}: ${waitWords(wait)}` : `${o.force} to ${o.to.name}`;
     return svg('g', { class: `rl-mk-order rl-o-${o.status}`, role: 'img', 'aria-label': words, 'data-order': o.order },
-      f ? svg('line', { x1: f[0], y1: f[1], x2: goal[0], y2: goal[1], class: 'rl-mk-arrow' }) : null,
+      arrow,
       wait
         ? atPx({ class: `rl-tm-ghost rl-side-${m.side}` }, goal[0], goal[1], svg('g', { transform: `translate(0 ${-MARK_LIFT})` },
           forceGlyph({ ...m, kind: GLYPH[m.piece.domain] ?? m.kind, certainty: 'reported' }, MIN_MARK_PX),
@@ -468,16 +501,24 @@ function ordersLayer(map, labelAt, areaAt, at) {
   });
 }
 
-/** Each own piece under way: its path still to go, dashed, through each area's label point, and the day it arrives. */
-function coursesLayer(map, labelAt, at) {
+/**
+ * Each own piece under way: its path still to go, dashed, from where it stands through each
+ * area's label point, and the day it arrives; the part of its step already travelled, fainter.
+ * A course new since the last drawing draws itself once (`moving`: the clock, null when nothing moves).
+ */
+function coursesLayer(map, labelAt, at, today, moving, sent) {
   return (map.marks ?? []).filter((m) => m.piece?.under_way?.path?.length).map((m) => {
-    const from = markAt(m, labelAt, at);
+    const from = markAt(m, labelAt, at, today);
+    const way = underWay(m, labelAt, today);
     const steps = m.piece.under_way.path.map((a) => labelAt.get(a.key)).filter(Boolean);
     if (!from || !steps.length) return null;
     const end = steps.at(-1);
     const due = m.piece.under_way.arrives ?? m.piece.under_way.step_due;
+    const path = svg('polyline', { points: [from, ...steps].map((xy) => xy.join(',')).join(' '), class: 'rl-mk-arrow rl-tm-path' });
+    if (sent.has(markKey(m))) drawOn(path, moving);
     return svg('g', { class: `rl-tm-course rl-side-${m.side}`, role: 'img', 'aria-label': `${m.name}: ${courseLine(m.piece.under_way)}`, 'data-key': markKey(m) },
-      svg('polyline', { points: [from, ...steps].map((xy) => xy.join(',')).join(' '), class: 'rl-mk-arrow rl-tm-path' }),
+      way ? svg('polyline', { points: [way.from, way.at].map((xy) => xy.join(',')).join(' '), class: 'rl-tm-gone' }) : null,
+      path,
       atPx({ class: 'rl-tm-goal' }, end[0], end[1], svg('circle', { r: MIN_MARK_PX * 0.6, class: 'rl-mk-goal' }),
         due ? svg('text', { y: r2(-MIN_MARK_PX * 0.6 - 4), 'text-anchor': 'middle', 'font-size': LABEL_PX, class: 'rl-target-note rl-tm-due' }, shortDate(due)) : null));
   });
@@ -602,6 +643,14 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const show = (key) => root?.querySelector(`.rl-tm-label[data-area="${key}"]`)?.classList.toggle('shown');
   const economy = opts.layer === 'economy';
   const diplomatic = opts.layer === 'diplomatic';
+  // the clock a course draws itself and a territory fills by (`opts.clock`, the page's own when not
+  // given); none on a still drawing or under reduced motion
+  const moving = opts.still || reducedMotion() ? null : { ...opts.clock };
+  // what was sent since the last drawing, whichever layer that drawing showed: each course, each order
+  const sent = new Set(moving ? [
+    ...(map.marks ?? []).filter((m) => changed(shown.courses, markKey(m), (m.piece?.under_way?.path ?? []).map((a) => a.key).join(' '))).map(markKey),
+    ...(map.orders ?? []).filter((o) => changed(shown.orders, o.order, o.to?.name ?? '')).map((o) => o.order),
+  ] : []);
   // on the Diplomatic layer the lit areas are a picked envoy's moves (the theatre picks envoys only)
   const targets = economy || opts.still ? [] : opts.targets ?? [];
   const front = ([a, b]) => b !== null && isFront(byKey.get(a), byKey.get(b));
@@ -615,6 +664,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const tag = `rl-hp-${clips}`;
   const byKey = new Map((map.areas ?? []).map((a) => [a.key, a]));
   const held = areas.filter((a) => a.kind === 'land' && a.holder && HOLD_PATTERNS[holderRelation(a)]);
+  // a territory that changed hands since the last drawing fills evenly with its new holder's tone
+  const taken = new Set(moving ? areas.filter((a) => changed(shown.holders, a.key, a.holder ? `${a.holder.name} ${a.holder.relation}` : '')).map((a) => a.key) : []);
   // the frame, not the window: land past the window shows while the view moves, none past the frame
   const frameBox = { x: r2(rect.x), y: r2(rect.y), width: r2(rect.w), height: r2(rect.h) };
   root = svg('svg', {
@@ -637,7 +688,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   held.map((a) => svg('path', {
     d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-hold rl-hold-${holderRelation(a)}`,
     'data-area': a.key, fill: `url(#${tag}-${holderRelation(a)})`, 'aria-hidden': 'true',
-  })),
+  })).map((path) => (taken.has(path.getAttribute('data-area')) ? (fillIn(path, moving), path) : path)),
   borders(shapes).filter(({ between }) => kinds.has(between[0])).map(({ between, edges }) => svg('path', {
     d: edges.map(([p, q]) => `M${line([shapes.vertices[p], shapes.vertices[q]]).map((xy) => xy.join(' ')).join('L')}`).join(''),
     class: `rl-border rl-border-${borderKind(between)}${front(between) ? ' rl-border-front' : ''}`,
@@ -648,8 +699,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
   holdMarks(areas, labelAt),
-  diplomatic || economy ? null : coursesLayer(map, labelAt, at),
-  diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
+  economy ? null : coursesLayer(diplomatic ? { ...map, marks: envoyMarks(map) } : map, labelAt, at, opts.today, moving, sent),
+  diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at, opts.today, moving, sent),
   diplomatic || economy ? null : routeLayer(opts.route, labelAt),
   diplomatic || economy ? null : ringsAndThreats({
     map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, line),
@@ -662,6 +713,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
   // drawn last, over every mark: a lit area under a stack stays clickable
   targetsLayer(targets, at, opts.onTarget, opts.nav))));
+  if (moving) shown.primed = true;
   const px = opts.px ?? guessPx();
   fit(root, px);
   const onTap = (xy) => {

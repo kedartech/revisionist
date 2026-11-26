@@ -27,6 +27,12 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   and nothing under `/api/`; with the network cut a reload opens the shell with its one offline
   line and a write does not get through; a new worker is offered as a new version, nothing
   changes until Reload is pressed, and then the new worker controls the reloaded page;
+- pieces under way, in a context of its own whose replies put six of the seat's pieces on steps
+  at six shares of their days: each is drawn at its share between its two areas with its tag
+  and the part travelled; the playback's clock carries all six to the areas they enter, and on
+  the phone run the 95th percentile frame time while they move is at or under the same line; a
+  move sent from the keyboard draws its line from the piece to its goal, whole within 600 ms; and
+  under reduced motion the same pieces stand at their shares with their tags and nothing moves;
 - what the Android wrapper needs of the web side (`deploy/android/README.md`): the manifest the
   page links, the worker in control, the 512 px icon, and the asset-links address, which answers
   with a list naming an Android app when `REVISIONIST_ASSETLINKS_FILE` is set in the smoke's
@@ -964,6 +970,278 @@ def wrapper_needs(page: Page, report: dict) -> None:
     report["wrapper"] = {"manifest": href, "assetlinks": res.status}
 
 
+UNDER_WAY_JS = """(() => {
+  // Pieces under way, for the smoke's own context: in every reply that carries the seat's map,
+  // its first own piece and five more like it are put on steps the game offers, at six shares of
+  // their days. A fresh game has nothing under way, and the drawing reads only the reply. The
+  // seat's other pieces are left alone, so one can still be sent.
+  const SHARES = [[1, 4], [2, 4], [3, 4], [1, 3], [2, 5], [4, 6]];
+  const plus = (day, n) => {
+    const d = new Date(`${day}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const patch = (rv) => {
+    const today = rv.clock.world_date;
+    const own = rv.map.marks.filter((m) => m.side === 'own' && m.piece?.area
+      && !m.piece.under_way && m.piece.domain !== 'envoy');
+    if (own.length < 2) return;
+    const first = own[0];
+    const legs = own.flatMap((m) => m.piece.moves ?? []).map((mv) => mv.path)
+      .filter((p) => p.length >= 2).map((p) => [p[0], p.slice(1)]);
+    const steps = [[first.piece.area, first.piece.moves?.[0]?.path ?? []], ...legs]
+      .filter(([, path]) => path.length).slice(0, SHARES.length);
+    const at = [];
+    steps.forEach(([area, path], i) => {
+      const [gone, days] = SHARES[i];
+      const began = plus(today, -gone);
+      const key = i === 0 ? first.piece.key : `smoke-${i}`;
+      const mark = i === 0 ? first
+        : structuredClone({ ...first, name: `Smoke group ${i}`, key,
+          piece: { ...first.piece, key, moves: [] } });
+      const due = plus(began, days);
+      Object.assign(mark.piece, { area, under_way: {
+        path, step_began: began, step_due: due, step_days: days,
+        arrives: plus(due, path.length - 1),
+      } });
+      if (i > 0) rv.map.marks.push(mark);
+      at.push({ key, name: mark.name, from: area.key, to: path[0].key, into: path[0].name,
+        gone, days });
+    });
+    window.__underWayAt = at;
+  };
+  const walk = (o) => {
+    if (!o || typeof o !== 'object') return;
+    if (o.clock?.world_date && Array.isArray(o.map?.marks)) { patch(o); return; }
+    for (const v of Object.values(o)) walk(v);
+  };
+  const real = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const resp = await real(...args);
+    const url = String(args[0]?.url ?? args[0]);
+    const json = (resp.headers.get('content-type') ?? '').includes('json');
+    if (!url.includes('/api/') || !json) return resp;
+    const body = await resp.clone().json();
+    walk(body);
+    const { status, statusText, headers } = resp;
+    return new Response(JSON.stringify(body), { status, statusText, headers });
+  };
+})();"""
+
+PLACES_JS = """() => {
+  // where each piece put under way is drawn, as a share of the way between its areas' labels
+  const svg = document.querySelector('svg.rl-tm-svg');
+  const pt = (g) => (g ? [Number(g.dataset.x), Number(g.dataset.y)] : null);
+  const labels = [...svg.querySelectorAll('.rl-tm-label')];
+  const label = (k) => pt(labels.find((g) => g.dataset.area === k));
+  return (window.__underWayAt ?? []).map((w) => {
+    const g = [...svg.querySelectorAll('.rl-tm-mark')].find((m) => m.dataset.key === w.key);
+    const [a, b, at] = [label(w.from), label(w.to), pt(g)];
+    if (!a || !b || !at) return { ...w, drawn: false };
+    const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+    const len2 = dx * dx + dy * dy || 1;
+    const share = ((at[0] - a[0]) * dx + (at[1] - a[1]) * dy) / len2;
+    const off = Math.abs((at[0] - a[0]) * dy - (at[1] - a[1]) * dx) / Math.sqrt(len2);
+    return { ...w, drawn: true,
+      share: Math.round(share * 1000) / 1000, off: Math.round(off * 100) / 100,
+      tag: g.querySelector('text.rl-tm-tag')?.textContent ?? null,
+      gone_line: !!svg.querySelector(`.rl-tm-course[data-key="${w.key}"] polyline.rl-tm-gone`) };
+  });
+}"""
+
+MOVE_JS = """async (ms) => {
+  // the six pieces carried to the ends of their steps on a clock of world days, by the drawing's
+  // own hooks (the playback's); each frame's time is the gap between two frames
+  const { placeMark, worldClock } = await import('/js/map/motion.js');
+  const svg = document.querySelector('svg.rl-tm-svg');
+  const ways = window.__underWayAt ?? [];
+  return await new Promise((resolve) => {
+    const frames = [];
+    let last = null;
+    worldClock({ days: 6, msPerDay: ms / 6, onDay: (day) => {
+      const now = performance.now();
+      if (last !== null) frames.push(now - last);
+      last = now;
+      for (const w of ways) {
+        placeMark(svg, w.key, w.from, w.to, Math.min(1, (w.gone + day) / w.days));
+      }
+    }, onEnd: () => resolve(frames) });
+  });
+}"""
+
+WATCH_JS = """() => {
+  // the length of each order line drawn after now, in every frame for 2.5 s
+  // an order is new when its piece and goal are: a piece sent again keeps its order id and
+  // takes a new goal, and an order's holder may change in the same reply
+  const said = (g) => g.getAttribute('aria-label').split(':')[0];
+  const seen = new Set([...document.querySelectorAll('.rl-mk-order')].map(said));
+  const t0 = performance.now();
+  window.__drawn = [];
+  const step = () => {
+    const t = performance.now() - t0;
+    for (const g of document.querySelectorAll('svg.rl-tm-svg .rl-mk-order')) {
+      const l = g.querySelector('line');
+      if (seen.has(said(g)) || !l) continue;
+      const v = (a) => Number(l.getAttribute(a));
+      const length = Math.hypot(v('x2') - v('x1'), v('y2') - v('y1'));
+      window.__drawn.push([Math.round(t), Math.round(length * 100) / 100]);
+    }
+    if (t < 2500) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}"""
+
+ORDERS_JS = "() => [...document.querySelectorAll('.rl-mk-order')].map((g) => g.ariaLabel)"
+
+SHARE_SLACK = 0.02
+"""How far a piece's drawn share may sit from its days gone over its days (rounded points)."""
+DRAW_SLACK_MS = 150
+"""A course drawing itself may take this much past its 600 ms: the first and last frames' gaps."""
+
+
+def under_way_context(browser: object, state: dict, reduced: bool) -> tuple[object, Page]:
+    ctx = browser.new_context(  # type: ignore[attr-defined]
+        viewport={"width": SIZE[0], "height": SIZE[1]},
+        has_touch=PHONE,
+        is_mobile=PHONE,
+        storage_state=state,
+        reduced_motion="reduce" if reduced else "no-preference",
+        service_workers="block",
+    )
+    ctx.add_init_script(UNDER_WAY_JS)
+    return ctx, ctx.new_page()
+
+
+def placed(page: Page, report: dict, tag: str) -> list[dict]:
+    """Each piece put under way is drawn at its share of its step, with its tag."""
+    got = page.evaluate(PLACES_JS)
+    report[tag] = got
+    rs.check(f"{tag}: six pieces are put under way", len(got) == 6, json.dumps(got))
+    for w in got:
+        want = w["gone"] / w["days"]
+        rs.check(
+            f"{tag}: {w['name']} is drawn {w['gone']} of {w['days']} days along its step",
+            w["drawn"] and abs(w["share"] - want) <= SHARE_SLACK and w["off"] <= 1,
+            json.dumps(w),
+        )
+        words = f"day {max(1, w['gone'])} of {w['days']} into {w['into']}"
+        rs.check(f"{tag}: {w['name']} carries its tag", w.get("tag") == words, json.dumps(w))
+        rs.check(f"{tag}: {w['name']} shows the part travelled", w.get("gone_line"), json.dumps(w))
+    shares = {round(w["gone"] / w["days"], 3) for w in got if w["drawn"]}
+    rs.check(
+        f"{tag}: pieces stand at three or more shares of a step", len(shares) >= 3, str(shares)
+    )
+    return got
+
+
+def under_way(browser: object, state: dict, url: str, report: dict) -> None:
+    """Pieces under way drawn on their way, six moved by the playback's hooks, a course drawing
+    itself when a move is sent, and the same pieces standing still under reduced motion."""
+    ctx, page = under_way_context(browser, state, reduced=False)
+    rs.watch(page)
+    cdp = ctx.new_cdp_session(page)  # type: ignore[attr-defined]
+    page.goto(url)
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    page.wait_for_timeout(800)
+    got = placed(page, report, "mvs_placed")
+    rs.shoot(page, "mvs-01-under-way")
+    first = next((w for w in got if w["drawn"]), None)
+    if first:
+        spot = page.evaluate(
+            """(key) => { const g = [...document.querySelectorAll('svg.rl-tm-svg .rl-tm-mark')]
+              .find((m) => m.dataset.key === key)?.querySelector('.rl-tm-hit')
+              ?.getBoundingClientRect();
+              return g ? [g.left + g.width / 2, g.top + g.height / 2] : null; }""",
+            first["key"],
+        )
+        if spot:
+            detail(page, "mvs-01-under-way-detail", spot[0], spot[1])
+    cdp.send("Emulation.setCPUThrottlingRate", {"rate": SLOWDOWN})
+    try:
+        frames = page.evaluate(MOVE_JS, 5000)
+    finally:
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 1})
+    ends = page.evaluate(PLACES_JS)
+    report["mvs_frames"] = {"slowdown": SLOWDOWN, "count": len(frames), "p95_ms": p95(frames)}
+    rs.check(
+        "the playback's clock carries all six pieces to the areas they enter",
+        len(ends) == 6 and all(w["drawn"] and abs(w["share"] - 1) <= SHARE_SLACK for w in ends),
+        json.dumps(ends),
+    )
+    if PHONE:
+        rs.check(
+            "while six pieces move the phone's 95th percentile frame time is at or under "
+            f"{FRAME_LINE_MS} ms",
+            0 < p95(frames) <= FRAME_LINE_MS,
+            str(p95(frames)),
+        )
+    else:
+        rs.check(
+            "frames were drawn while six pieces moved", len(frames) > 5000 / 200, str(len(frames))
+        )
+    # a move sent from the keyboard: its line draws itself from the piece to its goal, once
+    page.reload()
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    page.wait_for_timeout(800)
+    name = page.evaluate(FOCUS_JS, None)
+    rs.check("mvs: a piece not under way can take the focus", name is not None)
+    if name is not None:
+        page.keyboard.press("Enter")
+        page.locator(".rl-map-target").first.wait_for(timeout=10_000)
+        before = page.evaluate(ORDERS_JS)
+        report["mvs_orders_before"] = before
+        # a goal the piece is not already sent to, so that the move makes a line of its own
+        goals = [said.split(" to ", 1)[1].split(":")[0] for said in before if " to " in said]
+        chip = page.locator(".rl-pup-chip")
+        send = chip.get_by_role("button", name="Send it")
+        for steps in range(1, 7):
+            page.evaluate(FOCUS_JS, name)
+            for _ in range(steps):
+                page.keyboard.press("ArrowRight")
+            page.keyboard.press("Enter")
+            send.first.wait_for(timeout=10_000)
+            if not any(goal in chip.first.inner_text() for goal in goals):
+                break
+            chip.get_by_role("button", name="Back").first.click()
+            page.wait_for_timeout(300)
+        page.evaluate(WATCH_JS)
+        send.first.press("Enter")
+        for _ in range(100):  # the page's policy forbids eval, so wait_for_function cannot run
+            if page.evaluate("() => (window.__drawn ?? []).length > 0"):
+                break
+            page.wait_for_timeout(100)
+        page.wait_for_timeout(150)
+        page.screenshot(path=str(rs.OUT / f"mvs-02-course-drawing-{SIZE[0]}x{SIZE[1]}.png"))
+        page.wait_for_timeout(2600)
+        drawn = page.evaluate("() => window.__drawn")
+        report["mvs_course"] = drawn
+        report["mvs_orders"] = page.evaluate(ORDERS_JS)
+        full = max((d[1] for d in drawn), default=0)
+        whole = next((d[0] for d in drawn if d[1] >= full - 0.5), None)
+        rs.check(
+            "a move sent draws its line from the piece to its goal",
+            bool(drawn) and drawn[0][1] < full * 0.5 and full > 0,
+            json.dumps(drawn[:8]),
+        )
+        rs.check(
+            "the line is whole within 600 ms of its first frame",
+            whole is not None and whole - drawn[0][0] <= 600 + DRAW_SLACK_MS,
+            json.dumps(drawn[:40]),
+        )
+        rs.shoot(page, "mvs-02-course-drawn")
+    ctx.close()
+    ctx, page = under_way_context(browser, state, reduced=True)
+    rs.watch(page)
+    page.goto(url)
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    page.wait_for_timeout(800)
+    placed(page, report, "mvs_reduced")
+    moving = page.evaluate("() => document.getAnimations().length")
+    rs.check("under reduced motion nothing on the map moves", moving == 0, str(moving))
+    rs.shoot(page, "mvs-03-reduced-motion")
+    ctx.close()
+
+
 def record(browser: object, state: dict, url: str) -> None:
     """The same ten seconds of pan and pinch, not slowed, as a recording."""
     ctx = browser.new_context(  # type: ignore[attr-defined]
@@ -1030,6 +1308,10 @@ def main() -> int:
             offline_shell(browser, state, url, report)  # type: ignore[arg-type]
         except Exception as exc:
             rs.problems.append(f"the offline shell: {exc}")
+        try:
+            under_way(browser, state, url, report)  # type: ignore[arg-type]
+        except Exception as exc:
+            rs.problems.append(f"pieces under way: {exc}")
         record(browser, state, url)  # type: ignore[arg-type]
         browser.close()
     report["checks"] = rs.checks

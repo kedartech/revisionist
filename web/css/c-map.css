@@ -152,6 +152,9 @@
 .rl-tm-ghost { opacity: 0.75; }
 .rl-tm-ghost .rl-mk-shape { fill: var(--surface); stroke-dasharray: 3 2; }
 .rl-tm-path { fill: none; }
+/* a piece under way: drawn on its step with a tag; the part of the step travelled is a fainter line */
+.rl-tm-gone { fill: none; stroke: var(--info); stroke-width: 2px; opacity: 0.4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rl-tm-tag { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 @media (prefers-reduced-motion: reduce) { .rl-tm-slide { animation: none; transition: none; } }
 
 /* the map full screen, with its controls on the map (MFS): in the map-first room the map's

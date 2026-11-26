@@ -3,8 +3,11 @@
 // Every own piece that moved moves at once, each for the days its step took; a refused step
 // stops short; a battle's rounds, a territory changing hands, a piece raised and every paper,
 // order and stake line come on their own days. Several wakes play in turn and end on the "when
-// you come back" line. Reduced motion shows every frame still; Skip ends it. Nothing here reads
-// or writes storage, and nothing touches the page on import.
+// you come back" line. A wake whose steps move the seat's own groups or change a count plays the
+// floor: each group's token shifting and each count changing on its day, drawn from those steps
+// alone; with pieces moving too, the map plays first and the floor second. Reduced motion shows
+// every frame still; Skip ends it. Nothing here reads or writes storage, and nothing touches the
+// page on import.
 
 import { h, svg } from '../dom.js';
 import { fillIn, placeMark, worldClock } from '../map/motion.js';
@@ -28,7 +31,12 @@ const dayOf = (iso) => (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}/.test(iso
 const isoOf = (n) => new Date(Math.floor(n + 1e-6) * DAY).toISOString().slice(0, 10);
 
 /** The order a wake's steps play in on one day: what moved against the seat, then its own, then the stakes. */
-export const PLAY_GROUPS = Object.freeze({ paper: 0, holder: 0, round: 1, order: 1, move: 1, halt: 1, raised: 1, held: 1, stake: 2 });
+export const PLAY_GROUPS = Object.freeze({ paper: 0, holder: 0, round: 1, order: 1, move: 1, halt: 1, raised: 1, held: 1, group: 1, count: 1, stake: 2 });
+
+/** The steps the floor plays: one of the seat's own groups moved, a count on its measures changed. */
+const onFloor = (step) => step.kind === 'group' || step.kind === 'count';
+/** The steps the map plays: a piece moving, held, raised, a territory changing hands, a day's fighting. [proposed] */
+const onMap = (step) => ['move', 'halt', 'raised', 'holder', 'round'].includes(step.kind);
 
 /**
  * A wake's steps in play order, each group in the order the server gave; a kind not named in
@@ -47,7 +55,7 @@ function startOf(step) {
   const on = dayOf(step.on);
   if (on === null) return null;
   if (step.kind === 'move') return on - (Number.isInteger(step.days) && step.days > 0 ? step.days : 1);
-  return step.kind === 'halt' ? on - 1 : on;
+  return step.kind === 'halt' || onFloor(step) ? on - 1 : on;
 }
 
 /**
@@ -75,21 +83,30 @@ function roundSteps(battles, span) {
 
 /**
  * Every page's steps, oldest wake first, each wake in the order of its days (`playOrder` within a
- * day), with the rounds of the seat's own `battles` fought in its days: `[{ page, step }]`.
+ * day), with the rounds of the seat's own `battles` fought in its days: `[{ page, step, board }]`.
+ * `board` is where a frame plays: `floor` for a wake with group moves or count changes and
+ * nothing for the map, else `map`; a wake with both plays its map's frames, then its floor's.
  */
 export function playFrames(pages, battles = []) {
   const sorted = (Array.isArray(pages) ? pages : []).filter((p) => Number.isInteger(p?.number)).sort((a, b) => a.number - b.number);
   const day = (s) => dayOf(s.on) ?? -Infinity;
+  const byDay = (page, steps, board) => steps.map((step, i) => ({ step, i }))
+    .sort((a, b) => day(a.step) - day(b.step) || PLAY_GROUPS[a.step.kind] - PLAY_GROUPS[b.step.kind] || a.i - b.i)
+    .map(({ step }) => ({ page, step, board }));
   return sorted.flatMap((page) => {
     const steps = playOrder(page.steps);
     if (!steps.length) return [];
-    return [...steps, ...roundSteps(battles, wakeDays(page))].map((step, i) => ({ step, i }))
-      .sort((a, b) => day(a.step) - day(b.step) || PLAY_GROUPS[a.step.kind] - PLAY_GROUPS[b.step.kind] || a.i - b.i)
-      .map(({ step }) => ({ page, step }));
+    const all = [...steps, ...roundSteps(battles, wakeDays(page))];
+    const floor = all.filter(onFloor);
+    if (!floor.length) return byDay(page, all, 'map');
+    if (!all.some(onMap)) return byDay(page, all, 'floor');
+    return [...byDay(page, all.filter((s) => !onFloor(s)), 'map'), ...byDay(page, floor, 'floor')];
   });
 }
 
 const words = (s) => String(s ?? '').replaceAll('_', ' ');
+/** How a group's move reached the public, as the home sheet words it. */
+const REACH = Object.freeze({ felt: 'felt at home', reported: 'by report' });
 
 /** One plain line for `step`, naming areas, pieces and orders as the seat's `map` and `record` do. */
 export function stepLine(step, { map, record } = {}) {
@@ -111,6 +128,11 @@ export function stepLine(step, { map, record } = {}) {
     case 'raised': return `${step.name} was raised at ${step.place}`;
     case 'round': return `A day's fighting at ${area(step.area) ?? step.name}`;
     case 'stake': return `${step.name}: ${words(step.what)}`;
+    case 'group': return `${step.name} ${step.change < 0 ? `down ${-step.change}` : `up ${step.change}`}: ${step.why}${REACH[step.reach] ? `, ${REACH[step.reach]}` : ''}`;
+    case 'count': {
+      const was = pair(step.was);
+      return `${step.title}, ${words(step.vote)} vote: ${step.yeas} yea and ${step.nays} nay${was ? `, from ${was[0]} and ${was[1]}` : ''}`;
+    }
     // one of the seat's own held orders, held or ended: the server writes the line from the seat's view
     case 'held': return text(step.line) ?? '';
     default: return '';
@@ -179,15 +201,120 @@ function legAt(legs, t) {
   return { leg: now, share: gone * now.stop };
 }
 
+const voteKey = (step) => `${step.order_id}:${step.vote}`;
+const pair = (v) => (Array.isArray(v) && v.length === 2 ? v.map((n) => Number(n) || 0) : null);
+/** A step's figure before and after it: a group's support, a vote's [yeas, nays]. */
+const before = (s) => (s.kind === 'group' ? s.support - s.change : pair(s.was) ?? [s.yeas, s.nays]);
+const after = (s) => (s.kind === 'group' ? s.support : [s.yeas, s.nays]);
+const keyOf = (s) => (s.kind === 'group' ? s.group : voteKey(s));
+/** `n` of `total` as a share of a 100-wide box. */
+const share = (n, total) => (total > 0 ? Math.max(0, Math.min(100, (100 * n) / total)) : 0);
+const round1 = (n) => Math.round(n * 10) / 10;
+
+/**
+ * The floor the `frames` play on, drawn from their group and count steps alone: each group a
+ * token on its line of support, and each vote a track, yeas from the left and nays from the
+ * right, every one standing where its first step found it. Null when no frame is on the floor.
+ * `{ fig, set(key, value, said), moving(key, on), end() }`; `end()` stands each where the feed left it.
+ */
+function playFloor(frames) {
+  const steps = frames.filter((f) => f.board === 'floor' && onFloor(f.step)).map((f) => f.step);
+  if (!steps.length) return null;
+  const parts = new Map();
+  for (const s of steps) {
+    const part = parts.get(keyOf(s)) ?? { step: s, first: before(s), last: null, total: 0 };
+    part.last = after(s);
+    if (s.kind === 'count') part.total = Math.max(part.total, s.yeas + s.nays, before(s)[0] + before(s)[1]);
+    parts.set(keyOf(s), part);
+  }
+  const tokens = [...parts.values()].filter((p) => p.step.kind === 'group').map((p) => {
+    p.mark = svg('rect', { class: 'rl-plb-mark', y: 0, width: 3, height: 10 });
+    p.fig = h('span', { class: 'rl-plb-tfig' });
+    p.el = h('li', { class: 'rl-plb-token', 'data-group': p.step.group },
+      h('span', { class: 'rl-plb-tname' }, p.step.name),
+      svg('svg', { class: 'rl-plb-line', viewBox: '0 0 100 10', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+        svg('rect', { class: 'rl-plb-lane', x: 0, y: 4, width: 100, height: 2 }),
+        [20, 40, 60, 80].map((x) => svg('line', { class: 'rl-plb-tick', x1: x, x2: x, y1: 2, y2: 8 })), p.mark),
+      p.fig);
+    return p.el;
+  });
+  const tracks = [...parts.values()].filter((p) => p.step.kind === 'count').map((p) => {
+    p.yea = svg('rect', { class: 'rl-plb-yea', x: 0, y: 0, height: 10 });
+    p.nay = svg('rect', { class: 'rl-plb-nay', y: 0, height: 10 });
+    p.bar = svg('svg', { class: 'rl-plb-track', viewBox: '0 0 100 10', preserveAspectRatio: 'none', role: 'img', focusable: 'false' },
+      svg('rect', { class: 'rl-plb-open', x: 0, y: 0, width: 100, height: 10 }), p.yea, p.nay);
+    p.fig = h('p', { class: 'rl-plb-tally' });
+    p.el = h('div', { class: 'rl-plb-vote', 'data-vote': keyOf(p.step) },
+      h('p', { class: 'rl-plb-vname' }, `${p.step.title}, ${words(p.step.vote)} vote`), p.bar, p.fig);
+    return p.el;
+  });
+  // `value` places the mark or the track, which may stand between two figures the feed sent;
+  // `said` is the figure the feed sent that is written beside it
+  const set = (key, value, said = value) => {
+    const p = parts.get(key);
+    if (!p) return;
+    if (p.step.kind === 'group') {
+      const v = Math.max(0, Math.min(100, value));
+      p.el.setAttribute('data-support', String(round1(v)));
+      p.mark.setAttribute('x', String(round1(Math.min(97, Math.max(0, v - 1.5)))));
+      p.fig.textContent = String(said);
+      p.el.setAttribute('aria-label', `${p.step.name}: support ${said} of 100`);
+      return;
+    }
+    const [y, n] = value;
+    p.el.setAttribute('data-count', `${round1(y)},${round1(n)}`);
+    p.yea.setAttribute('width', String(round1(share(y, p.total))));
+    p.nay.setAttribute('x', String(round1(100 - share(n, p.total))));
+    p.nay.setAttribute('width', String(round1(share(n, p.total))));
+    p.fig.textContent = `${said[0]} yea · ${said[1]} nay`;
+    p.bar.setAttribute('aria-label', `${p.step.title}: ${said[0]} yea and ${said[1]} nay`);
+  };
+  for (const [key, p] of parts) set(key, p.first);
+  const fig = h('figure', { class: 'rl-plb-floor', 'aria-label': 'How your groups and counts moved' },
+    tokens.length ? [h('h3', { class: 'rl-plb-fh' }, 'Your groups at home'), h('ul', { class: 'rl-plb-tokens' }, tokens)] : null,
+    tracks.length ? [h('h3', { class: 'rl-plb-fh' }, 'The counts on your measures'), tracks] : null);
+  const moving = (key, on) => parts.get(key)?.el.classList.toggle('rl-plb-moving', on);
+  const end = () => { for (const [key, p] of parts) { set(key, p.last); moving(key, false); } };
+  return { fig, set, moving, end };
+}
+
+/**
+ * Each part's changes in a floor phase's `steps`, by key: [{ from, to, start, end }], each over
+ * its day, from the figure the step says it moved from to the one it moved to.
+ */
+function floorLegs(steps) {
+  const out = new Map();
+  for (const s of steps) {
+    if (!onFloor(s) || dayOf(s.on) === null) continue;
+    out.set(keyOf(s), [...(out.get(keyOf(s)) ?? []), { from: before(s), to: after(s), start: startOf(s), end: dayOf(s.on) }]);
+  }
+  return out;
+}
+
+/**
+ * Where a floor part on `legs` stands on world day `t`: { value, said, moving }; `said` is the
+ * figure the feed sent that holds until the change's day is over.
+ */
+function floorAt(legs, t) {
+  const now = legs.filter((l) => l.start <= t).at(-1);
+  if (!now) return { value: legs[0].from, said: legs[0].from, moving: false };
+  const gone = Math.min(1, (t - now.start) / Math.max(1e-6, now.end - now.start));
+  const mix = (a, b) => a + (b - a) * gone;
+  const value = Array.isArray(now.to) ? now.to.map((b, i) => mix(now.from[i], b)) : mix(now.from, now.to);
+  return { value, said: gone >= 1 ? now.to : now.from, moving: gone > 0 && gone < 1 };
+}
+
 /**
  * The wake player: `<section class="rl-plb">` with the seat's map (`map` over `shapes`, a
  * territory map only), the frames of `pages` (`playFrames`, with the rounds of the seat's own
  * `battles`, each wake headed by its number and day), the `comeBack` line last, and Skip. With
  * motion, each wake runs as a clock of world days (`msPerDay`, on `clock`: { now, frame }, the
  * page's by default) and the next follows it; under `reduced` motion every frame stands still
- * at once. Skip, or the last wake's end, shows every frame with every piece where the map stands
- * it. Skip, and "To the map" after it, call `onEnd()`; with no `onEnd` (the What you missed
- * sheet, which has its own way out) the button goes once all is shown. Null when no page has a
+ * at once. A wake's frames on the floor (`playFrames`) play on the floor's drawing, in place of
+ * the map, on the same clock. Skip, or the last wake's end, shows every frame with every piece
+ * where the map stands it and every group and count where the feed left it. Skip, and "To the
+ * map" after it, call `onEnd()`; with no `onEnd` (the What you missed sheet, which has its own
+ * way out) the button goes once all is shown. Null when no page has a
  * step. Nothing here reads or writes storage.
  */
 export function wakePlayer({ pages, map, shapes, record, comeBack, battles, reduced = false, clock, onEnd } = {}) {
@@ -195,13 +322,17 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, battles, redu
   if (!frames.length) return null;
   const fig = playMap(map, shapes, movers(frames));
   const drawing = fig?.querySelector('svg') ?? null;
+  const floor = playFloor(frames);
   const items = [];
+  // each wake plays as one phase, or two when its map plays first and its floor second
   const wakes = [];
-  for (const { page, step } of frames) {
+  for (const { page, step, board } of frames) {
     if (wakes.at(-1)?.page !== page) {
       const head = h('li', { class: 'rl-plb-wake', 'data-wake': String(page.number) }, page.opened ? `Wake ${page.number}: ${page.opened}` : `Wake ${page.number}`);
       items.push(head);
-      wakes.push({ page, head, steps: [], span: wakeDays(page) });
+      wakes.push({ page, head, board, steps: [], span: wakeDays(page) });
+    } else if (wakes.at(-1).board !== board) {
+      wakes.push({ ...wakes.at(-1), board, steps: [] });
     }
     const li = h('li', { class: 'rl-plb-step', 'data-kind': step.kind, 'data-wake': String(page.number) },
       h('span', { class: 'rl-plb-on' }, dayWords(step.on)),
@@ -219,7 +350,7 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, battles, redu
       svg('rect', { class: 'rl-plb-clock-track', x: 0, y: 0, width: 100, height: 4 }), bar));
   const btn = h('button', { type: 'button', class: 'rl-plb-skip' }, 'Skip');
   const el = h('section', { class: `rl-plb${reduced ? ' still' : ''}`, 'aria-label': 'Each wake you have not watched, step by step' },
-    fig, day, h('ol', { class: 'rl-plb-frames' }, items), now, h('div', { class: 'rl-plb-actions' }, btn));
+    fig, floor?.fig, day, h('ol', { class: 'rl-plb-frames' }, items), now, h('div', { class: 'rl-plb-actions' }, btn));
   const show = (li, on) => (on ? li.removeAttribute('hidden') : li.setAttribute('hidden', ''));
   const keyed = (sel, key, attr = 'data-key') => (drawing ? [...drawing.querySelectorAll(sel)].filter((g) => g.getAttribute(attr) === key) : []);
   // what the playback changes on the drawing, put back as the map stands it between wakes and at the end
@@ -251,6 +382,8 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, battles, redu
     for (const li of items) show(li, true);
     for (const li of items) li.removeAttribute('aria-current');
     light(fig, null);
+    floor?.end();
+    for (const f of [fig, floor?.fig]) if (f) show(f, true);
     day?.remove();
     // in a sheet that has its own way out (no onEnd), nothing is left for the button to do
     if (onEnd) btn.textContent = 'To the map';
@@ -263,9 +396,12 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, battles, redu
     if (!wake) { finish(); return; }
     restore();
     show(wake.head, true);
+    if (fig) show(fig, wake.board === 'map');
+    if (floor) show(floor.fig, wake.board === 'floor');
     const span = wake.span ?? { start: 0, end: 0 };
     const total = Math.max(1, span.end - span.start);
     const legs = legsOf(wake.steps.map((s) => s.step));
+    const shifts = floorLegs(wake.steps.map((s) => s.step));
     const raised = wake.steps.filter((s) => s.step.kind === 'raised' && s.day !== null);
     for (const key of [...legs.keys(), ...raised.map((s) => s.step.piece)]) touch(key);
     for (const s of raised) marks.get(s.step.piece)?.g.setAttribute('visibility', 'hidden');
@@ -280,6 +416,11 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, battles, redu
         const g = marks.get(key)?.g;
         g?.classList.toggle('rl-plb-moving', share > 0 && share < leg.stop);
         g?.classList.toggle('rl-plb-refused', leg.halt && share >= leg.stop);
+      }
+      for (const [key, partLegs] of shifts) {
+        const { value, said, moving } = floorAt(partLegs, t);
+        floor.set(key, value, said);
+        floor.moving(key, moving);
       }
       let latest = null;
       for (const s of wake.steps) {

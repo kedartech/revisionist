@@ -342,3 +342,102 @@ test('a wake with no steps plays nothing', () => {
   assert.equal(player([page(3, [])]), null);
   assert.equal(player([]), null);
 });
+
+// PBH: when a wake's steps hold the seat's own groups moving or a count changing, the playback
+// plays the floor: the groups' tokens shifting and the counts changing, from the feed alone
+
+const grp = (on, group, name, change, support, why = 'a battle lost', reach = 'felt') => ({ kind: 'group', on, group, name, change, support, why, reach });
+const cnt = (on, yeas, nays, was, vote = 'house') => ({ kind: 'count', on, order_id: 'o-9', key: 'harbour_bill', title: 'The Harbour Bill', vote, yeas, nays, was });
+// the Smiths fed at 47 though the seat's home block holds 50: the floor reads the feed, never the home block
+const POLITICAL = [
+  paper('1900-04-02', 'The harbour count, 1 April'),
+  grp('1900-04-03', 'smiths', "The Smiths' Guild", -3, 47),
+  cnt('1900-04-03', 38, 62, [40, 60]),
+  grp('1900-04-05', 'greens', 'The Greens', 2, 62, 'a statement', 'reported'),
+  cnt('1900-04-05', 41, 59, [38, 62]),
+];
+const floorOf = (el) => el.querySelector('figure.rl-plb-floor');
+const support = (el, g) => Number(floorOf(el).querySelector(`.rl-plb-token[data-group="${g}"]`).getAttribute('data-support'));
+const tally = (el) => words(floorOf(el).querySelector('.rl-plb-vote .rl-plb-tally'));
+const shownFig = (el, cls) => { const f = el.querySelector(`figure.${cls}`); return Boolean(f) && !f.hasAttribute('hidden'); };
+
+test('PBH rule 1: a wake of group moves and counts with no piece moving plays the floor, in the order sent', () => {
+  installDom();
+  const c = clock();
+  const el = player([page(5, POLITICAL)], { reduced: false, clock: c });
+  assert.ok(floorOf(el), 'the floor is drawn');
+  assert.ok(shownFig(el, 'rl-plb-floor'));
+  assert.ok(!shownFig(el, 'rl-plb-map'), 'the map does not play a wake with nothing moving on it');
+  assert.deepEqual(kinds(el), ['paper', 'group', 'count', 'group', 'count']);
+  // only the groups and the vote the feed carried, each where the feed puts it before its move
+  assert.deepEqual(floorOf(el).querySelectorAll('.rl-plb-token').map((t) => t.getAttribute('data-group')), ['smiths', 'greens']);
+  assert.ok(!words(floorOf(el)).includes('The Greys'));
+  assert.deepEqual([support(el, 'smiths'), support(el, 'greens')], [50, 60]);
+  assert.equal(tally(el), '40 yea · 60 nay');
+  // 7 days to 5 April: the Smiths move over 3 April, the Greens over 5 April
+  c.flush(play.DAY_MS * 4.5);
+  assert.ok(support(el, 'smiths') < 50 && support(el, 'smiths') > 47, 'the token shifts over its day');
+  assert.equal(support(el, 'greens'), 60);
+  // while a token shifts and a track moves, the figures written are the ones the feed sent, never one between
+  assert.equal(words(floorOf(el).querySelector('.rl-plb-token[data-group="smiths"] .rl-plb-tfig')), '50');
+  assert.equal(tally(el), '40 yea · 60 nay');
+  c.flush(play.DAY_MS * 0.6);
+  assert.equal(support(el, 'smiths'), 47);
+  assert.equal(tally(el), '38 yea · 62 nay');
+  assert.equal(support(el, 'greens'), 60);
+  assert.equal(el.querySelector('li[aria-current="step"]').getAttribute('data-kind'), 'count');
+  c.flush(play.DAY_MS * 2);
+  assert.equal(support(el, 'greens'), 62);
+  assert.equal(tally(el), '41 yea · 59 nay');
+});
+
+test('PBH: a group move and a count change read as plain lines', () => {
+  installDom();
+  const lines = frames(player([page(5, POLITICAL)])).map((li) => words(li.querySelector('.rl-plb-cap')));
+  assert.deepEqual(lines.slice(1, 3), [
+    "The Smiths' Guild down 3: a battle lost, felt at home",
+    'The Harbour Bill, house vote: 38 yea and 62 nay, from 40 and 60',
+  ]);
+  assert.equal(lines[3], 'The Greens up 2: a statement, by report');
+});
+
+test('PBH rule 2: a wake with pieces moving and the floor moving plays the map first and the floor second', () => {
+  installDom();
+  const c = clock();
+  const both = page(6, [grp('1900-04-03', 'smiths', "The Smiths' Guild", -3, 47), cnt('1900-04-03', 38, 62, [40, 60]), move('1900-04-07', LEVY, 'norra_plain', 'norra_hills')]);
+  const el = player([both], { reduced: false, clock: c });
+  assert.deepEqual(kinds(el), ['move', 'group', 'count'], 'the map\'s steps first, though the group moved earlier');
+  assert.ok(shownFig(el, 'rl-plb-map'));
+  assert.ok(!shownFig(el, 'rl-plb-floor'));
+  c.flush(play.DAY_MS * 7 + 10); // the map's clock ends, the floor's begins
+  assert.ok(!frames(el)[0].hasAttribute('hidden'));
+  assert.ok(frames(el)[1].hasAttribute('hidden'), 'the group has not played yet');
+  assert.ok(shownFig(el, 'rl-plb-floor'));
+  assert.ok(!shownFig(el, 'rl-plb-map'));
+  assert.equal(support(el, 'smiths'), 50);
+  c.flush(play.DAY_MS * 4);
+  assert.equal(support(el, 'smiths'), 47);
+  assert.equal(tally(el), '38 yea · 62 nay');
+  assert.ok(!frames(el)[2].hasAttribute('hidden'));
+});
+
+test('PBH rule 3: a wake with no group move and no count change plays as before, with no floor', () => {
+  installDom();
+  const el = player([TWO_MOVES], { reduced: false, clock: clock() });
+  assert.equal(floorOf(el), null);
+  assert.ok(shownFig(el, 'rl-plb-map'));
+});
+
+test('PBH: reduced motion and Skip show the floor where the feed leaves it, with nothing timed', () => {
+  installDom();
+  const c = clock();
+  const still = player([page(5, POLITICAL)], { reduced: true, clock: c });
+  assert.equal(c.waiting(), 0);
+  assert.deepEqual([support(still, 'smiths'), support(still, 'greens')], [47, 62]);
+  assert.equal(tally(still), '41 yea · 59 nay');
+  const both = page(6, [...POLITICAL, move('1900-04-07', LEVY, 'norra_plain', 'norra_hills')]);
+  const el = player([both], { reduced: false, clock: clock() });
+  buttons(el, 'Skip')[0].click();
+  assert.ok(shownFig(el, 'rl-plb-map') && shownFig(el, 'rl-plb-floor'), 'both stand once all is shown');
+  assert.deepEqual([support(el, 'smiths'), support(el, 'greens')], [47, 62]);
+});

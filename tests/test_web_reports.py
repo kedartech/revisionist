@@ -207,7 +207,7 @@ def test_the_map_block_carries_each_arrived_report(tmp_path: Path) -> None:
         "document": doc_id,
         "ring": ["the_gulf"],
     }
-    assert set(r) == set(api.MapReport.__annotations__)
+    assert set(r) == api.MapReport.__required_keys__  # ``picture`` only with kinds_in_battle on
     assert r["key"] != m.report.key  # the core key never leaves the server
 
 
@@ -469,6 +469,6 @@ def test_the_seat_fixture_carries_a_reports_map_in_the_snapshot_shape(tmp_path: 
     # ``weather`` comes only with the weather rule: tests/test_web_piece_kinds.py checks it
     assert set(fixture) == set(api.SeatMap.__annotations__) - {"weather"}
     reports = fixture["reports"]
-    assert reports and all(set(r) == set(api.MapReport.__annotations__) for r in reports)
+    assert reports and all(set(r) == api.MapReport.__required_keys__ for r in reports)
     sources = get_args(api.MapReport.__annotations__["source"])
     assert set(sources) == {s.value for s in Source}

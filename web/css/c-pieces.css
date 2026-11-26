@@ -1,0 +1,8 @@
+/* A picture for every kind of piece (KPC): one filled outline in the side's one colour, inside the
+   frame that says whose it is; on a known mark's filled frame it takes the surface, as a glyph does. */
+.rl-mk-pic { fill: var(--side); stroke: none; }
+.rl-c-known .rl-mk-pic { fill: var(--surface); }
+
+/* A piece's mark beside its name in a list or on a sheet, drawn at the map's own size. */
+.rl-pc-swatch { display: inline-block; flex: none; vertical-align: middle; margin-inline-end: var(--space-2); overflow: visible; cursor: default; }
+.rl-bt-who .rl-pc-swatch { margin-block: -0.4rem; }

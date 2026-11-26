@@ -13,7 +13,7 @@ import {
   BATTLE_CONTINGENCIES, BATTLE_DECISIONS, LABEL_PX, MIN_MARK_PX, MIN_TAP_PX, battleDay, battleRangePips, battleRangeWords,
   contingencyWord, decisionInForce, decisionWord, fallBackAreas, newsBattles, pieceForm, pipsOf, shortDate, stepsWord,
 } from '../realism-rules.js';
-import { pipGlyph } from './realism-map.js';
+import { markSwatch, pipGlyph } from './realism-map.js';
 import { bar } from './realism-marks.js';
 import { oddsAsker } from './realism-odds.js';
 import { orderChip, orderLines } from './realism-orders.js';
@@ -94,14 +94,21 @@ function pipsInline(pips, cls, label) {
     pipGlyph(pips, 30, 0));
 }
 
+/** The seat's own piece `name` drawn with its mark as the map draws it, when the map holds its mark. */
+function pieceNamed(rv, name) {
+  const mark = (rv.map?.marks ?? []).find((m) => m.side === 'own' && m.name === name);
+  return [mark ? markSwatch(mark) : null, name];
+}
+
 /** The two sides: the seat's pieces there and strength as pips; the enemy as a range from its papers. */
-function sidesBlock(b) {
+function sidesBlock(rv, b) {
   const own = pipsOf({ domain: 'land', strength: b.strength });
   const range = battleRangePips(b);
+  const pieces = b.pieces ?? [];
   return h('div', { class: 'rl-bt-sides' },
     h('div', { class: 'rl-bt-side rl-bt-own' },
       h('p', { class: 'rl-bt-cap' }, 'Yours'),
-      h('p', { class: 'rl-bt-who' }, (b.pieces ?? []).map((p) => p.name).join(', ') || 'Your side'),
+      h('p', { class: 'rl-bt-who' }, pieces.length ? pieces.map((p, i) => [i ? ', ' : null, pieceNamed(rv, p.name)]) : 'Your side'),
       pipsInline(own, 'rl-bt-pips-own', `strength ${b.strength}`),
       h('p', { class: 'rl-bt-s' }, `Strength ${b.strength} · ${b.side === 'defender' ? 'defending' : 'attacking'}`)),
     h('div', { class: 'rl-bt-side rl-bt-enemy' },
@@ -202,7 +209,7 @@ export function battleSheet(rv, key, { today, act, pick, theatre = {}, onClose }
   }) : null;
   return h('section', { class: 'rl-bt-sheet', 'aria-labelledby': 'rl-bt-sheet-h', 'data-area': b.area },
     h('h3', { id: 'rl-bt-sheet-h' }, battleTitle(b, today ?? rv.clock?.world_date)),
-    sidesBlock(b),
+    sidesBlock(rv, b),
     h('h4', {}, 'Day by day'),
     roundsChart(b),
     daysTable(b, may),

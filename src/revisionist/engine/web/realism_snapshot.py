@@ -696,11 +696,12 @@ def _ring(
     return [a.key for a in shapes if a.area in reach]
 
 
-def map_reports(view: View) -> list[MapReport]:
+def map_reports(view: View, pictures: bool = False) -> list[MapReport]:
     """Each report of an enemy piece that has reached the seat's nation, by its core key
     (``protect_marks`` keys it again before it leaves). A report a named person made is
     sent only with its paper; a contact no one is named for comes with none. Read from
-    the view alone: a wrong report is sent as a right one."""
+    the view alone: a wrong report is sent as a right one. With ``pictures``, a report
+    that names a kind with a picture carries the picture's key."""
     nation = map_api.viewing_nation(view)
     board = view.map
     shapes: list[territory.Territory | territory.SeaZone] = (
@@ -731,6 +732,8 @@ def map_reports(view: View) -> list[MapReport]:
                 ring=_ring(view, r, shapes),
             )
         )
+        if pictures and kind is not None and kind.picture is not None:
+            out[-1]["picture"] = kind.picture.value
     return out
 
 
@@ -817,7 +820,7 @@ def seat_map(
     capitals = _capitals(view, people) if people is not None else []
     out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
     if reporting:
-        out["reports"] = map_reports(view)
+        out["reports"] = map_reports(view, pictures=state is not None and battle.kinds_count(state))
     map_api.protect_marks(out, view)
     if state is None:
         return out

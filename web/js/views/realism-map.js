@@ -4,8 +4,8 @@
 
 import { h, svg } from '../dom.js';
 import {
-  capitalLine, certaintyWord, landPath, mapBox, mapOrderLine, markKindWord, projection, sideLine, sightedLine, sortMarks,
-  stanceWords, theatreAreas, whereLine,
+  MIN_MARK_PX, capitalLine, certaintyWord, landPath, mapBox, mapOrderLine, markKindWord, projection, sideLine, sightedLine,
+  sortMarks, stanceWords, theatreAreas, whereLine,
 } from '../realism-rules.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -13,12 +13,68 @@ const r2 = (n) => Math.round(n * 100) / 100;
 /** A detachment's mark, as a share of a whole force's. */
 const DETACHED_SIZE = 0.7;
 
-/** The marker for a force: shape says side, fill and line say certainty, a glyph says kind. */
+/**
+ * The picture of each kind of piece, by the key the core's fixed list gives it [proposed]: one
+ * filled outline in a box from -12 to 12, every part wound the same way (a hole the other way),
+ * told apart by its outline alone.
+ */
+export const PICTURES = Object.freeze({
+  // a soldier with his rifle at his side
+  infantry: 'M0 -12A2.6 2.6 0 1 1 0 -6.8A2.6 2.6 0 1 1 0 -12ZM-4.5 -6H4.5L5.5 2H3L2.5 12H0.5L0 5L-0.5 12H-2.5L-3 2H-5.5Z'
+    + 'M7 -12H8.4V4H7Z',
+  // a tank from the side: tracks, turret, gun
+  armour: 'M-8.5 2H8.5A3.5 3.5 0 0 1 8.5 9H-8.5A3.5 3.5 0 0 1 -8.5 2ZM-9 -0.5H9L11 2H-11ZM-6 -4.5H4L6 -0.5H-7ZM4 -3.3H12V-1.9H4Z',
+  // a fort: battlements over an arched gate
+  garrison: 'M-10 12V-6H-7V-10H-3V-6H-1V-10H1V-6H3V-10H7V-6H10V12H3V6A3 3 0 0 0 -3 6V12Z',
+  // a horse's head
+  cavalry: 'M-2 -12L1 -8C7 -7 10 -1 10 6V12H-6L-2 4C-5 4 -8 6 -10 4L-11 1L-4 -6L-4 -10Z',
+  // a field gun: barrel, wheel round its hub, trail
+  artillery: 'M-4 -1L9 -9L10.5 -6.5L-2.5 1.5ZM-8 5A6 6 0 1 1 4 5A6 6 0 1 1 -8 5ZM-4 5A2 2 0 1 0 0 5A2 2 0 1 0 -4 5Z'
+    + 'M2 6L11 10V12L1 9Z',
+  // a battleship: hull, tower, a turret fore and aft
+  battle_fleet: 'M-12 3H12L9 9H-9ZM-4 -3H3V3H-4ZM-1.5 -9H0V-3H-1.5ZM5 0H9V3H5ZM9 0.6H12V1.8H9ZM-9 0H-5V3H-9ZM-12 0.6H-9V1.8H-12Z',
+  // a carrier: the flat deck over the hull, the island to one side
+  carrier: 'M-12 -1H12V1.5H-12ZM-10 1.5H10L8 8H-8ZM4 -7H7V-1H4ZM5 -10H6V-7H5Z',
+  // a submarine: the long hull, its tower and periscope
+  submarines: 'M-12 4C-12 0 -8 0 -6 0H8C11 0 12 2 12 4C12 6 11 8 8 8H-6C-8 8 -12 8 -12 4ZM-3 -5H3L4 0H-4ZM0 -10H1.2V-5H0Z',
+  // a cargo ship: crates amidships, the bridge and funnel aft
+  transports: 'M-12 2H12L10 9H-11ZM-9 -3H-4V2H-9ZM-3 -6H2V2H-3ZM5 -5H10V2H5ZM7 -9H9V-5H7Z',
+  // a river gunboat: low hull, the house, one tall stack, one gun
+  gunboat: 'M-11 4H11L8 9H-9ZM-6 -1H2V4H-6ZM-4 -10H-2V-1H-4ZM2 1H10V2.6H2Z',
+  // an ironclad: the sloped casemate on a low hull, its stack
+  ironclad: 'M-12 5H12L10 9H-10ZM-8 5L-4 -3H4L8 5ZM-1 -9H1.5V-3H-1Z',
+  // a single-engined fighter from above
+  fighters: 'M0 -12C1.2 -12 1.6 -10 1.6 -7V-3L11 0V3L1.6 2V7L5 9.5V11.5L0 10.5L-5 11.5V9.5L-1.6 7V2L-11 3V0L-1.6 -3V-7'
+    + 'C-1.6 -10 -1.2 -12 0 -12Z',
+  // a four-engined bomber from above: straight wings, the engines ahead of them
+  bombers: 'M-1.6 -12H1.6V-4H12V0H1.6V7H6V10H-6V7H-1.6V0H-12V-4H-1.6ZM-9 -7H-7V-4H-9ZM-5 -7H-3V-4H-5ZM3 -7H5V-4H3Z'
+    + 'M7 -7H9V-4H7Z',
+  // a sealed letter: the envelope with its flap
+  envoy: 'M-11 -7H11V7H-11ZM-9 -5L0 2L9 -5Z',
+});
+
+/** The picture key a mark carries, for its own piece's kind or as a report gives it; null when none the client draws. */
+export function pictureOf(mark) {
+  const key = mark.picture ?? mark.piece?.figures?.picture ?? null;
+  return key && Object.hasOwn(PICTURES, key) ? key : null;
+}
+
+/** A kind's picture drawn for a mark of `size` px, centred on (0, 0). */
+export function pictureGlyph(key, size) {
+  return svg('path', { d: PICTURES[key], transform: `scale(${r2((size * 0.72) / 24)})`, class: 'rl-mk-pic', 'data-picture': key });
+}
+
+/** The marker for a force: shape says side, fill and line say certainty, a picture (else a glyph) says kind. */
 export function forceGlyph(mark, size) {
   const r = size / 2;
   const shape = mark.side === 'own'
     ? svg('rect', { x: -r * 1.4, y: -r, width: r * 2.8, height: r * 2, class: 'rl-mk-shape' })
     : svg('path', { d: `M0 ${-r * 1.4}L${r * 1.4} 0L0 ${r * 1.4}L${-r * 1.4} 0Z`, class: 'rl-mk-shape' });
+  const tick = mark.certainty === 'stale'
+    ? svg('path', { d: `M${r * 1.2} ${-r * 1.6}l${r * 0.6} ${-r * 0.6}`, class: 'rl-mk-tick' })
+    : null;
+  const picture = pictureOf(mark);
+  if (picture) return [shape, pictureGlyph(picture, size), tick];
   const q = r * 0.6;
   const inner = {
     fleet: svg('path', { d: `M${-q} 0H${q}M${-q} ${q / 2}Q0 ${q * 1.2} ${q} ${q / 2}`, class: 'rl-mk-glyph' }),
@@ -27,10 +83,24 @@ export function forceGlyph(mark, size) {
     // an envoy: a sealed letter
     envoy: svg('path', { d: `M${-q} ${-q / 1.5}H${q}V${q / 1.5}H${-q}ZM${-q} ${-q / 1.5}L0 ${q / 4}L${q} ${-q / 1.5}`, class: 'rl-mk-glyph rl-mk-envoy' }),
   }[mark.kind];
-  const tick = mark.certainty === 'stale'
-    ? svg('path', { d: `M${r * 1.2} ${-r * 1.6}l${r * 0.6} ${-r * 0.6}`, class: 'rl-mk-tick' })
-    : null;
   return [shape, inner, tick];
+}
+
+/** The glyph of today for a piece's domain, where its mark names only a piece. */
+const DOMAIN_GLYPH = Object.freeze({ land: 'army', sea: 'fleet', air: 'air', envoy: 'envoy' });
+
+/**
+ * A piece's mark as a list or a sheet draws it beside its name: at the map's own size, one to
+ * one, hidden from a reader (the words beside it say what it is). Null for a front or a route.
+ */
+export function markSwatch(mark) {
+  if (mark.kind === 'front' || mark.kind === 'route') return null;
+  const half = MIN_MARK_PX * 0.75;
+  const kind = DOMAIN_GLYPH[mark.piece?.domain] ?? mark.kind;
+  return svg('svg', {
+    viewBox: `${-half} ${-half} ${half * 2} ${half * 2}`, width: half * 2, height: half * 2, 'aria-hidden': 'true', focusable: 'false',
+    class: `rl-mk rl-pc-swatch rl-side-${mark.side} rl-c-${mark.certainty}`,
+  }, forceGlyph({ ...mark, kind }, MIN_MARK_PX));
 }
 
 /**
@@ -321,7 +391,7 @@ function table(map, onFind) {
     h('thead', {}, h('tr', {}, ['Name', 'What', 'Side', 'Certainty', 'Where', 'Source', ''].map((c) => h('th', { scope: 'col' }, c)))),
     h('tbody', {}, sortMarks(map.marks).map((m) => h('tr', { class: `rl-c-${m.certainty}` },
       h('th', { scope: 'row' }, m.name),
-      h('td', {}, whatWord(m)),
+      h('td', {}, markSwatch(m), whatWord(m)),
       h('td', {}, sideLine(m)),
       h('td', {}, certaintyWord(m.certainty)),
       h('td', {}, whereLine(m)),

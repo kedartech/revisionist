@@ -21,7 +21,7 @@ import { areaAt } from '../map/hit.js';
 import { trace } from '../map/projection.js';
 import { drawOn, fillIn, underWay } from '../map/motion.js';
 import { economyPips, hasYields } from './realism-economy.js';
-import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
+import { capitalGlyph, forceGlyph, markSwatch, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
 import { battleLayer, battleTable } from './realism-battle.js';
 import { bandOf } from './realism-home.js';
@@ -875,7 +875,7 @@ function markTable(map, onFind) {
     h('thead', {}, h('tr', {}, ['Name', 'What', 'Side', 'Where', 'Source', ''].map((c) => h('th', { scope: 'col' }, c)))),
     h('tbody', {}, sortMarks(map.marks).map((m) => h('tr', { class: `rl-c-${m.certainty}` },
       h('th', { scope: 'row' }, m.name),
-      h('td', {}, markWhat(m)),
+      h('td', {}, markSwatch(m), markWhat(m)),
       h('td', {}, sideLine(m)),
       h('td', {}, markWhere(m)),
       h('td', {}, m.document ? sightedLine(m) : ''),

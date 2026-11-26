@@ -944,6 +944,9 @@ class MapReport(TypedDict):
     included, in the board's order (an unknown kind moves as every kind of its area's
     domain, so the fastest bounds it). Worked out from the report and the board alone.
     None while the report is fresh, and for a decrypt, which gives no area (RNG)."""
+    picture: NotRequired[str]
+    """With ``kinds_in_battle`` on, for a report that names a kind the world gives a
+    picture: the picture's key, the kind's as every seat has it (KPC)."""
 
 
 class MapOrder(TypedDict):

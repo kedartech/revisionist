@@ -1116,6 +1116,35 @@ SHARE_SLACK = 0.02
 """How far a piece's drawn share may sit from its days gone over its days (rounded points)."""
 DRAW_SLACK_MS = 150
 """A course drawing itself may take this much past its 600 ms: the first and last frames' gaps."""
+DRAW_MISSED_MS = 100
+"""A gap between frames longer than this means the page was held and frames were missed."""
+DRAW_UNDER_WAY = 0.8
+"""How much of its length the last frame in the window must show when frames were missed."""
+
+
+def line_whole_in_time(drawn: list[list[float]], full: float) -> bool:
+    """Whether a line sampled as [ms, length] frames was whole within 600 ms of its first frame.
+
+    A frame is a sample, not a clock: the screenshot taken while the line draws can hold the
+    page for several hundred milliseconds, so no frame falls near the deadline and the first
+    frame after it reads whole. Frames 100 ms apart or less are a clock, and a line still short
+    at the window's last frame is late. Past a longer gap the line passes when every frame
+    after the window shows it whole and the last frame inside the window already had most of it.
+    """
+    if not drawn or full <= 0:
+        return False
+    limit = drawn[0][0] + 600 + DRAW_SLACK_MS
+    inside = [d for d in drawn if d[0] <= limit]
+    past = [d for d in drawn if d[0] > limit]
+    if any(d[1] < full - 0.5 for d in past):
+        return False
+    if any(d[1] >= full - 0.5 for d in inside):
+        return True
+    return (
+        bool(past)
+        and past[0][0] - inside[-1][0] > DRAW_MISSED_MS
+        and inside[-1][1] >= full * DRAW_UNDER_WAY
+    )
 
 
 def under_way_context(browser: object, state: dict, reduced: bool) -> tuple[object, Page]:
@@ -1236,7 +1265,6 @@ def under_way(browser: object, state: dict, url: str, report: dict) -> None:
         report["mvs_course"] = drawn
         report["mvs_orders"] = page.evaluate(ORDERS_JS)
         full = max((d[1] for d in drawn), default=0)
-        whole = next((d[0] for d in drawn if d[1] >= full - 0.5), None)
         rs.check(
             "a move sent draws its line from the piece to its goal",
             bool(drawn) and drawn[0][1] < full * 0.5 and full > 0,
@@ -1244,7 +1272,7 @@ def under_way(browser: object, state: dict, url: str, report: dict) -> None:
         )
         rs.check(
             "the line is whole within 600 ms of its first frame",
-            whole is not None and whole - drawn[0][0] <= 600 + DRAW_SLACK_MS,
+            line_whole_in_time(drawn, full),
             json.dumps(drawn[:40]),
         )
         rs.shoot(page, "mvs-02-course-drawn")

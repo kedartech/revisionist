@@ -2711,6 +2711,104 @@ def phone_room(page: Page, report: dict[str, object]) -> None:
     check("the page is as wide as the viewport", width == SIZE[0], str(width))
 
 
+# The Varda leader's place that can raise, and what it raises there (`raise_piece`, Salt Strait)
+RAISE_AREA = "The Saltworks Coast"
+RAISE_PLACE = "Varda Saltworks"
+RAISE_KIND = "Levy"
+
+
+def salt_raise(browser: object, play: Second, report: dict[str, object]) -> None:
+    """The Varda leader, in a page of its own on the second player's session, raises a levy
+    from the Saltworks Coast's sheet: the kinds as tiles, the check, the confirm, then the
+    piece in the war economy's list of pieces being raised."""
+    ctx = browser.new_context(  # type: ignore[attr-defined]
+        viewport={"width": SIZE[0], "height": SIZE[1]},
+        has_touch=PHONE,
+        is_mobile=PHONE,
+        storage_state=play.api.storage_state(),
+    )
+    page = ctx.new_page()
+    watch(page)
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    try:
+        page.goto(BASE + "/")
+        page.locator("main.rl-board, main.rl-mapfirst").first.wait_for(timeout=60_000)
+        page.wait_for_timeout(300)
+        through_intro(page, report)
+        # the days the walk ran come back to this seat as a sheet of what happened, then the player
+        hap = page.locator("dialog.rl-hap[open]")
+        if hap.count():
+            press(page, "dialog.rl-hap button", "To the desk")
+            page.wait_for_timeout(500)
+        playback_closed(page)
+        check("the area can be opened on the map", press(page, ".rl-area", f"{RAISE_AREA}:"))
+        area = page.locator(".rl-area-sheet")
+        area.wait_for(timeout=10_000)
+        check(
+            "the place's sheet offers to raise a piece there",
+            press(page, ".rl-area-sheet button", f"Raise a piece here: {RAISE_PLACE}"),
+        )
+        sheet = page.locator(".rl-rs-sheet")
+        sheet.wait_for(timeout=10_000)
+        tiles = sheet.locator(".rl-rs-tile")
+        kinds = tiles.evaluate_all("(ts) => ts.map((t) => t.getAttribute('data-kind'))")
+        report["rnb_tiles"] = kinds
+        check("the place's kinds are tiles", sorted(kinds) == ["lancers", "levy"], str(kinds))
+        check(
+            "each tile draws its cost as two bars",
+            sheet.locator(".rl-rs-tile .rl-rs-costs .rl-mark-bar").count() == 2 * len(kinds),
+        )
+        check(
+            "each tile draws its five figures",
+            sheet.locator(".rl-rs-tile .rl-mark-meter").count() == 5 * len(kinds),
+        )
+        width = page.evaluate("document.documentElement.scrollWidth")
+        check("the tiles keep the page as wide as the viewport", width == SIZE[0], str(width))
+        shoot(page, "38-raise-tiles")
+        check("a tile can be chosen", press(page, f'.rl-rs-tile[data-kind="{RAISE_KIND.lower()}"]'))
+        chip = sheet.locator(".rl-rs-confirm")
+        chip.wait_for(timeout=10_000)
+        check(
+            "the check's answer shows the pools as they would stand",
+            chip.locator(".rl-rs-after .rl-mark-bar").count() == 2,
+        )
+        width = page.evaluate("document.documentElement.scrollWidth")
+        check("the confirm keeps the page as wide as the viewport", width == SIZE[0], str(width))
+        shoot(page, "39-raise-confirm")
+        check("Raise it can be reached", press(page, ".rl-rs-confirm button", "Raise it"))
+        page.locator(".rl-status:not(:has-text('Sending it'))").first.wait_for(timeout=30_000)
+        page.wait_for_timeout(800)
+        check("the sheet closes once the order is sent", page.locator(".rl-rs-sheet").count() == 0)
+        check("World can be reached", press(page, ".rl-roombar .rl-sheettab", "World"))
+        over(page).wait_for(timeout=10_000)
+        if over(page).get_attribute("data-sheet") != "nations":
+            press(page, ".rl-over .rl-parts button", "Nations")
+            page.wait_for_timeout(300)
+        check("the seat's own row opens its card", press(page, ROW + ":has(.rl-nb-yours)"))
+        over(page).locator(".rl-nb-card").wait_for(timeout=10_000)
+        check("the war economy opens", press(page, ".rl-over button.rl-nb-eco", "Your war economy"))
+        lines = over(page).locator(".rl-rs-raising li")
+        lines.first.wait_for(timeout=10_000)
+        words = said(over(page).locator(".rl-rs-raising"))
+        report["rnb_raising"] = words
+        check(
+            "the levy is in the list of pieces being raised, with its place and day",
+            f"{RAISE_KIND.lower()} at {RAISE_PLACE.lower()}, arrives" in words,
+            words,
+        )
+        over(page).locator(".rl-rs-raising").scroll_into_view_if_needed()
+        shoot(page, "40-raise-list")
+        check(
+            "raising a piece raises no page error",
+            len([p for p in problems if p.startswith("pageerror")]) == errors,
+        )
+    except Exception:
+        page.screenshot(path=str(OUT / "zz-raise-failed.png"), full_page=True)
+        raise
+    finally:
+        ctx.close()
+
+
 def salt_strait(playwright: object, browser: object, report: dict[str, object]) -> None:
     """The whole walk: rule 1 (the office question, needs, a move, the odds, a decision, Home
     and Diplomacy) and rule 2 (a statement, an offer, a conference and its votes, a
@@ -2741,6 +2839,7 @@ def salt_strait(playwright: object, browser: object, report: dict[str, object]) 
         nations_chart(page, report, "salt")
         if PHONE:
             phone_room(page, report)
+        salt_raise(browser, play, report)
     except Exception:
         page.screenshot(path=str(OUT / "zz-salt-failed.png"), full_page=True)
         (OUT / "zz-salt-failed.aria.txt").write_text(page.locator("body").aria_snapshot())

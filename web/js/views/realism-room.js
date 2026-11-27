@@ -1151,6 +1151,23 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-needs h2')?.focus();
   }
 
+  /**
+   * The map at area `area`, any sheet over it closed; with `raise`, the kinds place `raise` can
+   * raise open on it, with focus on their sheet, else on the area's sheet.
+   */
+  function mapAt(area, raise = null) {
+    if (openSheetOf(ui)) closeSheet(ui);
+    if (ui.mapBoard === 'capital') ui.mapBoard = 'map';
+    const theatre = ui.theatre ?? { mode: 'map', scope: 'reports' };
+    const centre = areaCentre(rv.map, shapesFor(rv.map?.file), area);
+    ui.theatre = {
+      ...theatre, mode: 'map', area: raise ? null : area, raisePlace: raise ? { place: raise.place } : null,
+      ...(centre ? { frame: '', zoom: 2, centre } : {}),
+    };
+    rerender();
+    root.querySelector(raise ? '.rl-mapfirst .rl-rs-sheet h3' : '.rl-mapfirst .rl-area-sheet button')?.focus();
+  }
+
   /** A line's one action: its matter's sheet, a sheet of the room, the map centred on an area, or Done. */
   function needAction(line) {
     const { action } = line;
@@ -1416,7 +1433,7 @@ export function realismRoom(ctx) {
   function nationsBody() {
     const onOffer = mapFirst() && rv.agreements ? offerTo : null;
     ui.nations ??= {};
-    return nationsPanel(rv, { state: ui.nations, act, onOffer, onHome: homeFromCard });
+    return nationsPanel(rv, { state: ui.nations, act, onOffer, onHome: homeFromCard, onRaise: (p) => mapAt(p.area, p), onMap: (area) => mapAt(area) });
   }
 
   /** A tile of the Standing grid: World opens at Nations with that nation's card open. */

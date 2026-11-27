@@ -16,6 +16,7 @@ import { mapDrawing, mapView } from './realism-map.js';
 import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './realism-battle.js';
 import { oddsAsker } from './realism-odds.js';
 import { figuresThere } from './realism-piece.js';
+import { raiseEntries, raiseSheet } from './realism-raise.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
 import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
@@ -326,6 +327,9 @@ function capitalPick(rv, onCapital) {
   };
 }
 
+/** Whether the next drawing puts focus on the raising sheet: set when "Raise a piece here" opens it. */
+let raiseFocus = false;
+
 /**
  * `theatreBoard(rv, ui, { pick, act, open, onCapital })`: the map for the board's main area. A mark picked on
  * the map or found from the list is `pick({ piece: { kind: 'force', name } })`; the Map or
@@ -381,6 +385,8 @@ export function theatreBoard(rv, ui, { pick, act, open, onCapital, hooks = {} } 
     raisings: rv.economy?.own?.raising ?? [], // the nation's pieces being raised, each drawn at its place
     onWeather: (weatherAt) => pick?.({ theatre: { ...theatre, weatherAt } }),
     onRaising: (raiseAt) => pick?.({ theatre: { ...theatre, raiseAt } }),
+    // a place of the seat's own in an area that can raise: "Raise a piece here" in the area's sheet
+    areaMore: (key) => raiseEntries(rv, key, (p) => { raiseFocus = true; pick?.({ theatre: { ...theatre, area: null, raisePlace: { place: p.place } } }); }),
     onOpen: (p) => open?.(p),
     battles: battleMarksOf(rv),
     battle: theatre.battle ?? null,
@@ -491,7 +497,15 @@ export function theatreBoard(rv, ui, { pick, act, open, onCapital, hooks = {} } 
   const battle = territorial && theatre.battle ? battleSheet(rv, theatre.battle, {
     act, pick, theatre, onClose: () => pick?.({ theatre: { ...theatre, battle: null, battlePick: null } }),
   }) : null;
-  const below = [forms, bar, chipBox, battle, ghosts].filter(Boolean);
+  // the kinds a place can raise, as tiles, with the confirm for the one chosen
+  const raise = territorial && theatre.raisePlace ? raiseSheet(rv, theatre.raisePlace, {
+    act, onClose: () => pick?.({ theatre: { ...theatre, raisePlace: null } }),
+  }) : null;
+  if (raise && raiseFocus) {
+    raiseFocus = false;
+    queueMicrotask(() => raise.querySelector('h3')?.focus?.());
+  }
+  const below = [forms, bar, chipBox, battle, raise, ghosts].filter(Boolean);
   const fig0 = view.querySelector('figure.rl-map-figure');
   if (fig0) fig0.after(...below);
   else view.append(...below);

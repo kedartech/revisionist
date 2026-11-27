@@ -1119,6 +1119,11 @@ class RaiseKind(TypedDict):
     nation due on or before that day."""
     refusal: str
     """Why the check refuses it now, in its fixed words; empty when it may be filed."""
+    picture: str | None
+    """The key of the picture the client draws the kind with; None when the world names none."""
+    figures: PieceFigures | None
+    """The kind's own five figures, as a piece's card draws them; None with
+    ``kinds_in_battle`` off."""
 
 
 class RaisePlace(TypedDict):

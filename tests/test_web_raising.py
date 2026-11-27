@@ -106,6 +106,8 @@ def test_a_seat_holding_the_form_sees_each_place_and_what_it_would_raise_there(
             "arrives": iso(31),
             "pools_after": {"output": 40.0, "manpower": 4.0},
             "refusal": "",
+            "picture": "bombers",
+            "figures": None,
         }
     }
     levy = kinds(state, "norrhavn")[LEVY]
@@ -114,6 +116,25 @@ def test_a_seat_holding_the_form_sees_each_place_and_what_it_would_raise_there(
         iso(21),
         "norra_plain",
     )
+
+
+def kinds_counted(w: dict[str, Any]) -> None:
+    w["rules"] = [*w["rules"], "kinds_in_battle"]
+
+
+def test_a_kind_a_place_can_raise_carries_its_picture_and_with_kinds_counted_its_figures(
+    tmp_path: Path,
+) -> None:
+    kite = kinds(game(tmp_path / "off", levies_raised).state, "hillfort")[KITE]
+    assert (kite["picture"], kite["figures"]) == ("bombers", None)
+    levy = kinds(game(tmp_path / "off2", levies_raised).state, "norrhavn")[LEVY]
+    assert levy["picture"] is None
+    state = game(tmp_path / "on", levies_raised, kinds_counted).state
+    found = production.raised_kind(state, KITE)
+    assert found is not None
+    kite = kinds(state, "hillfort")[KITE]
+    assert kite["figures"] == map_api.kind_figures(found)
+    assert kite["figures"] == {"attack": 4, "defence": 2, "speed": 5, "reach": 2, "hidden": 1}
 
 
 def test_the_pools_after_take_off_an_earlier_order_still_due(tmp_path: Path) -> None:

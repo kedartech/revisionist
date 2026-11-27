@@ -1,7 +1,8 @@
 // The war economy on screen (ECO): one figure per nation in the top strip; a tap on the
 // seat's own opens a sheet of its components under the world's own resource names (income,
 // pools, months of fuel, the territories that pay less than they print, with why); a tap on
-// another nation's gives its figure and says it is read from the map; the economy layer of the
+// another nation's gives its figure and says it is read from the map; the seat's own lists the
+// places it can raise a piece at and the pieces it is raising (realism-raise.js); the economy layer of the
 // territory map draws each territory's printed yields as pips, with the numbers on a tap.
 // Another nation's components are never drawn: the server does not send them. No resource is
 // named here: names, units and roles come from the seat's own `economy.own.income`.
@@ -9,6 +10,7 @@
 
 import { h, svg } from '../dom.js';
 import { bar } from './realism-marks.js';
+import { economyRaising } from './realism-raise.js';
 import { codebreakingBlock } from './realism-reports.js';
 
 const num = (n) => (Number.isInteger(n) ? String(n) : String(Number(Number(n).toFixed(2))));
@@ -69,8 +71,12 @@ let folded = false;
 /** Whether the seat's own sheet keeps its components behind "More" (Beginner's room); set at each draw of the room. */
 export function foldEconomy(on) { folded = Boolean(on); }
 
-/** The seat's own sheet: components under the world's names. `map` is the seat's map block. */
-export function ownSheet(economy, map, { levers, act } = {}) {
+/**
+ * The seat's own sheet: components under the world's names, then where the nation can raise a
+ * piece and what it is raising (`onRaise(place)` opens a place's kinds, `onMap(area)` the map at
+ * an area). `map` is the seat's map block.
+ */
+export function ownSheet(economy, map, { levers, act, onRaise = null, onMap = null } = {}) {
   const own = economy.own;
   const income = own.income ?? [];
   const areas = new Map((map?.areas ?? []).map((a) => [a.key, a]));
@@ -108,6 +114,7 @@ export function ownSheet(economy, map, { levers, act } = {}) {
     h('h3', {}, `${own.nation.name}: your war economy`),
     h('p', { class: 'muted' }, `Counted for ${economy.day}.`),
     components,
+    economyRaising(own, { onRaise, onMap }),
     codebreakingBlock(levers, act));
 }
 

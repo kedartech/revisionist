@@ -113,12 +113,14 @@ const findRow = (root, key) => [...root.querySelectorAll('button.rl-nb-row')].fi
 let flags = null;
 
 /**
- * World's Nations part: `nationsPanel(rv, { state, act, onOffer, onHome })`. `state` is kept by
- * the room across redraws (`open`, the nation whose card is open; `all`, the rest shown; `eco`,
- * the own card's war economy open). `onHome()` opens the home sheet; `onOffer(nation)` puts
- * "Make an offer" on another nation's card. `null` with neither an economy nor a home block.
+ * World's Nations part: `nationsPanel(rv, { state, act, onOffer, onHome, onRaise, onMap })`.
+ * `state` is kept by the room across redraws (`open`, the nation whose card is open; `all`, the
+ * rest shown; `eco`, the own card's war economy open). `onHome()` opens the home sheet;
+ * `onOffer(nation)` puts "Make an offer" on another nation's card; `onRaise(place)` and
+ * `onMap(area)` are the war economy's ways to a place's kinds and to the map. `null` with neither
+ * an economy nor a home block.
  */
-export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = null } = {}) {
+export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = null, onRaise = null, onMap = null } = {}) {
   const rows = nationRows(rv);
   if (!rows.length) return null;
   const bars = rows.some((r) => r.figure !== null);
@@ -181,7 +183,7 @@ export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = nul
         h('h3', { class: 'rl-nb-card-title', id: 'rl-nb-card-h', tabindex: '-1' }, r.nation.name),
         h('p', { class: 'rl-nb-relation' }, relMark(rel), ' ', RELATIONS[rel]))),
     figure, band, ways(r, rel, own),
-    own && state.eco ? ownSheet(rv.economy, rv.map, { levers: rv.desk?.levers, act }) : null);
+    own && state.eco ? ownSheet(rv.economy, rv.map, { levers: rv.desk?.levers, act, onRaise, onMap }) : null);
   };
 
   const draw = () => {

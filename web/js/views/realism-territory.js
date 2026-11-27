@@ -954,8 +954,11 @@ function holderCell(a, areas) {
   return a.kind === 'sea' ? '' : said.map((t, i) => (i ? `. ${t}` : t)).join('');
 }
 
-/** The sheet of one area: its holder, since when and its printed yields. `null` for a key the map does not have. */
-function areaSheet(map, key, onArea, standings) {
+/**
+ * The sheet of one area: its holder, since when and its printed yields, then what `more(key)`
+ * adds (the room's own lines for the area). `null` for a key the map does not have.
+ */
+function areaSheet(map, key, onArea, standings, more) {
   const a = (map.areas ?? []).find((x) => x.key === key);
   if (!a) return null;
   const land = a.kind === 'land';
@@ -971,6 +974,7 @@ function areaSheet(map, key, onArea, standings) {
     h('p', { class: 'muted' }, `${areaKindWord(a)}`),
     rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])) : null,
     notes.map((t) => h('p', { class: 'rl-hold-line' }, t)),
+    more?.(a.key) ?? null,
     h('button', { type: 'button', class: 'rl-find', onclick: () => onArea?.(null) }, 'Close'));
 }
 
@@ -1029,7 +1033,8 @@ function markTable(map, onFind) {
 /**
  * The territory board: switches, then the drawing (`shapes` null: `opts.waiting` in its place)
  * or the list. `opts`: { mode, layer, frame, zoom, ...territoryDrawing's, onMode, onLayer, onFrame,
- * overlay (the map-first room: the switches over the map's corners), onFull(on) (the room's full screen) }.
+ * overlay (the map-first room: the switches over the map's corners), onFull(on) (the room's full screen),
+ * areaMore(key) (the room's own lines for an area's sheet) }.
  */
 export function territoryView(map, shapes, opts = {}) {
   const mode = opts.mode === 'list' ? 'list' : 'map';
@@ -1060,7 +1065,7 @@ export function territoryView(map, shapes, opts = {}) {
     : null;
   const full = over ? fullControl(opts) : null;
   const find = (name) => opts.onSelect?.(name, 'map');
-  const area = mode === 'map' && opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null;
+  const area = mode === 'map' && opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings, opts.areaMore) : null;
   const report = mode === 'map' && layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null;
   const military = mode === 'map' && layer === 'military';
   const weather = military && opts.weatherAt ? weatherSheet(map, opts.weatherAt, opts.onWeather) : null;

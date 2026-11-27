@@ -27,10 +27,10 @@ from typing import Literal
 from revisionist.core.ids import EntityId, OrderId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import at_post
-from revisionist.core.realism import economy, holders, territory, trade
+from revisionist.core.realism import battle, economy, holders, territory, trade
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.card import Lever
-from revisionist.core.realism.kinds import Role
+from revisionist.core.realism.kinds import PieceKind, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import production
 from revisionist.core.realism.war import at_war, polity_of
@@ -43,6 +43,7 @@ from revisionist.engine.web.realism_api import (
     EconomyPools,
     EconomyTerritory,
     MapNation,
+    PieceFigures,
     RaiseKind,
     RaisePlace,
     RaisingLine,
@@ -299,7 +300,16 @@ def _kind(
             manpower=pools.manpower - sum(c.manpower for c in costs),
         ),
         refusal=refusal,
+        picture=kind.picture.value if kind.picture is not None else None,
+        figures=_figures_of(state, kind),
     )
+
+
+def _figures_of(state: State, kind: PieceKind) -> PieceFigures | None:
+    """The kind's own five figures, with ``kinds_in_battle`` on; else None."""
+    from revisionist.engine.web.map_api import kind_figures
+
+    return kind_figures(kind) if battle.kinds_count(state) else None
 
 
 def places(state: State, view: View, own: EntityId, today: date) -> list[RaisePlace]:

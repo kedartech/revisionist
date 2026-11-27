@@ -4,15 +4,20 @@
 // side, the chance and the days to take the territory, the risk of being forced back and where
 // to, and the win share at each strength in the reported range. With no report it says the enemy
 // is unknown and shows no figure. Never one headline number: every share sits beside its outcome.
+// With the kinds in battle on, it names the kinds on each side as the seat knows them (its own
+// pieces', each report's or, for a report naming none, its domain's) and the cause the server
+// says moved the odds most.
 // Asking and closing file nothing. On a phone the panel is a half sheet (c-odds.css).
 // Nothing here touches the page on import.
 
 import { api } from '../api.js';
 import { h, svg } from '../dom.js';
 import {
-  confidenceWord, decisionWord, rangeWords, reportAge, reportAgoWords, reportWhat, reportWho, shortDate,
+  confidenceWord, decisionWord, pieceForm, rangeWords, reportAge, reportAgoWords, reportWhat, reportWho, shortDate,
 } from '../realism-rules.js';
+import { markSwatch } from './realism-map.js';
 import { bar, markNum } from './realism-marks.js';
+import { causeWords, ownKind } from './realism-piece.js';
 import { reportByKey } from './realism-reports.js';
 
 // The replies asked for on this page, by request, and the one panel open, by request. A reply
@@ -45,6 +50,49 @@ function whose(rv, odds) {
     h('h4', {}, 'Whose picture'),
     h('p', {}, used.length === 1 ? 'Yours, from 1 report:' : `Yours, from ${used.length} reports:`),
     h('ul', { role: 'list' }, lines.map((l) => h('li', {}, l))));
+}
+
+/** The seat's own pieces the odds were asked for: a battle's side there, or the force a move sends. */
+function ownPieces(rv, body) {
+  const marks = (rv.map?.marks ?? []).filter((m) => m.side === 'own' && m.piece);
+  if (body?.battle) {
+    const names = new Set(((rv.battles ?? []).find((b) => b.area === body.battle)?.pieces ?? []).map((p) => p.name));
+    return marks.filter((m) => names.has(m.name));
+  }
+  return marks.filter((m) => body?.force && pieceForm(rv.desk?.levers, m)?.force === body.force);
+}
+
+/** A report's kind as the seat knows it: the kind it names, else its area's domain's. */
+function theirKind(rv, key) {
+  const r = reportByKey(rv.map, key);
+  if (!r) return h('li', {}, 'A report no longer on your map');
+  if (r.kind && r.kind_name && r.kind_name !== 'unknown') {
+    const swatch = r.picture ? markSwatch({ side: 'other', kind: null, certainty: 'reported', picture: r.picture }) : null;
+    return h('li', {}, swatch, `${r.kind_name}, as reported`);
+  }
+  const sea = (rv.map?.areas ?? []).find((a) => a.key === r.area?.key)?.kind === 'sea';
+  return h('li', {}, `A ${sea ? 'sea' : 'land'} piece, its kind not reported`);
+}
+
+/** The kinds on each side as the seat knows them; sent only with the kinds in battle on. */
+function kindsBlock(rv, odds, body) {
+  return h('section', { class: 'rl-odds-kinds' },
+    h('h4', {}, 'Who fights, as you know them'),
+    h('p', { class: 'rl-odds-cap' }, 'Yours'),
+    h('ul', { class: 'rl-odds-yours', role: 'list' }, ownPieces(rv, body).map((m) => h('li', {},
+      markSwatch(m), `${ownKind(m)?.name ?? m.piece.kind}: ${m.name}`))),
+    h('p', { class: 'rl-odds-cap' }, 'Theirs'),
+    h('ul', { class: 'rl-odds-theirs', role: 'list' }, (odds.reports ?? []).length
+      ? odds.reports.map((k) => theirKind(rv, k))
+      : h('li', {}, 'None reported: their kind is not known')));
+}
+
+/** The cause the server says moved the odds most, and which way, or that no one cause did. */
+function movedLine(moved) {
+  if (!moved) return h('p', { class: 'rl-odds-moved' }, 'No one cause here moves the odds');
+  const way = moved.direction === 'for' ? 'for you' : 'against you';
+  return h('p', { class: 'rl-odds-moved', 'data-cause': moved.cause, 'data-direction': moved.direction },
+    `Moved most by ${causeWords(moved.cause, moved.words)}, ${way}`);
 }
 
 const OUTCOMES = ['win', 'stalemate', 'loss'];
@@ -166,7 +214,7 @@ function terrainLine(t) {
 }
 
 /** The body for a reply: the spread, or the unknown enemy and the terrain, or the refusal. */
-function replyBody(rv, out, retry) {
+function replyBody(rv, out, retry, body) {
   if (!out) return [h('p', { class: 'rl-odds-asking', role: 'status' }, 'Asking the odds desk…')];
   if (out.refused || !out.odds) {
     return [h('p', { class: 'rl-odds-refused', role: 'status' }, out.reply || 'No odds just now.'),
@@ -182,8 +230,11 @@ function replyBody(rv, out, retry) {
       odds.terrain ? terrainLine(odds.terrain) : null,
     ];
   }
+  const kinded = Object.hasOwn(odds, 'moved_by');
   return [
     whose(rv, odds),
+    kinded ? kindsBlock(rv, odds, body) : null,
+    kinded ? movedLine(odds.moved_by) : null,
     h('section', { class: 'rl-odds-outcome' },
       h('h4', {}, `Outcome after ${odds.days} days`),
       outcomeBar(odds.shares),
@@ -199,10 +250,10 @@ function replyBody(rv, out, retry) {
 /**
  * The odds panel for reply `out` (the `odds` action's answer; null while it is being asked):
  * `<section class="rl-odds" role="dialog">`. `opts`: { what (the heading's words), onClose, retry,
- * decisions, decision, onDecision (a battle's decisions, each asked anew) }. Close and Escape call
- * `onClose`. Nothing here files an order.
+ * decisions, decision, onDecision (a battle's decisions, each asked anew), body (the request, whose
+ * pieces are the seat's side) }. Close and Escape call `onClose`. Nothing here files an order.
  */
-export function oddsPanel(rv, out, { what, onClose, retry, decisions = [], decision = null, onDecision } = {}) {
+export function oddsPanel(rv, out, { what, onClose, retry, decisions = [], decision = null, onDecision, body = null } = {}) {
   const ifs = decisions.length > 1 ? h('div', { class: 'rl-odds-if', role: 'group', 'aria-label': 'Odds if you' },
     h('span', {}, 'If you:'), ' ',
     decisions.map((d) => h('button', {
@@ -216,7 +267,7 @@ export function oddsPanel(rv, out, { what, onClose, retry, decisions = [], decis
     h('h3', { id: 'rl-odds-h', tabindex: '-1' }, `Odds · ${what}`),
     h('button', { type: 'button', class: 'rl-odds-close', onclick: () => onClose?.() }, 'Close')),
   ifs,
-  h('div', { class: 'rl-odds-body', tabindex: '0', 'aria-label': `The odds for ${what}` }, replyBody(rv, out, retry)),
+  h('div', { class: 'rl-odds-body', tabindex: '0', 'aria-label': `The odds for ${what}` }, replyBody(rv, out, retry, body)),
   h('p', { class: 'rl-odds-nofile' }, 'Closing this files nothing.'));
 }
 
@@ -239,7 +290,7 @@ export function oddsAsker(rv, body, { what, decisions = [] } = {}) {
   const show = (focus) => {
     box.replaceChildren(oddsPanel(rv, replies.get(keyOf(rv, current)) ?? null, {
       what: what(current), onClose: close, retry: () => ask(current),
-      decisions, decision: current.decision ?? null, onDecision: (d) => ask({ ...current, decision: d }),
+      decisions, decision: current.decision ?? null, onDecision: (d) => ask({ ...current, decision: d }), body: current,
     }));
     button.setAttribute('aria-expanded', 'true');
     if (focus) box.querySelector('h3')?.focus();

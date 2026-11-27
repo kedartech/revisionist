@@ -15,6 +15,7 @@ import { daysLabel, liftLabel, liftNote, standardForm, tierLabel } from './reali
 import { mapDrawing, mapView } from './realism-map.js';
 import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './realism-battle.js';
 import { oddsAsker } from './realism-odds.js';
+import { figuresThere } from './realism-piece.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
 import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
@@ -246,6 +247,7 @@ function confirmChip(rv, p, mv, shapes, { send, ask, anyway = null, back }) {
     h('h3', { class: 'rl-pup-h' }, `Send ${p.mark.name} to ${mv.area.name}`),
     h('p', { class: 'rl-pup-days' }, `${daysLabel(mv.days)} on the move: ${mv.path.map((a, i) => `${a.name}, ${daysLabel(mv.step_days[i])}`).join('; ')}`),
     h('p', { class: 'rl-pup-arrives' }, `Arrives ${shortDate(due.on)}${due.earliest ? ' at the earliest' : ''}`),
+    figuresThere(p.mark, mv),
     placeLine(mv),
     carrierLines(path, rv.court).map((line) => h('p', { class: 'rl-pup-carrier' }, line)),
     h('p', { class: 'rl-pup-lift' }, mv.lift ? liftWords(mv.lift) : 'No lift needed'),

@@ -12,6 +12,7 @@ import { concealSwitch } from './realism-reports.js';
 import { moveOrder, pieceMoves, theatreBoard } from './realism-theatre.js';
 import { daysLabel } from './realism-forms.js';
 import { heldOn, heldStatus, isLocked, lockCheck, lockTag, locksOn } from './realism-locks.js';
+import { pieceCard } from './realism-piece.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December'];
@@ -99,6 +100,7 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
   }
   return sheet({ 'aria-labelledby': 'rl-piece-h' }, pick,
     h('h2', { id: 'rl-piece-h' }, mark.name),
+    pieceCard(rv.map, mark),
     h('dl', {},
       h('dt', {}, 'What'), h('dd', {}, markWhatWord(mark)),
       h('dt', {}, 'Side'), h('dd', {}, sideLine(mark)),

@@ -14,6 +14,7 @@ import {
   reportAgoWords, reportFade, reportGlyph, reportMarkLine, reportWhat, reportWhere, ringEdges, ringWords, shortDate, sourceWord,
 } from '../realism-rules.js';
 import { forceGlyph, markSwatch, pictureOf, pipGlyph } from './realism-map.js';
+import { reportHead } from './realism-piece.js';
 
 /** How far below its area's label point a report is drawn, and the gap between reports side by side, in pixels. [proposed] */
 const REPORT_DROP = 34;
@@ -164,6 +165,7 @@ export function reportSheet(map, key, { today, onReport, onOpen } = {}) {
   ].filter(Boolean);
   return h('section', { class: 'rl-rp-sheet', 'aria-labelledby': 'rl-rp-sheet-h', 'data-report': r.key },
     h('h3', { id: 'rl-rp-sheet-h' }, `Report: ${reportWhat(r)}`),
+    reportHead(r, today),
     h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
     h('p', { class: 'muted rl-rp-caveat' }, 'A report can be wrong. A wrong one looks exactly like a right one.'),
     r.document ? null : h('p', { class: 'muted' }, 'No paper: seen in contact by your own forces.'),

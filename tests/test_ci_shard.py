@@ -132,8 +132,8 @@ def test_record_sums_each_files_setup_call_and_teardown(tmp_path: Path) -> None:
 
 
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
-SHARD_COUNT = 6
-HEAVIEST_RECORDED_SECONDS = 800
+SHARD_COUNT = 8
+HEAVIEST_RECORDED_SECONDS = 650
 
 
 def workflow_shards() -> list[int]:
@@ -144,7 +144,7 @@ def workflow_shards() -> list[int]:
     return [int(n) for n in match.group(1).split(",")]
 
 
-def test_the_workflow_shard_list_is_the_six_way_split() -> None:
+def test_the_workflow_shard_list_is_the_eight_way_split() -> None:
     assert workflow_shards() == list(range(1, SHARD_COUNT + 1))
 
 

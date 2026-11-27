@@ -87,14 +87,15 @@ jobs:
     if: needs.changes.outputs.python == 'true'
     name: pytest ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    # Four shards took 27 to 30 minutes each in November 2026; six bring each to about 20.
-    timeout-minutes: 30
+    # Four shards took 27 to 30 minutes each in November 2026; six still ran to the limit once the
+    # third run's tests joined, so eight keep each to about 20.
+    timeout-minutes: 40
     strategy:
       # A failing shard leaves the others running, so every failure is reported.
       fail-fast: false
       matrix:
         # The shard count is the length of this list; scripts/ci_shard.py splits by it.
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     services:
       postgres:
         image: postgres:16

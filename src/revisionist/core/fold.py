@@ -582,7 +582,8 @@ def _offer_settled(state: State, p: ev.OfferSettled) -> State:
 
 def _commanded(state: State, piece: Feature) -> State:
     """A piece that enters after the world compiles (a raising): every domain of a card
-    that commands another piece of its nation and its domain commands it too."""
+    that commands another piece of its nation and its domain commands it too. A detachment
+    never comes here; its parent's commander reaches it through ``detached_from``."""
     where = kinds.domain(state, piece)
 
     def alike(fid: FeatureId) -> bool:
@@ -1633,7 +1634,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             ):
                 raise FoldError(f"feature {ft.feature_id} cannot go back or change kind")
             state = state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
-            if was is None and ft.piece is not None and Rule.RAISING in state.rules:
+            if (
+                was is None
+                and ft.piece is not None
+                and ft.detached_from is None
+                and Rule.RAISING in state.rules
+            ):
                 return _commanded(state, ft)
             return state
         case ev.WarDeclared():

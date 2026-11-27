@@ -60,6 +60,7 @@ from tests.written_order_cases import (
     RULINGS,
     Case,
     detail,
+    f41,
     give,
     move,
     naval,
@@ -787,6 +788,144 @@ def test_a_written_declaration_needs_a_declaration_on_the_desk(
     reading = game.read(replace(cable, reading=(war("germany"),)))
     assert not reading.asks
     assert reading.shown["reason"] == orders_reader.TO_THE_FORM
+
+
+# --- the same sentence written twice ----------------------------------------------------
+
+LEND_LEASE = next(c for c in CASES if c.lever == "lend_lease_finding")
+UBOATS_OFF_ARGENTIA = f41(
+    "doenitz",
+    "uboat_move",
+    {"force": "uboat_arm", "to": "argentia"},
+    "Send the U-boats off Argentia.",
+    move("uboat_arm", "argentia"),
+)
+"""Admiral Dönitz's U-boats sent off Argentia: a lock holds it until Hitler sets their
+posture, as it holds a detachment sent there, which this move replaces."""
+DETACHED_OFF_ARGENTIA = f41(
+    "doenitz",
+    "uboat_detach",
+    {"force": "uboat_arm", "to": "argentia", "strength": "2"},
+    "Send two of the U-boat flotillas off Argentia.",
+    detail(move("uboat_arm", "argentia"), strength="2"),
+)
+
+
+def twice(case: Case) -> Case:
+    """``case`` with its sentence written twice, which the aide reads as each ask twice."""
+    return replace(case, sentence=f"{case.sentence} {case.sentence}", reading=case.reading * 2)
+
+
+def _filings(game: Game, case: Case) -> list[Any]:
+    """The terms of each filing of the case's form the log holds, drafted or held."""
+    out = []
+    for e in game.store.read(CAMPAIGN):
+        p = e.payload
+        order = (
+            p.order
+            if isinstance(p, ev.OrderDrafted)
+            else p.held.form
+            if isinstance(p, ev.OrderHeld)
+            else None
+        )
+        if order is not None and (order.lever, order.issuer) == (case.lever, seat(case.person)):
+            out.append(order.params)
+    return out
+
+
+def _replaced(game: Game) -> list[Any]:
+    return [
+        e.payload.order_id
+        for e in game.store.read(CAMPAIGN)
+        if isinstance(e.payload, ev.HeldOrderEnded) and e.payload.end is locks.HeldEnd.REPLACED
+    ]
+
+
+def _signed(game: Game, case: Case) -> tuple[bool, str]:
+    """Read the case's sentence, sign the reading as one order: refused, and the reply."""
+    reading = game.read(case)
+    assert len(reading.forms) == len(case.reading)
+    with game.ids.drawn_by(f"order:{case.name}"):
+        done = orders_reader.file_order(game.store, CAMPAIGN, seat(case.person), reading)
+    return done["refused"], done["reply"]
+
+
+def test_the_same_ask_written_twice_files_once_and_the_second_is_refused_as_its_form_is(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Lend-Lease allocation written twice: one filing, and the form's own refusal of
+    the same form with the same terms filed again."""
+    case = LEND_LEASE
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    assert by_form.form(case) == ""
+    told = by_form.form(case)
+    assert told.startswith("form refused: You already sent that")
+    in_writing = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    assert _signed(in_writing, twice(case)) == (False, told.removeprefix("form refused: "))
+    assert _filings(in_writing, case) == _filings(by_form, case)
+    assert len(_filings(in_writing, case)) == 1
+    assert outcome(in_writing.state) == outcome(by_form.state)
+
+
+def test_a_locked_ask_written_twice_is_held_once_as_its_form_is(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The lock holds the first; the second is the filing it already holds, as the form
+    filed again is."""
+    case = LOCKED[0]
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    assert by_form.form(case) == by_form.form(case) == ""
+    in_writing = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    refused, _ = _signed(in_writing, twice(case))
+    assert not refused
+    assert _held(in_writing) == _held(by_form)
+    assert len(_held(in_writing)) == 1
+    assert _filings(in_writing, case) == _filings(by_form, case)
+
+
+def _held_by(game: Game, person: str) -> list[Any]:
+    state = game.state
+    return [locks.held_words(state, h) for h in state.held.values() if h.issuer == seat(person)]
+
+
+def test_a_locked_ask_written_twice_ends_the_held_order_it_replaces_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With a detachment off Argentia held, the U-boats sent there written twice: the lock
+    holds the move once and it replaces the detachment once, as the form filed twice
+    does; the fold never refuses the batch."""
+    case = UBOATS_OFF_ARGENTIA
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    assert by_form.form(DETACHED_OFF_ARGENTIA) == by_form.form(case) == by_form.form(case) == ""
+    in_writing = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    assert in_writing.form(DETACHED_OFF_ARGENTIA) == ""
+    refused, _ = _signed(in_writing, twice(case))
+    assert not refused
+    assert len(_replaced(in_writing)) == len(_replaced(by_form)) == 1
+    assert _held_by(in_writing, case.person) == _held_by(by_form, case.person)
+    assert len(_held_by(in_writing, case.person)) == 1
+    assert _filings(in_writing, case) == _filings(by_form, case)
+
+
+def test_a_second_form_refused_for_its_own_terms_files_neither(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the same form with the same terms is set aside: a second form the rules
+    refuse refuses the whole order, and nothing is logged."""
+    case = LEND_LEASE
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    told = by_form.form(replace(case, params={**case.params, "share_pct": "150"}))
+    assert told.startswith("form refused: ")
+    game = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    over = detail(give("uk", "lend_lease", 150, "percent"), route="hx_route")
+    before = game.store.last_seq(CAMPAIGN)
+    both = replace(case, reading=(*case.reading, over))
+    assert _signed(game, both) == (True, told.removeprefix("form refused: "))
+    assert game.store.last_seq(CAMPAIGN) == before
 
 
 # --- battle decisions and contingencies, in the toy war of ``tests/test_web_battles.py`` --

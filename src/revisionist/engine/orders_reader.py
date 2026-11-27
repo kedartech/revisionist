@@ -18,7 +18,8 @@ from pydantic import Field, ValidationError
 from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
-from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
+from revisionist.core.fold import replay
+from revisionist.core.ids import CampaignId, EntityId, EventId, FeatureId, SeatId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism import agreement, conference
@@ -52,9 +53,11 @@ from revisionist.core.realism.route import held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
 from revisionist.core.world_compile import object_id
+from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
 from revisionist.engine.aide import AIDE_MODEL
 from revisionist.engine.directive import TEXT_MAX
+from revisionist.engine.ids import new_id
 from revisionist.engine.llm import (
     Request,
     Transport,
@@ -938,22 +941,57 @@ def file_written(
     forms: Sequence[Twin | None],
 ) -> str | None:
     """File a signed written order: each ask a form of the seat's gives as that form, by
-    every check the form takes and on the day it would land; the rest as one routed order.
-    The reason a lock gave the seat, or None. Raises ``ValueError``, logging nothing."""
-    state = load_state(store, campaign_id)
-    landing: realism_tick.Landing = []
+    every check the form takes and on the day it would land, against the state the
+    order's earlier filings leave; the rest as one routed order. A form the order already
+    filed with the same terms is set aside with the form's refusal. The reason a lock gave
+    the seat, else that refusal, or None. Raises ``ValueError``, logging nothing."""
+    now = load_state(store, campaign_id)
+    batch: list[ev.Event] = []
     rest: list[Ask] = []
+    filed: list[Twin] = []
+    again: list[str] = []
     for ask, form in zip_longest(asks, forms[: len(asks)]):
         if form is None:
             rest.append(ask)
             continue
-        order = realism_tick.draft_order(state, seat, form[0], dict(form[1]))
-        landing += realism_tick.form_filing(state, seat, order)[0]
+        try:
+            order = realism_tick.draft_order(now, seat, form[0], dict(form[1]))
+        except ValueError as exc:
+            if form not in filed:
+                raise
+            again.append(str(exc))
+            continue
+        filed.append(form)
+        now = _folded(now, batch, realism_tick.form_filing(now, seat, order)[0], seat)
     if rest:
-        landing += realism_tick.written_filing(state, seat, rest)[0]
-    realism_tick._append_all(store, state, landing, seat)
-    reasons = [p.held.reason for p, _ in landing if isinstance(p, ev.OrderHeld)]
-    return reasons[0] if reasons else None
+        now = _folded(now, batch, realism_tick.written_filing(now, seat, rest)[0], seat)
+    if batch:
+        store.append_all(batch)
+    reasons = [e.payload.held.reason for e in batch if isinstance(e.payload, ev.OrderHeld)]
+    return (reasons + again)[0] if reasons or again else None
+
+
+def _folded(
+    state: State, batch: list[ev.Event], landing: realism_tick.Landing, seat: SeatId
+) -> State:
+    """``state`` with ``landing`` folded in, its events added to ``batch`` numbered on from
+    ``state``. Raises ``ValueError`` when the fold refuses one."""
+    versions = cmp.versions()
+    events = [
+        ev.Event(
+            event_id=EventId(new_id()),
+            campaign_id=state.campaign_id,
+            seq=state.last_seq + i,
+            tick=state.tick,
+            actor=seat,
+            scope=scope,
+            payload=payload,
+            versions=versions,
+        )
+        for i, (payload, scope) in enumerate(landing, start=1)
+    ]
+    batch += events
+    return replay(events, initial=state)
 
 
 __all__ = ["Reading", "file_order", "file_written", "orders_prompt", "read_order", "twin"]

@@ -353,10 +353,27 @@ def keyboard_move_areas(page: Page, report: dict[str, object], errors: int) -> N
     shoot(page, "00b-keyboard-sent")
 
 
+FAN_OWN_STACK = """() => {
+  if (document.querySelector('.rl-mapfirst .rl-tm-mark.rl-side-own')) return 'marks';
+  const stack = [...document.querySelectorAll('.rl-mapfirst .rl-tm-stack')]
+    .find((s) => s.querySelector('.rl-tm-stack-base.rl-side-own'));
+  stack?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  return stack ? 'fanned' : null;
+}"""
+"""Open the first closed stack of the seat's own pieces when none of them stands alone: the 1941
+world puts several of the seat's pieces in one place, and a closed stack hides its marks."""
+
+
+def fan_own_stack(page: Page) -> None:
+    if page.evaluate(FAN_OWN_STACK) == "fanned":
+        page.locator(".rl-mapfirst .rl-tm-mark.rl-side-own").first.wait_for(timeout=10_000)
+
+
 def keyboard_move(page: Page, report: dict[str, object]) -> None:
     """On the Board, from the keyboard alone: pick the seat's fleet, light a place (a point
     map) or an area (a territory map), send it."""
     errors = len([p for p in problems if p.startswith("pageerror")])
+    fan_own_stack(page)
     page.get_by_role("group", name="Board").get_by_role("button", name="Theatre").focus()
     found = tab_to(page, "a.matches('.rl-mk.rl-side-own')")
     check("Tab reaches one of the seat's own forces on the map", found)
@@ -964,7 +981,8 @@ def person_form(page: Page, report: dict[str, object]) -> None:
 
 
 OWN_ON_TOP = """() => {
-  for (const m of document.querySelectorAll('.rl-mapfirst .rl-mk.rl-side-own')) {
+  const own = '.rl-mapfirst .rl-mk.rl-side-own:not(.rl-tm-stack-top)';
+  for (const m of document.querySelectorAll(own)) {
     m.scrollIntoView({ block: 'center' });
     const r = m.getBoundingClientRect();
     const x = r.left + r.width / 2;
@@ -976,8 +994,36 @@ OWN_ON_TOP = """() => {
 }"""
 
 
+OWN_STACK_ON_TOP = """() => {
+  for (const s of document.querySelectorAll('.rl-mapfirst .rl-tm-stack')) {
+    if (!s.querySelector('.rl-tm-stack-base.rl-side-own')) continue;
+    s.scrollIntoView({ block: 'center' });
+    const r = s.querySelector('.rl-tm-stack-top, .rl-tm-stack-base').getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const on = document.elementFromPoint(x, y);
+    if (on && s.contains(on)) return { x, y };
+  }
+  return null;
+}"""
+
+
+def tap_open_own_stack(page: Page) -> None:
+    """On a phone, when none of the seat's own pieces stands alone and on top: tap the first
+    closed stack of them, as a player would, so its marks fan out."""
+    if page.evaluate(OWN_ON_TOP) is not None:
+        return
+    spot = page.evaluate(OWN_STACK_ON_TOP)
+    if spot is not None:
+        page.touchscreen.tap(spot["x"], spot["y"])
+        page.wait_for_timeout(400)
+
+
 def piece_form(page: Page, report: dict[str, object]) -> None:
     """One of the seat's own pieces: its sheet lists the forms that take it, filled in."""
+    fan_own_stack(page)
+    if PHONE:
+        tap_open_own_stack(page)
     if (
         PHONE
     ):  # a tap lands on whatever is on top at the mark's centre: take the first own mark on top
@@ -1105,8 +1151,9 @@ def locked_order(page: Page, report: dict[str, object]) -> None:
     )
 
 
-LOCK_PIECE = "Atlantic Fleet"
-"""The piece the canned lock's held order moves: the fleet the detach form names."""
+LOCK_PIECE = "US Atlantic Fleet"
+"""The piece the canned lock's held order moves: the fleet the detach form names. The 1941 world
+also holds "Atlantic Fleet carriers" in the same place, so the name is the whole one."""
 
 
 def held_on_piece(page: Page, report: dict[str, object]) -> None:
@@ -1291,10 +1338,11 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
     )
     # A tap lands on whatever is on top at the mark's centre; take the first own force it reaches
     # (on the whole territory map at this width a mark at the frame's edge is cut by it).
+    tap_open_own_stack(page)
     own = page.evaluate(
         """() => {
       const out = { cut: 0, hit: null };
-      for (const m of document.querySelectorAll('.rl-mk.rl-side-own')) {
+      for (const m of document.querySelectorAll('.rl-mk.rl-side-own:not(.rl-tm-stack-top)')) {
         m.scrollIntoView({ block: 'center' });
         const r = m.getBoundingClientRect();
         const x = r.left + r.width / 2;
@@ -1324,7 +1372,11 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
         """() => {
       const out = { open: 0, hit: null };
       for (const t of document.querySelectorAll('.rl-map-target:not([aria-disabled=true])')) {
+        // the picked piece's sheet fills the bottom half of the screen: bring the place to the
+        // upper third, not the middle, which is the sheet's top edge
         t.scrollIntoView({ block: 'center' });
+        const above = t.querySelector('circle').getBoundingClientRect();
+        window.scrollBy(0, above.top - window.innerHeight * 0.3);
         const r = t.querySelector('circle').getBoundingClientRect();
         const x = r.left + r.width / 2;
         const y = r.top + r.height / 2;

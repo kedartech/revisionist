@@ -26,7 +26,7 @@ from tests import locked_orders_script as lo
 from tests import test_salt_strait_plays as ssp
 from tests import test_world_locks_1941 as locks_1941
 from tests import test_world_salt_strait_realism as ssw
-from tests.test_rule_names import BASELINE_1941, THIRD_RUN, _docstrings
+from tests.test_rule_names import BASELINE_1941, SHIPPED_1941, THIRD_RUN, _docstrings
 
 PIECES = ("kinds_in_battle", "weather", "raising")
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
@@ -100,13 +100,16 @@ def test_a_stored_game_of_the_schema_before_loads_unchanged() -> None:
 # --- keeps: with the three on, every world plays as with them off -------------------------
 
 
-def test_the_1941_run_with_the_piece_names_on_folds_as_the_baseline(
+def test_the_1941_run_with_the_piece_names_off_folds_as_the_baseline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """1941 names the three since its kinds, splits and weather (KDA), whose readers are built:
+    with them taken out it is the baseline; as shipped it is the digest recorded for it."""
     world = locks_1941._world()
-    assert locks_1941.run_digest(world, monkeypatch) == BASELINE_1941
-    on = world.model_copy(update={"rules": _with_pieces(world.rules)})
-    assert locks_1941.run_digest(on, monkeypatch) == BASELINE_1941
+    assert set(PIECES) <= {str(r) for r in world.rules}
+    off = world.model_copy(update={"rules": tuple(r for r in world.rules if r not in PIECES)})
+    assert locks_1941.run_digest(off, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(world, monkeypatch) == SHIPPED_1941
 
 
 def _less_rules(state: State) -> str:

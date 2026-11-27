@@ -38,10 +38,11 @@ from revisionist.engine.web import dossiers
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
 from tests.test_rule_names import BASELINE_1941
+from tests.test_world_forces import parts, with_parts
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, ``deciders`` among
 them, recorded once by this item. It equals the baseline: the script seats the President
 alone and files no order the new locks hold."""
@@ -90,7 +91,7 @@ def test_the_combined_fleet_commander_is_a_playable_military_card_on_the_roster(
 def test_his_domain_names_the_combined_fleet_and_no_other_military_card_does() -> None:
     world = _world()
     forces = {k for dm in _card(world, "yamamoto").authority for k in dm.forces}
-    assert forces == {"combined_fleet"}
+    assert forces == with_parts("combined_fleet")  # the formation and its parts (KDA)
     others = {
         k
         for c in world.cards
@@ -98,7 +99,7 @@ def test_his_domain_names_the_combined_fleet_and_no_other_military_card_does() -
         for dm in c.authority
         for k in dm.forces
     }
-    assert "combined_fleet" not in others
+    assert not with_parts("combined_fleet") & others
 
 
 def test_the_commander_with_no_force_does_not_compile() -> None:
@@ -120,7 +121,7 @@ def test_his_own_forms_move_and_detach_through_a_pipeline_with_no_step_above_him
         pipeline = next(p for p in world.pipelines if p.key == lv.pipeline)
         assert [s.person for s in pipeline.steps] == ["yamamoto"], lv.name
         force = next(p for p in lv.params if p.name == "force")
-        assert force.choices == ("combined_fleet",)
+        assert force.choices == parts("combined_fleet")
         to = next(p for p in lv.params if p.name == "to")
         assert {"kure", "hitokappu_bay", "pearl_harbor_base"} == set(to.choices)
 
@@ -372,8 +373,8 @@ def test_the_roster_limit_holds_him() -> None:
 # --- rule 5: the scripted run -------------------------------------------------------------
 
 
-def _season(world: WorldFile, monkeypatch: pytest.MonkeyPatch) -> Rig:
-    """The scripted run on ``world``, first seed, at its end."""
+def _season(world: WorldFile, monkeypatch: pytest.MonkeyPatch, seed: int = 0) -> Rig:
+    """The scripted run on ``world``, its ``seed``-th seed (the first by default), at its end."""
     rigs: list[Rig] = []
 
     class Kept(Rig):
@@ -392,7 +393,7 @@ def _season(world: WorldFile, monkeypatch: pytest.MonkeyPatch) -> Rig:
             rigs.append(self)
 
     monkeypatch.setattr(bands, "Rig", Kept)
-    bands.play(bands.SEEDS[0])
+    bands.play(bands.SEEDS[seed])
     return rigs[0]
 
 
@@ -401,7 +402,7 @@ def test_the_fleets_move_to_hitokappu_bay_on_22_november_runs_with_the_switches_
 ) -> None:
     world = without_third_run(_world())
     r = _season(world, monkeypatch)
-    fleet = r.state.features[FeatureId(r.ids["combined_fleet"])]
+    fleet = r.state.features[FeatureId(r.ids["first_air_fleet"])]  # the strike force (KDA)
     assert fleet.legs == ()  # the leg of 22 November was taken
     assert fleet.places == (EntityId(r.ids["north_pacific"]),)  # the sea Hitokappu Bay is on
 

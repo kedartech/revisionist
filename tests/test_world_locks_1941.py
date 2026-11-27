@@ -35,11 +35,12 @@ from revisionist.core.world_compile import WorldError, compile_world, resolve_ke
 from revisionist.engine import campaign as cmp
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
+from tests.test_world_forces import parts, with_parts
 
-BEFORE = "ab03df1be1ecad010be0b6534d879942"
+BEFORE = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with ``command`` and ``locks`` taken out of the rules, with the
 receipt an enacted Lend-Lease finding records (a fact, as a written allocation records one)."""
-AFTER = "ab03df1be1ecad010be0b6534d879942"
+AFTER = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with ``command`` and ``locks`` on, recorded once by this item.
 It equals ``BEFORE``: the script seats the President alone and files no order a lock holds,
 and his naval order passes King's step on the day the record gives."""
@@ -122,7 +123,7 @@ def test_the_atlantic_fleet_commander_is_a_playable_military_card_on_the_roster(
 def test_his_domain_names_the_atlantic_fleet_and_no_other_military_card_does() -> None:
     world = _world()
     forces = {k for dm in _card(world, "king").authority for k in dm.forces}
-    assert forces == {"us_atlantic_fleet"}
+    assert forces == with_parts("us_atlantic_fleet")  # the formation and its parts (KDA)
     others = {
         k
         for c in world.cards
@@ -130,7 +131,7 @@ def test_his_domain_names_the_atlantic_fleet_and_no_other_military_card_does() -
         for dm in c.authority
         for k in dm.forces
     }
-    assert "us_atlantic_fleet" not in others
+    assert not with_parts("us_atlantic_fleet") & others
 
 
 def test_the_commander_with_no_force_does_not_compile() -> None:
@@ -154,7 +155,7 @@ def test_his_own_forms_go_through_a_pipeline_with_no_step_above_him() -> None:
         assert [s.person for s in pipeline.steps] == ["king"], lv.name
     for name in ("move_fleet", "detach_fleet"):
         force = next(p for p in levers[name].params if p.name == "force")
-        assert force.choices == ("us_atlantic_fleet",)
+        assert force.choices == parts("us_atlantic_fleet")
 
 
 def test_he_cables_the_president() -> None:

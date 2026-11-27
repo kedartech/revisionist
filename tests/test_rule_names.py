@@ -114,8 +114,14 @@ SHIPPED_ON: dict[str, frozenset[str]] = {
 """The names a shipped world's own lane has switched on, by world; each one whose reader
 has been built."""
 
-BASELINE_1941 = "ab03df1be1ecad010be0b6534d879942"
-"""The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
+BASELINE_1941 = "a35bcc5d7987fd21bda0748624201dc8"
+"""The 1941 scripted run's digest (``run_digest``) with every third-run switch off, recorded
+again for the nine kinds, the split formations and the weather (KDA;
+ab03df1be1ecad010be0b6534d879942 before)."""
+
+SHIPPED_1941 = "5cb9d48860d1833b119a377cd7b0863d"
+"""The 1941 scripted run's digest with the world's rules as it ships them: the piece switches
+``kinds_in_battle``, ``weather`` and ``raising`` on (KDA). Before them it was the baseline."""
 
 
 def _docstrings() -> dict[str, str | None]:
@@ -174,7 +180,7 @@ def test_the_1941_run_with_the_unread_names_on_folds_as_with_them_off(
 ) -> None:
     world = locks_1941._world()
     on = world.model_copy(update={"rules": _with_third_run(world.rules)})
-    assert locks_1941.run_digest(on, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(on, monkeypatch) == SHIPPED_1941
 
 
 def test_the_toy_world_with_the_unread_names_on_plays_as_with_them_off(

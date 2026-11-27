@@ -26,13 +26,14 @@ from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import economy, supply, territory
 from revisionist.core.realism.card import CardPath
 from revisionist.core.realism.kinds import Domain, Role
+from revisionist.core.realism.weather import Month
 from revisionist.core.roster import claimable
 from revisionist.core.state import Rule, State
 from revisionist.core.world import LinkDecl, WorldFile
 from revisionist.core.world_compile import WorldError, check_history, compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from tests import test_world_locks_1941 as locks_1941
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,7 +151,8 @@ def test_no_quantity_holds_a_value_outside_the_source_note() -> None:
 def test_every_card_lever_names_a_resolver_and_a_card_pipeline() -> None:
     for c in _world().cards:
         assert all(lv.pipeline in c.pipelines for lv in c.levers), c.person
-    assert all(2 <= len(c.levers) <= 11 for c in _world().cards if c.playable)
+    # The Prime Minister's card holds twelve: the raising form (KDA) is his twelfth.
+    assert all(2 <= len(c.levers) <= 12 for c in _world().cards if c.playable)
 
 
 def test_every_playable_card_has_authority_or_a_rank() -> None:
@@ -213,7 +215,7 @@ def test_the_scripted_run_without_the_rule_is_the_baseline(
 ) -> None:
     world = _world()
     assert Rule.PLAYABLE_RULE in world.rules
-    assert locks_1941.run_digest(_without_the_rule(world), monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(_without_the_rule(world), monkeypatch) == SHIPPED_1941
 
 
 def test_no_card_or_office_names_chiang_chairman_of_the_national_government() -> None:
@@ -637,3 +639,171 @@ def test_a_new_nations_private_state_reaches_no_seat() -> None:
     twin = world.model_copy(update={"features": tuple(features)})
     a, b = _views(world), _views(twin)
     assert [who for who in FOG_SEATS if a[who] != b[who]] == []
+
+
+# --- the kinds, the weather and raising (KDA) ---------------------------------------------
+
+PIECE_SWITCHES = (Rule.KINDS_IN_BATTLE, Rule.WEATHER, Rule.RAISING)
+"""The three piece rules (KSW)."""
+
+SEASON: tuple[Month, ...] = ("sep", "oct", "nov", "dec")
+WEATHER = {
+    "eastern_front": ("clear", "mud", "frost", "deep_winter"),
+    "europe": ("clear", "storms_at_sea", "storms_at_sea", "storms_at_sea"),
+    "atlantic": ("clear", "storms_at_sea", "storms_at_sea", "storms_at_sea"),
+    "war_zone": ("clear", "storms_at_sea", "storms_at_sea", "storms_at_sea"),
+    "mediterranean": ("clear", "clear", "clear", "clear"),
+    "pacific": ("monsoon_rain", "monsoon_rain", "clear", "clear"),
+    "americas": ("clear", "clear", "clear", "clear"),
+    "africa": ("monsoon_rain", "clear", "clear", "clear"),
+    "inner_asia": ("monsoon_rain", "clear", "clear", "clear"),
+    "australasia": ("clear", "clear", "clear", "monsoon_rain"),
+    "southern_seas": ("clear", "clear", "clear", "clear"),
+}
+"""The weather of the season by region, September to December (KDA rule 4; the formations
+draft's grid). The region named China follows Burma, where the monsoon ends in late October."""
+
+RAISERS = {
+    "churchill": "cos_directive",
+    "stalin": "gko_decree",
+    "hitler": "okw_directive",
+    "konoe": "japan_state_policy",
+    "tojo": "japan_state_policy",
+    "mussolini": "comando_supremo_order",
+    "chiang": "mac_order",
+}
+"""The people who hold production today, and the pipeline of their production form (KDA rule
+5)."""
+
+
+def _switched(world: WorldFile) -> WorldFile:
+    """The world with the three piece rules on, whether or not it ships with them."""
+    rules = tuple(world.rules) + tuple(r for r in PIECE_SWITCHES if r not in world.rules)
+    return world.model_copy(update={"rules": rules})
+
+
+def test_every_region_has_its_season_of_weather_and_every_month() -> None:
+    weather = _world().weather
+    assert weather is not None
+    rows = {r: tuple(m[s] for s in SEASON) for r, m in weather.regions.items()}
+    assert rows == WEATHER
+    assert all(len(m) == 12 for m in weather.regions.values())
+
+
+def _sky() -> tuple[Any, dict[str, str], State]:
+    from revisionist.core.realism import weather
+
+    world = _switched(_world())
+    state = replay(compile_world(world, CAMPAIGN, cmp.versions()))
+    sky = weather.sky(state)
+    assert sky is not None
+    return sky, resolve_keys(world, CAMPAIGN), state
+
+
+@pytest.mark.parametrize(
+    ("area", "day", "kind", "added"),
+    [
+        ("moscow_area", "1941-09-30", "armour", 0),
+        ("moscow_area", "1941-10-01", "armour", 5),
+        ("moscow_area", "1941-10-01", "infantry", 3),
+        ("moscow_area", "1941-11-15", "armour", 0),
+        ("moscow_area", "1941-12-10", "infantry", 2),
+        ("western_atlantic", "1941-09-20", "battle_fleet", 0),
+        ("western_atlantic", "1941-11-20", "battle_fleet", 1),
+        ("mid_ocean_gap", "1941-11-20", "submarines", 1),
+        ("burma", "1941-10-20", "infantry", 2),
+        ("burma", "1941-11-02", "infantry", 0),
+        ("hunan", "1941-09-20", "infantry", 2),
+        ("hunan", "1941-11-20", "infantry", 0),
+        ("western_mediterranean", "1941-11-20", "battle_fleet", 0),
+    ],
+)
+def test_the_weather_adds_days_to_a_step_by_region_month_and_kind(
+    area: str, day: str, kind: str, added: int
+) -> None:
+    from datetime import date
+
+    sky, ids, state = _sky()
+    assert state.kinds is not None
+    got = sky.step(state.kinds.pieces[kind], EntityId(ids[area]), date.fromisoformat(day))
+    assert got == added
+
+
+def test_the_eastern_winter_grounds_the_air_and_the_autumn_mud_blunts_armour() -> None:
+    from datetime import date
+
+    sky, ids, state = _sky()
+    assert state.kinds is not None
+    moscow = EntityId(ids["moscow_area"])
+    assert sky.grounded(moscow, date(1941, 12, 10))
+    assert not sky.grounded(moscow, date(1941, 11, 10))
+    armour = state.kinds.pieces["armour"]
+    assert [c.attack for c in sky.shift(armour, moscow, date(1941, 10, 10))] == [-1]
+    assert sky.shift(armour, moscow, date(1941, 9, 10)) == ()
+
+
+class _Seated:
+    """The world with the piece rules on, compiled and folded, one person seated at a time."""
+
+    def __init__(self) -> None:
+        from tests.test_realism_resolvers import Rig
+
+        world = _switched(_world())
+
+        class Switched(Rig):
+            def __init__(self) -> None:
+                self.campaign = CAMPAIGN
+                self.ids = resolve_keys(world, CAMPAIGN)
+                events = compile_world(world, CAMPAIGN, cmp.versions())
+                self.state = replay(events)
+                self.seq = len(events)
+                self.seats = {}
+                self.n_orders = 0
+
+        self.rig = Switched()
+        self.world = world
+
+
+def test_each_holder_of_production_has_a_form_to_raise_a_piece() -> None:
+    cards = {c.person: c for c in _world().cards}
+    for person, pipeline in RAISERS.items():
+        form = next((x for x in cards[person].levers if x.name == "raise_piece"), None)
+        assert form is not None, person
+        # the economy resolver's order raises, as Salt Strait's form does (RNC)
+        assert (form.resolver, form.pipeline) == ("economy", pipeline), person
+        assert {p.name for p in form.params} == {"kind", "place"}, person
+
+
+def test_every_kind_and_place_a_raising_form_offers_can_be_ordered_on_the_first_day() -> None:
+    """Each kind a form offers can be raised at one of its places on 1 Sept, and each place
+    takes one of its kinds: the form offers nothing the rules refuse (KSC)."""
+    from revisionist.core.realism.resolvers import production
+
+    seated = _Seated()
+    cards = {c.person: c for c in seated.world.cards}
+    idle = []
+    for person in RAISERS:
+        seat = seated.rig.seat(person)
+        form = next(x for x in cards[person].levers if x.name == "raise_piece")
+        params = {p.name: p for p in form.params}
+        ok = {
+            (kind, place)
+            for kind in params["kind"].choices
+            for place in params["place"].choices
+            if not production.raise_refusal(
+                seated.rig.state, seat, "raise_piece", {"kind": kind, "place": place}
+            )
+        }
+        idle += [(person, k) for k in params["kind"].choices if k not in {k for k, _ in ok}]
+        idle += [(person, p) for p in params["place"].choices if p not in {p for _, p in ok}]
+    assert idle == []
+
+
+def test_every_kind_but_the_envoy_is_raised_at_a_base_of_its_domain() -> None:
+    raised = {
+        k.key: (k.raised_at, k.cost is not None, k.lead_days is not None)
+        for k in _world().piece_kinds
+    }
+    assert raised.pop("envoy") == (None, False, False)
+    domains = {k.key: k.domain.value for k in _world().piece_kinds}
+    assert {k: v for k, v in raised.items() if v != (domains[k], True, True)} == {}

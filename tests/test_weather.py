@@ -23,6 +23,7 @@ from revisionist.core import events as ev
 from revisionist.core.realism import battle, territory
 from revisionist.core.state import State
 from tests import test_world_locks_1941 as locks_1941
+from tests import test_world_locks_uk_1941 as locks_uk
 from tests.test_adjacency_moves import World, day, entity, fold_changes, piece, send, walk, where
 from tests.test_adjacency_moves import play as territories_play
 from tests.test_battle_kinds import figures
@@ -242,9 +243,11 @@ def test_with_the_rule_off_the_weather_changes_no_step(tmp_path: Path) -> None:
 
 
 def test_the_1941_digest_with_the_rule_off_is_the_baseline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """1941 names the rule; taken out with the other piece switches and the third-run
+    switches, the scripted run is the baseline."""
     world = locks_1941._world()
-    assert "weather" not in {r.value for r in world.rules}
-    assert locks_1941.run_digest(world, monkeypatch) == BASELINE_1941
+    assert "weather" in {r.value for r in world.rules}
+    assert locks_1941.run_digest(locks_uk.without_third_run(world), monkeypatch) == BASELINE_1941
 
 
 # --- rule 2: weather adds days to a step, by terrain and by the kind or domain -----------

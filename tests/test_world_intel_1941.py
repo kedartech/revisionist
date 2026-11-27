@@ -150,15 +150,17 @@ def test_every_piece_kind_names_its_detect_and_conceal() -> None:
 
 
 def test_the_strike_forces_leg_of_22_november_is_concealed() -> None:
-    (fleet,) = [f for f in raw()["features"] if f["key"] == "combined_fleet"]
+    # the strike force is the First Air Fleet, split from the Combined Fleet (KDA)
+    (fleet,) = [f for f in raw()["features"] if f["key"] == "first_air_fleet"]
     (leg,) = [leg for leg in fleet["legs"] if leg["since"] == date(1941, 11, 22)]
     assert leg.get("concealed") is True
     g = Logged(cmp.load_world(WORLD))
-    assert [leg.concealed for leg in g.state.features[feature("combined_fleet")].legs] == [True]
+    assert [leg.concealed for leg in g.state.features[feature("first_air_fleet")].legs] == [True]
 
 
 def test_army_group_centres_record_takes_kiev_and_then_steps_aside() -> None:
-    (agc,) = [f for f in raw()["features"] if f["key"] == "army_group_centre"]
+    # the Kiev leg is the Second Panzer Group's, split from the army group (KDA)
+    (agc,) = [f for f in raw()["features"] if f["key"] == "second_panzer_group"]
     assert [leg.get("takes", []) for leg in agc["legs"]] == [["kiev_area"], []]
 
 
@@ -319,7 +321,7 @@ def test_typhoon_opens_a_battle_on_7_october_under_the_battle_rules(
         if isinstance(e.payload, ev.BattleOpened)
     ]
     assert (date(1941, 10, 7), "moscow_area", "germany") in opened
-    assert (date(1941, 9, 27), "hunan", "japan") in opened
+    assert (date(1941, 9, 29), "hunan", "japan") in opened
     assert all(on > START for on, _, _ in opened)
 
 

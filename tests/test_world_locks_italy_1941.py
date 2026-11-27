@@ -35,10 +35,11 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine.web import dossiers
 from tests.test_realism_resolvers import Rig
 from tests.test_rule_names import BASELINE_1941
+from tests.test_world_forces import with_parts
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, recorded once by
 this item. It equals the baseline: the script seats the President alone and files no order
 the new locks hold."""
@@ -50,8 +51,8 @@ ROWS = ("battle_fleet_sortie_east", "battle_fleet_detachment_east")
 """The rows Mussolini decides: the move and the detachment east of the Sicilian narrows."""
 EAST = "bardia"
 """The place on the eastern Mediterranean the fleet's forms reach. [proposed]"""
-FORCES = {"italian_fleet", "italian_army", "italian_army_libya"}
-"""The forces Mussolini's supreme command names."""
+FORCES = with_parts("italian_fleet", "italian_army", "italian_army_libya")
+"""The forces Mussolini's supreme command names, the parts split from them with them (KDA)."""
 FILLED: dict[int, tuple[str, dict[str, JsonValue]]] = {
     1: ("hold_and_take", {"held": "tripolitania", "place": "british_islands"}),
     2: ("take_ground", {"place": "tobruk_area"}),

@@ -21,7 +21,7 @@ from revisionist.core.state import Rule
 from revisionist.core.world import RemovalDecl, WorldFile
 from revisionist.core.world_compile import WorldError
 from tests import test_world_locks_1941 as locks_1941
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 
 THREE = (Rule.POSTS, Rule.OFFICE, Rule.DEFIANCE)
 
@@ -146,4 +146,4 @@ def test_with_the_three_switches_out_the_scripted_digest_is_the_baseline(
 ) -> None:
     off = _without(_world(), THREE)
     assert not {r.value for r in THREE} & set(off.rules)
-    assert locks_1941.run_digest(off, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(off, monkeypatch) == SHIPPED_1941

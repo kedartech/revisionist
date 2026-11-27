@@ -31,7 +31,7 @@ from revisionist.engine import campaign as cmp
 from tests import locked_orders_script as lo
 from tests import test_world_locks_1941 as locks_1941
 from tests.test_realism_resolvers import Rig
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_world_template import TEMPLATE, wc
 
 SWITCHES = (Rule.LAWS, Rule.ASK_ANSWERS)
@@ -41,7 +41,7 @@ which gives 1941 its first council."""
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "46b155c5d4e202f2d184c7ddf8b5e18d"
+LOCKED_ON = "259601984e27ad759ef499134d4d948e"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
 carries everything the world declares, Britain's, Germany's, Japan's, Italy's, the Soviet
 Union's, China's and Finland's commanders, Finland's President, the Commons' blocs, every bloc's
@@ -50,9 +50,10 @@ commanders' locks, the seats of everyone an ask could go to (the Chief of the Na
 among them), the classes and weighted places, each card's post with what each office rests on
 and who removes or moves its holder, who may accept a peace for each nation with a seat, and
 the authority each card's forms give orders under, the roster held by the playable rule, and the
-new lands' wars, Mongolia's protocol and forces (WGN; b59e8343c60b947b83b576c1db39aac5 before), so
-it is recorded for the world as it stands; both locks land on the same days with the switches on
-and off."""
+new lands' wars, Mongolia's protocol and forces (WGN; b59e8343c60b947b83b576c1db39aac5 before),
+and each piece's kind, the split formations and the weather (KDA; 46b155c5d4e202f2d184c7ddf8b5e18d
+before), so it is recorded for the world as it stands; both locks land on the same days with the
+switches on and off."""
 
 CLAUSE = "war zones closed to American ships"
 """The clause the commander's second lock names."""
@@ -249,7 +250,7 @@ def test_the_marked_naval_order_sets_the_level_its_words_set() -> None:
 def test_the_scripted_run_with_the_switches_out_is_the_baseline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert locks_1941.run_digest(without_switches(_world()), monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(without_switches(_world()), monkeypatch) == SHIPPED_1941
 
 
 def test_the_scripted_run_with_the_switches_on_is_the_baseline(
@@ -257,7 +258,7 @@ def test_the_scripted_run_with_the_switches_on_is_the_baseline(
 ) -> None:
     world = _world()
     assert set(SWITCHES) <= set(world.rules)
-    assert locks_1941.run_digest(world, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(world, monkeypatch) == SHIPPED_1941
 
 
 @pytest.fixture(scope="module")

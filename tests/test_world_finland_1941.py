@@ -44,7 +44,7 @@ from tests.test_rule_names import BASELINE_1941
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, as the nation items
 before this one recorded it: Finland's two cards leave it as it was."""
 
@@ -271,7 +271,7 @@ def _armies_at_home(world: WorldFile) -> list[str]:
 def test_one_finnish_army_stands_in_finlands_own_territory() -> None:
     world = _world()
     finnish = [f for f in world.features if f.piece is not None and f.side == NATION]
-    assert [(f.key, f.piece) for f in finnish] == [(ARMY, "army")]
+    assert [(f.key, f.piece) for f in finnish] == [(ARMY, "infantry")]  # its kind (KDA)
     assert _armies_at_home(world) == [ARMY]
     _compile(world)
 

@@ -43,7 +43,7 @@ from tests.test_rule_names import BASELINE_1941
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, as the British,
 German, Japanese, Italian and Soviet items recorded it: the Ninth War Area's card leaves it as
 it was."""

@@ -24,7 +24,7 @@ from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from tests.test_realism_resolvers import CAMPAIGN, Rig
-from tests.test_world_forces import NEW_FORCES
+from tests.test_world_forces import NEW_FORCES, SPLIT_PARTS
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
@@ -81,6 +81,9 @@ def test_the_world_switches_on_the_territory_rules() -> None:
         "defiance",
         "peace",
         "playable_rule",
+        "kinds_in_battle",
+        "weather",
+        "raising",
     ]
     assert Rig().state.rules == frozenset(
         {
@@ -112,6 +115,9 @@ def test_the_world_switches_on_the_territory_rules() -> None:
             Rule.DEFIANCE,
             Rule.PEACE,
             Rule.PLAYABLE_RULE,
+            Rule.KINDS_IN_BATTLE,
+            Rule.WEATHER,
+            Rule.RAISING,
         }
     )
 
@@ -163,7 +169,7 @@ def test_every_force_is_a_piece_standing_in_an_area() -> None:
     assert board is not None
     areas = set(board.areas())
     forces = _forces(r)
-    assert len(forces) == 30 + len(NEW_FORCES)
+    assert len(forces) == 30 + len(NEW_FORCES) + len(SPLIT_PARTS)
     assert [key_of(r, f.feature_id) for f in forces if f.kind is not FeatureKind.PIECE] == []
     assert [key_of(r, f.feature_id) for f in forces if f.places[0] not in areas] == []
 
@@ -182,9 +188,14 @@ station across the convoy routes, working from Lorient, so the scripted season s
 the Soviet Western Front opens at Mozhaisk, since with battles on a front at Vyazma, in the
 Smolensk area with Army Group Centre, would open a battle on the first day (ITD)."""
 
-LEGS = {"soviet_western_front": ["moscow_area"]}
+LEGS = {
+    "soviet_western_front": ["moscow_area"],
+    "army_group_centre": ["moscow_area"],
+    "combined_fleet": [],
+}
 """Scripted legs the world changes from the start's: the Western Front's leg to Mozhaisk is its
-start now (ITD)."""
+start now (ITD); Army Group Centre's Kiev leg went to the Second Panzer Group, and the Combined
+Fleet's leg to Hitokappu Bay to the First Air Fleet, each split from it (KDA)."""
 
 
 def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
@@ -196,7 +207,7 @@ def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
     for f in _forces(r):
         key = key_of(r, f.feature_id)
         assert key is not None
-        if key not in NEW_FORCES:
+        if key not in NEW_FORCES and key not in SPLIT_PARTS:
             got[key] = key_of(r, f.places[0])
     assert got == {k: ON_STATION.get(k, area) for k, (area, _) in want.items()}
 
@@ -218,6 +229,8 @@ def test_each_scripted_leg_lands_in_the_area_the_start_gives_it() -> None:
     for f in _forces(r):
         key = key_of(r, f.feature_id)
         assert key is not None
+        if key in SPLIT_PARTS:
+            continue  # a part's legs are the forces test's (KDA)
         domain = kinds.domain(r.state, f)
         assert domain is not None
         legs = [key_of(r, territory.area_of(r.state, leg.places[0], domain)) for leg in f.legs]

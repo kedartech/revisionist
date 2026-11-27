@@ -677,12 +677,12 @@ def test_the_1941_digest_is_the_baseline_with_own_aim_off_and_on_without_pattern
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from tests import test_world_locks_1941 as locks_1941
-    from tests.test_rule_names import BASELINE_1941
+    from tests.test_rule_names import SHIPPED_1941
 
     shipped = locks_1941._world()
     rules = tuple(r for r in shipped.rules if r is not Rule.OWN_AIM)
     plain = shipped.model_copy(update={"rules": rules, "aim_patterns": ()})
     assert Rule.OWN_AIM not in plain.rules and plain.aim_patterns == ()
-    assert locks_1941.run_digest(plain, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(plain, monkeypatch) == SHIPPED_1941
     on = plain.model_copy(update={"rules": (*plain.rules, Rule.OWN_AIM)})
-    assert locks_1941.run_digest(on, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(on, monkeypatch) == SHIPPED_1941

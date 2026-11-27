@@ -598,9 +598,9 @@ NINETEEN_41: tuple[Case, ...] = (
     f41(
         "yamamoto",
         "combined_fleet_detach",
-        {"force": "combined_fleet", "to": "kure", "strength": "2"},
-        "Send two of the fleet's divisions in to Kure.",
-        detail(move("combined_fleet", "kure"), strength="2"),
+        {"force": "combined_fleet", "to": "kure", "strength": "1"},
+        "Send one of the fleet's divisions in to Kure.",
+        detail(move("combined_fleet", "kure"), strength="1"),
     ),
     # Admiral Iachino: the moves no lock holds
     f41(
@@ -676,6 +676,57 @@ NINETEEN_41: tuple[Case, ...] = (
         {"intel": "conceal", "piece": "finnish_army", "concealed": "yes"},
         "Hide the Finnish Army.",
         hide("finnish_army"),
+    ),
+    # The raising forms (KDA): read as the Salt Strait one is, an ask with no effect whose
+    # detail names each of its parameters.
+    f41(
+        "churchill",
+        "raise_piece",
+        {"kind": "infantry", "place": "london"},
+        "Raise new infantry in London.",
+        {"detail": {"kind": "infantry", "place": "london"}},
+    ),
+    f41(
+        "stalin",
+        "raise_piece",
+        {"kind": "infantry", "place": "moscow"},
+        "Raise new infantry in Moscow.",
+        {"detail": {"kind": "infantry", "place": "moscow"}},
+    ),
+    f41(
+        "hitler",
+        "raise_piece",
+        {"kind": "armour", "place": "berlin"},
+        "Raise new armour in Berlin.",
+        {"detail": {"kind": "armour", "place": "berlin"}},
+    ),
+    f41(
+        "konoe",
+        "raise_piece",
+        {"kind": "infantry", "place": "tokyo"},
+        "Raise new infantry in Tokyo.",
+        {"detail": {"kind": "infantry", "place": "tokyo"}},
+    ),
+    f41(
+        "tojo",
+        "raise_piece",
+        {"kind": "garrison", "place": "kure"},
+        "Raise a new garrison at Kure.",
+        {"detail": {"kind": "garrison", "place": "kure"}},
+    ),
+    f41(
+        "mussolini",
+        "raise_piece",
+        {"kind": "infantry", "place": "rome"},
+        "Raise new infantry in Rome.",
+        {"detail": {"kind": "infantry", "place": "rome"}},
+    ),
+    f41(
+        "chiang",
+        "raise_piece",
+        {"kind": "infantry", "place": "chungking"},
+        "Raise new infantry at Chungking.",
+        {"detail": {"kind": "infantry", "place": "chungking"}},
     ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in

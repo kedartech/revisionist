@@ -33,7 +33,7 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.store import MemoryStore, load_state
 from tests import test_world_locks_1941 as locks_1941
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_territory_model import CAMPAIGN
 
 WORLD = cmp.world_path("autumn-1941")
@@ -72,10 +72,11 @@ FULL = 64
 """A pattern with this many fills or fewer is filled with every combination of values;
 one with more, with each value of each blank, the other blanks at their first value."""
 
-AFTER = BASELINE_1941
-"""The scripted run's digest with ``own_aim`` on, recorded once by this item. It equals the
-baseline: the script seats the President and sets no own aim, and the patterns are declared
-with the world, before the payloads the digest reads."""
+AFTER = SHIPPED_1941
+"""The scripted run's digest with ``own_aim`` on, recorded once by this item; the world as
+shipped since the piece switches (KDA). It equalled the baseline: the script seats the
+President and sets no own aim, and the patterns are declared with the world, before the
+payloads the digest reads."""
 
 NOT_ISSUED: dict[str, tuple[int, str, str]] = {
     "konoe": (
@@ -389,7 +390,7 @@ def test_with_own_aim_out_of_a_copys_rules_the_digest_is_the_baseline(
 ) -> None:
     w = locks_1941._world()
     off = w.model_copy(update={"rules": tuple(r for r in w.rules if r is not Rule.OWN_AIM)})
-    assert locks_1941.run_digest(off, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(off, monkeypatch) == SHIPPED_1941
 
 
 def test_the_digest_with_own_aim_on_is_the_one_recorded(monkeypatch: pytest.MonkeyPatch) -> None:

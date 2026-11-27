@@ -27,12 +27,13 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, session_zero
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_rule_names import BASELINE_1941
+from tests.test_world_forces import parts
 from tests.test_world_locks_1941 import run_digest
 from tests.test_world_locks_uk_1941 import without_third_run
 from tests.test_written_order_parity import CAMPAIGN, _ask, entity, feature, seat
 from tests.written_order_cases import CASES, Case
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, as the commanders'
 items recorded it: the script files none of the forms below."""
 
@@ -159,7 +160,8 @@ def test_a_new_force_in_a_domain_is_one_the_form_names() -> None:
 def test_tojo_s_naval_domain_names_the_combined_fleet_alone(state: State) -> None:
     card = state.cards[entity("tojo")]
     found = next(d for d in card.authority if d.name == "naval_operations")
-    assert found.forces == (feature("combined_fleet"),)
+    # the Combined Fleet and the parts split from it (KDA)
+    assert found.forces == tuple(feature(k) for k in parts("combined_fleet"))
 
 
 # --- the scripted run ---------------------------------------------------------------------

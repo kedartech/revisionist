@@ -184,6 +184,13 @@ def horizon(people: tuple[str, ...], days: int) -> Change:
     return change
 
 
+def without_rule(rule: str) -> Change:
+    def change(w: World) -> None:
+        w["rules"] = [r for r in w["rules"] if r != rule]
+
+    return change
+
+
 def placed(piece: str, place: str) -> Change:
     def change(w: World) -> None:
         for f in w["features"]:
@@ -240,6 +247,7 @@ NINETEEN_41 = Cast(
         tiers({"afrika_korps": 5, "western_desert_force": 3}),
         placed("afrika_korps", "tripoli"),
         horizon(("hitler",), 1),
+        without_rule("kinds_in_battle"),
     ),
     defender="churchill",
     attacker="hitler",
@@ -266,7 +274,9 @@ Desert Force. The test's copy gives each leader command of his desert army, sets
 armies' strengths, starts the Afrika Korps at Tripoli (the seeded battle then runs the
 script's course: an even first round, a lull while Hitler holds, and the Western Desert
 Force leaving by its standing order when he presses), and gives Hitler a one-day horizon
-so every wake is one world day, which the patrol does on Salt Strait."""
+so every wake is one world day, which the patrol does on Salt Strait. Kinds do not count
+in the copy's battles: armour against infantry in the open breaks it on the first day, and
+the script's course is the strengths' even fight; the kinds have tests of their own."""
 
 BALLOONS = "union_balloon_corps"
 GAZELLE = "confederate_balloon"

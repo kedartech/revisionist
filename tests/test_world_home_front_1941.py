@@ -20,7 +20,7 @@ from revisionist.core.world import WorldFile
 from revisionist.engine import campaign as cmp
 from tests import test_world_locks_1941 as locks_1941
 from tests.test_realism_resolvers import Rig
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_world_groups_1941 import SEVEN, raw, section
 
 SWITCHES = (Rule.CLASSES, Rule.LOSSES, Rule.PLACES)
@@ -39,7 +39,7 @@ MIXED = (Happening.TERRITORY_LOST, Happening.BATTLE_LOSSES)
 """The kinds the first sort mixes: reported, each with a felt share."""
 PLACES_MAX = 5
 """The most places with political weight one nation lists (HFD rule 3)."""
-ON_1941 = "ab03df1be1ecad010be0b6534d879942"
+ON_1941 = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the three switches on, recorded once: the baseline's, as the
 scripted run walks no groups."""
 GAP = re.compile(r"#\s*gap:\s*true\b")
@@ -173,7 +173,7 @@ def test_the_scripted_run_with_the_three_switches_out_is_the_baseline(
 ) -> None:
     world = without_switches(_world())
     assert not set(SWITCHES) & set(world.rules)
-    assert locks_1941.run_digest(world, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(world, monkeypatch) == SHIPPED_1941
 
 
 def test_the_scripted_run_with_the_three_switches_on_is_recorded(

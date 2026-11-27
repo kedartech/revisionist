@@ -37,9 +37,11 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine.web import dossiers
 from tests.test_realism_resolvers import Rig
 from tests.test_rule_names import BASELINE_1941, THIRD_RUN
+from tests.test_rule_names_pieces import PIECES
+from tests.test_world_forces import parts, with_parts
 from tests.test_world_locks_1941 import run_digest
 
-ON = "ab03df1be1ecad010be0b6534d879942"
+ON = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with the 1941 world's third-run switches on, recorded once by
 this item. It equals the baseline: the script seats the President alone, files no order the
 two new locks hold, and no happening of the run moves the Commons' blocs."""
@@ -71,16 +73,17 @@ def _compile(world: WorldFile) -> None:
 
 
 def without_third_run(world: WorldFile) -> WorldFile:
-    """A copy of ``world`` with every third-run switch taken out of its rules, and the lock
-    rows that read a law only the world declares with them: with ``laws`` off no such law is
-    in the game, and the compiler refuses a row whose clause it cannot find."""
+    """A copy of ``world`` with every third-run switch taken out of its rules, the three piece
+    switches with them (KDA), and the lock rows that read a law only the world declares with
+    them: with ``laws`` off no such law is in the game, and the compiler refuses a row whose
+    clause it cannot find."""
     tabled = {c.subject for m in votes.HISTORICAL.values() for c in m.clauses}
     rows = tuple(
         r
         for r in world.locks
         if r.when is None or r.when.check != "law_not_in_force" or r.when.clause in tabled
     )
-    rules = tuple(r for r in world.rules if r not in THIRD_RUN)
+    rules = tuple(r for r in world.rules if r not in THIRD_RUN and r not in PIECES)
     return world.model_copy(update={"rules": rules, "locks": rows})
 
 
@@ -106,7 +109,7 @@ def test_the_home_fleet_commander_is_a_playable_military_card_on_the_roster() ->
 def test_his_domain_names_the_home_fleet_and_no_other_military_card_does() -> None:
     world = _world()
     forces = {k for dm in _card(world, "tovey").authority for k in dm.forces}
-    assert forces == {"home_fleet"}
+    assert forces == with_parts("home_fleet")  # the formation and its parts (KDA)
     others = {
         k
         for c in world.cards
@@ -114,7 +117,7 @@ def test_his_domain_names_the_home_fleet_and_no_other_military_card_does() -> No
         for dm in c.authority
         for k in dm.forces
     }
-    assert "home_fleet" not in others
+    assert not with_parts("home_fleet") & others
 
 
 def test_the_commander_with_no_force_does_not_compile() -> None:
@@ -136,7 +139,7 @@ def test_his_own_forms_move_and_detach_through_a_pipeline_with_no_step_above_him
         pipeline = next(p for p in world.pipelines if p.key == lv.pipeline)
         assert [s.person for s in pipeline.steps] == ["tovey"], lv.name
         force = next(p for p in lv.params if p.name == "force")
-        assert force.choices == ("home_fleet",)
+        assert force.choices == parts("home_fleet")
     assert "strength" in {p.name for p in levers["home_fleet_detach"].params}
 
 

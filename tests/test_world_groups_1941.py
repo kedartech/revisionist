@@ -32,7 +32,7 @@ from revisionist.core.world_compile import WorldError, compile_world
 from revisionist.engine import campaign as cmp
 from tests import test_world_locks_1941 as locks_1941
 from tests.test_realism_resolvers import Rig
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_territory_model import CAMPAIGN
 
 WORLD = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
@@ -333,10 +333,10 @@ def test_the_scripted_run_with_offers_taken_out_is_the_baseline(
     world = locks_1941._world()
     assert Rule.OFFERS in world.rules
     out = world.model_copy(update={"rules": tuple(r for r in world.rules if r != Rule.OFFERS)})
-    assert locks_1941.run_digest(out, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(out, monkeypatch) == SHIPPED_1941
 
 
 def test_the_scripted_run_with_offers_on_makes_no_offer_and_is_the_baseline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    assert locks_1941.run_digest(locks_1941._world(), monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(locks_1941._world(), monkeypatch) == SHIPPED_1941

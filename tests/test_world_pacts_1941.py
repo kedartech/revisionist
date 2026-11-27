@@ -35,7 +35,7 @@ from revisionist.engine import campaign as cmp
 from tests import test_world_locks_1941 as locks_1941
 from tests.test_adjacency_moves import entity
 from tests.test_conference import Game
-from tests.test_rule_names import BASELINE_1941
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_territory_model import CAMPAIGN
 
 WORLD = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
@@ -183,7 +183,7 @@ def test_with_peace_out_of_a_copys_rules_the_scripted_digest_is_the_baseline(
     w = locks_1941._world()
     off = w.model_copy(update={"rules": tuple(r for r in w.rules if r != Rule.PEACE.value)})
     assert Rule.PEACE.value not in off.rules
-    assert locks_1941.run_digest(off, monkeypatch) == BASELINE_1941
+    assert locks_1941.run_digest(off, monkeypatch) == SHIPPED_1941
 
 
 # --- capitals ---------------------------------------------------------------------------

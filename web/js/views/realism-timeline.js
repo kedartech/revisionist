@@ -7,7 +7,8 @@
 
 import { h, svg } from '../dom.js';
 import { markKey, shortDate } from '../realism-rules.js';
-import { DUE_FLASH, MARK_MS, cameDue, play } from './realism-tracks.js';
+import { cameDue, cameDueIn, lastDrawn, play } from '../motion.js';
+import { DUE_FLASH } from './realism-tracks.js';
 import { dayKey } from './realism-wake.js';
 
 /** The strip's words [proposed]. */
@@ -116,20 +117,32 @@ function shape(kind) {
 const markCls = (m) => `rl-tl-mark k-${m.kind}${m.due ? ' due' : ''}`;
 const pct = (days, span) => `${span > 0 ? Math.min(100, (100 * days) / span).toFixed(2) : 0}%`;
 
-/** One mark on the line; a promise's mark that came due since the strip last drew marks itself once. */
-function axisMark(m, span, today) {
-  const due = m.key.startsWith('need:promise:') && cameDue(`tl:${m.key}`, m.day, today);
+/**
+ * Whether mark `m` came due since the strip last drew it: by its day where it was sent one,
+ * else by its days left reaching nought.
+ */
+const markCameDue = (m, today) => (m.day ? cameDue(`tl:${m.key}`, m.day, today) : cameDueIn(`tl:${m.key}`, m.days));
+
+/**
+ * One mark on the line. A mark that came due since the strip last drew marks itself once (a
+ * promise's as the promise does on the Capital board); a mark new to the strip (`fresh`) drops
+ * into its place.
+ */
+function axisMark(m, span, today, fresh) {
+  const due = markCameDue(m, today);
   const el = svg('svg', { class: markCls(m), x: pct(m.days, span), y: '50%', overflow: 'visible', 'data-tl-key': m.key, 'data-came-due': due }, shape(m.kind));
-  if (due) play(el, DUE_FLASH, MARK_MS);
+  if (due) play(el, DUE_FLASH, m.key.startsWith('need:promise:') ? 'promise-due' : 'timeline-due');
+  else if (fresh) play(el, [{ opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }], 'timeline-new', 'ease-out');
   return el;
 }
 
 /** The line: today's tick, then one mark per dated thing at its share of the span. */
 function axis(found, today) {
+  const was = lastDrawn('tl:keys', new Set(found.marks.map((m) => m.key)));
   return svg('svg', { class: 'rl-tl-axis', 'aria-hidden': 'true', focusable: 'false' },
     svg('line', { class: 'rl-tl-rule', x1: '0', x2: '100%', y1: '50%', y2: '50%' }),
     svg('svg', { class: 'rl-tl-today', x: '0', y: '50%', overflow: 'visible' }, svg('rect', { x: -1, y: -9, width: 2, height: 18 })),
-    found.marks.map((m) => axisMark(m, found.span, today)));
+    found.marks.map((m) => axisMark(m, found.span, today, Boolean(was) && !was.has(m.key))));
 }
 
 const rowMark = (m) => svg('svg', { class: markCls(m), viewBox: '-7 -7 14 14', width: 14, height: 14, 'aria-hidden': 'true', focusable: 'false' }, shape(m.kind));

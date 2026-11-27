@@ -8,6 +8,7 @@
 // Nothing here touches the page on import.
 
 import { h } from '../dom.js';
+import { stepLeft } from '../motion.js';
 import { reportAge, reportAgoWords, reportWhat, sourceWord } from '../realism-rules.js';
 import { markSwatch } from './realism-map.js';
 
@@ -41,16 +42,18 @@ export function ownKind(mark) {
 /**
  * A figure as five steps, `value` of them on; the steps between it and `base` drawn as lost (under
  * `base`) or gained (over it). `said` is its name for a reader; the number is drawn beside it.
+ * Kept as `keep`, a step moved since it was last drawn shows the step it left for a moment.
  */
-function figureMeter(key, value, base, said) {
+function figureMeter(key, value, base, said, keep = null) {
   const differs = base !== null && base !== value;
   const cls = (i) => {
     if (i < value) return differs && i >= base ? 'rl-mark-step on rl-pc-gained' : 'rl-mark-step on';
     return differs && i < base ? 'rl-mark-step rl-pc-lost' : 'rl-mark-step';
   };
+  const steps = h('span', { class: 'rl-mark-steps', 'aria-hidden': 'true' }, Array.from({ length: STEPS }, (_, i) => h('span', { class: cls(i) })));
+  if (keep) stepLeft(steps.children, keep, value);
   return h('span', { class: 'rl-mark rl-mark-meter rl-mark-own rl-pc-meter', role: 'img', 'data-figure': key, 'aria-label': said },
-    h('span', { class: 'rl-mark-steps', 'aria-hidden': 'true' }, Array.from({ length: STEPS }, (_, i) => h('span', { class: cls(i) }))),
-    h('span', { class: 'rl-mark-num', 'aria-hidden': 'true' }, String(value)));
+    steps, h('span', { class: 'rl-mark-num', 'aria-hidden': 'true' }, String(value)));
 }
 
 /** The figures the server sent, in the card's order, each with its step and the step beside it. */
@@ -137,7 +140,8 @@ export function pieceCard(map, mark) {
   const rows = sentFigures(kind.here, kind.figures).map((f) => h('div', { class: 'rl-pc-row', 'data-figure': f.key },
     h('span', { class: 'rl-pc-fig' }, f.name),
     figureMeter(f.key, f.value, f.base,
-      `${f.name}: ${f.value} of ${STEPS}${f.base !== null && f.base !== f.value ? ` here, ${f.base} for its kind` : ''}`)));
+      `${f.name}: ${f.value} of ${STEPS}${f.base !== null && f.base !== f.value ? ` here, ${f.base} for its kind` : ''}`,
+      `pc:${mark.key ?? mark.name}:${f.key}`)));
   return h('section', { class: 'rl-pc-card', 'aria-label': `${kind.name}: its figures` },
     h('p', { class: 'rl-pc-head' }, markSwatch(mark), h('span', { class: 'rl-pc-kind' }, kind.name), h('span', { class: 'rl-pc-its' }, 'its figures')),
     h('div', { class: 'rl-pc-figs' }, rows),

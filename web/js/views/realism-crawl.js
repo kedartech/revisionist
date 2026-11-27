@@ -3,6 +3,7 @@
 // entry, and the phrases that say what Begin is doing.
 
 import { h } from '../dom.js';
+import { motionMs, reducedMotion, timers } from '../motion.js';
 
 const CRAWL_MAX = 3;
 
@@ -13,16 +14,11 @@ export function crawlParagraphs(setting) {
   return lines(setting?.crawl).slice(0, CRAWL_MAX);
 }
 
-// The typing pace. [proposed] until Josh has read a crawl at this pace.
-export const CHARS_PER_SECOND = 40;
-export const PAUSE_MS = 600;
+// The typing pace, from the room's motion sheet. [proposed] until Josh has read a crawl at this pace.
+export const CHARS_PER_SECOND = 1000 / motionMs('crawl-char');
+export const PAUSE_MS = motionMs('crawl-pause');
 
-const realTimers = {
-  set: (fn, ms) => setTimeout(fn, ms),
-  clear: (id) => clearTimeout(id),
-};
-
-const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+const realTimers = timers;
 
 // A paragraph is three spans: the whole text for a screen reader, then the typed part and
 // the part still to type, both hidden from it. The part still to type keeps its place unseen,

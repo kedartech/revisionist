@@ -7,6 +7,7 @@
 // Nothing here touches the page on import.
 
 import { h } from '../dom.js';
+import { slideIn, slideOut } from '../motion.js';
 import { groupOf } from './realism-groups.js';
 
 /** The messenger's sheet's title; a group's part takes its group's name. */
@@ -93,6 +94,25 @@ export function overSheet({ name, title, body, onClose, piece = null, parts = nu
     h('button', { type: 'button', class: 'rl-btn rl-over-close', onclick: onClose }, 'Close')),
   parts,
   h('div', { class: 'rl-over-body' }, body));
+}
+
+/** Which sheet an open sheet is, for motion: a group's parts are one sheet, a force's sheet is its force's. */
+const sheetIs = (el) => {
+  if (!el) return null;
+  const name = el.getAttribute('data-sheet');
+  return `${groupOf(name)?.key ?? name}:${el.getAttribute('data-piece') ?? ''}`;
+};
+
+/**
+ * After the room is drawn again into `root`: a sheet that was not open before (`was`, the sheet
+ * drawn last, laid out at `rect`) slides in, and one that closed slides back out as a picture
+ * that holds nothing; a part of the same sheet, or the same sheet redrawn, does not move. `side`:
+ * the sheets open at the side (1024 px and over), not from the foot.
+ */
+export function sheetMotion(root, was, rect, side) {
+  const now = root.querySelector('section.rl-over');
+  if (now && sheetIs(now) !== sheetIs(was)) slideIn(now, side);
+  else if (!now && was) slideOut(was, rect, root.querySelector('main.rl-mapfirst') ?? root, side);
 }
 
 /** Where a sheet's form values are kept: its sheet, and for a force's sheet the force. */

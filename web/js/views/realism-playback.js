@@ -11,14 +11,15 @@
 
 import { h, svg } from '../dom.js';
 import { fillIn, placeMark, worldClock } from '../map/motion.js';
+import { motionMs } from '../motion.js';
 import { markKey } from '../realism-rules.js';
 import { territoryDrawing } from './realism-territory.js';
 import { dayWords } from './realism-wake.js';
 
-/** How long one world day of a wake takes on screen. [proposed] */
-export const DAY_MS = 400;
+/** How long one world day of a wake takes on screen (the motion sheet's). [proposed] */
+export const DAY_MS = motionMs('wake-day');
 /** The longest a wake's playback runs: a longer wake runs its clock faster. [proposed] */
-export const WAKE_MS = 20_000;
+export const WAKE_MS = motionMs('wake-cap');
 /** How far toward its area a refused step carries the piece before it stops. [proposed] */
 export const HALT_SHARE = 1 / 3;
 

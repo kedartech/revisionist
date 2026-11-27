@@ -10,6 +10,7 @@
 
 import { api } from '../api.js';
 import { h, icon } from '../dom.js';
+import { afterLayout, reducedMotion } from '../motion.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import { browserStorage } from '../theme.js';
@@ -41,7 +42,7 @@ import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { playbackDialog, wakePlayer } from './realism-playback.js';
 import { peopleRoster, personDossier } from './realism-people.js';
 import {
-  closeSheet, forgetForm, layoutChoice, markFiled, openSheet, openSheetOf, overSheet, readForms, restoreForms,
+  closeSheet, forgetForm, layoutChoice, markFiled, openSheet, openSheetOf, overSheet, readForms, restoreForms, sheetMotion,
   returnTarget, roomLayout, setRoomLayout, setTerritorial,
 } from './realism-sheets.js';
 import {
@@ -450,7 +451,10 @@ export function realismRoom(ctx) {
   const mapFirst = () => roomLayout() === 'map';
   const rerender = () => {
     if (mapFirst()) ui.sheetForms = readForms(root, ui.sheetForms);
+    const was = mapFirst() ? root.querySelector('section.rl-over') : null;
+    const rect = was?.getBoundingClientRect?.() ?? null;
     root.replaceChildren(...build());
+    if (mapFirst()) sheetMotion(root, was, rect, needsRail());
     follow();
     showDesk();
     showMissed();
@@ -930,7 +934,7 @@ export function realismRoom(ctx) {
     if (file && !shapesFor(file)) loadShapes(file);
     return {
       pages, map: rv.map, shapes: shapesFor(file), record: rv.record, comeBack: comeBackLine(rv), battles: rv.battles,
-      reduced: Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
+      reduced: reducedMotion(),
     };
   }
 
@@ -1622,7 +1626,7 @@ export function realismRoom(ctx) {
     const season = timelineStrip(rv, lines, { open: ui.timeline, onToggle: toggleTimeline, onOpen: openMark });
     const at = season ? ` rl-tl-on${ui.timeline ? ' rl-tl-open' : ''}` : '';
     const section = lightTogether(h('section', { class: `rl-mapfirst-map${at}`, 'aria-label': board === 'capital' ? 'The Capital' : 'The map', 'data-board': board }, drawn, season, status));
-    if (season && ui.timeline) globalThis.requestAnimationFrame?.(() => fitStrip(section));
+    if (season && ui.timeline) afterLayout(() => fitStrip(section));
     return [roomBar(rv, { tabs, menu: menuBtn, aims, act }),
       h('main', { class: `rl-mapfirst${sheet ? ' sheeted' : ''}`, 'aria-label': 'Map' },
         listed, section, sheet),

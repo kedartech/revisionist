@@ -9,6 +9,7 @@
 // Nothing here touches the page on import.
 
 import { h, svg } from '../dom.js';
+import { lastDrawn, play } from '../motion.js';
 import {
   BATTLE_CONTINGENCIES, BATTLE_DECISIONS, LABEL_PX, MIN_MARK_PX, MIN_TAP_PX, battleDay, battleRangePips, battleRangeWords,
   contingencyWord, decisionInForce, decisionWord, fallBackAreas, newsBattles, pieceForm, pipsOf, shortDate, stepsWord,
@@ -139,16 +140,22 @@ function roundsChart(b) {
   const lost = (n) => Math.max(0, Number(n) || 0);
   const top = Math.max(1, ...rounds.flatMap((r) => [lost(r.own_lost), lost(r.enemy_lost)]));
   const unit = top === 1 ? 'step' : 'steps';
+  const was = lastDrawn(`rounds:${b.area}`, new Set(rounds.map((r) => r.on)));
+  // a round the sheet has not drawn grows; drawn first, the latest round, the day's, grows
+  const grows = (r, i) => (was ? !was.has(r.on) : i === rounds.length - 1);
   return h('div', { class: 'rl-bt-rounds', role: 'group', 'aria-label': `Losses by day at ${b.name}` },
-    rounds.map((r) => {
+    rounds.map((r, i) => {
       const day = shortDate(r.on);
-      return h('div', { class: 'rl-bt-round' },
-        h('div', { class: 'rl-bt-round-pair' },
-          bar({ value: lost(r.own_lost), limit: top, name: `${day}, your losses`, unit, column: true, tone: 'own' }),
-          bar({ value: lost(r.enemy_lost), limit: top, name: `${day}, theirs as reported`, unit, column: true, tone: 'hostile' })),
-        h('span', { class: 'rl-bt-round-day', 'aria-hidden': 'true' }, day));
+      const pair = h('div', { class: 'rl-bt-round-pair' },
+        bar({ value: lost(r.own_lost), limit: top, name: `${day}, your losses`, unit, column: true, tone: 'own' }),
+        bar({ value: lost(r.enemy_lost), limit: top, name: `${day}, theirs as reported`, unit, column: true, tone: 'hostile' }));
+      if (grows(r, i)) for (const fill of pair.querySelectorAll('rect.rl-mark-fill')) play(fill, GROW, 'battle-round', 'ease-out');
+      return h('div', { class: 'rl-bt-round' }, pair, h('span', { class: 'rl-bt-round-day', 'aria-hidden': 'true' }, day));
     }));
 }
+
+/** A round's bar growing from its foot to its length. */
+const GROW = [{ transform: 'scaleY(0)' }, { transform: 'none' }];
 
 /** Day by day: each round's losses, the seat's and the enemy's as reported, and the close to come. */
 function daysTable(b, may) {

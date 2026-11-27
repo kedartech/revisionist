@@ -1,3 +1,19 @@
+/* The room's motion (web/js/motion.js, docs/web-design/motion.md): each motion shows a change
+   once and is timed by the module; reduced motion leaves the end state (c-base.css stops every
+   stylesheet motion, the module plays nothing). */
+
+/* a five-step meter that moved: the step it left, outlined for a moment, by place and outline */
+.rl-motion-left { outline: 2px solid var(--fg-strong); outline-offset: 1px; }
+
+/* a sheet sliding in or out never widens the page: the map's frame clips it while a sheet is
+   there; a closed sheet sliding out is a picture where it stood, holding no tap */
+.rl-mapfirst.sheeted, .rl-mapfirst:has(> .rl-over-ghost) { overflow: clip; }
+.rl-over-ghost { position: absolute; z-index: 47; display: flex; flex-direction: column; overflow: hidden; pointer-events: none; background: var(--surface); color: var(--fg-strong); border: 1px solid var(--rule-strong); border-radius: var(--radius); }
+
+/* a battle's round grows from its foot; a nation's bar runs from its start */
+.rl-bt-round .rl-mark-fill { transform-box: fill-box; transform-origin: 50% 100%; }
+.rl-nb-fill { transform-box: fill-box; transform-origin: 0 50%; }
+
 /* The wake's playback as a clock of world days: the day as it runs, a piece on its way, a
    refused step, a day's fighting and its losses. Colours come from tokens.css: amber for what
    is live, red for what is hostile or lost, neutral for the rest. Reduced motion shows every
@@ -44,4 +60,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rl-plb-day { display: none; }
+  .rl-motion-left { outline: none; }
+  .rl-over-ghost { display: none; }
 }

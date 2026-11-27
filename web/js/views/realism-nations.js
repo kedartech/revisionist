@@ -14,6 +14,7 @@
 
 import { h, svg } from '../dom.js';
 import { flagBadge, loadFlagIndex } from '../flags.js';
+import { lastDrawn, play, stepLeft } from '../motion.js';
 import { worldDate } from '../rules.js';
 import { ownSheet } from './realism-economy.js';
 import { BANDS, bandWords } from './realism-home.js';
@@ -66,17 +67,32 @@ export function barShare(figure, rows) {
   return top > 0 ? Math.round((100 * Math.max(0, Number(figure) || 0)) / top) : 0;
 }
 
-/** The bar: a track and its fill in a 100-wide box, so no length is written as a style. */
-const bar = (share) => svg('svg', {
-  class: 'rl-nb-bar', viewBox: '0 0 100 8', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false',
-}, svg('rect', { class: 'rl-nb-track', x: 0, y: 0, width: 100, height: 8 }), svg('rect', { class: 'rl-nb-fill', x: 0, y: 0, width: share, height: 8 }));
+/**
+ * The bar kept as `key`: a track and its fill in a 100-wide box, so no length is written as a
+ * style. When its length changed since it was last drawn, the fill runs from the old to the new.
+ */
+function bar(share, key) {
+  const fill = svg('rect', { class: 'rl-nb-fill', x: 0, y: 0, width: share, height: 8 });
+  const was = lastDrawn(`nb:${key}`, share);
+  if (Number.isFinite(was) && was !== share && share > 0) {
+    play(fill, [{ transform: `scaleX(${+(was / share).toFixed(4)})` }, { transform: 'none' }], 'nation-bar');
+  }
+  return svg('svg', {
+    class: 'rl-nb-bar', viewBox: '0 0 100 8', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false',
+  }, svg('rect', { class: 'rl-nb-track', x: 0, y: 0, width: 100, height: 8 }), fill);
+}
 
-/** The band as five steps, the band's own step and those under it on; `null` with no reading. */
-function meter(band) {
+/**
+ * The band of the nation kept as `key` as five steps, the band's own step and those under it on;
+ * a step moved since it was last drawn shows the step it left for a moment. `null` with no reading.
+ */
+function meter(band, key) {
   const step = BANDS.indexOf(band) + 1;
   if (step < 1) return null;
-  return h('span', { class: 'rl-nb-meter', role: 'img', 'aria-label': `${bandWords(band)}: ${step} of 5`, 'data-step': String(step) },
+  const el = h('span', { class: 'rl-nb-meter', role: 'img', 'aria-label': `${bandWords(band)}: ${step} of 5`, 'data-step': String(step) },
     [1, 2, 3, 4, 5].map((i) => h('span', { class: `rl-nb-step${i <= step ? ' on' : ''}`, 'aria-hidden': 'true' })));
+  stepLeft(el.children, `nb:${key}`, step);
+  return el;
 }
 
 const flagOf = (rv, nation, opts) => flagBadge({
@@ -117,7 +133,7 @@ export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = nul
     flagOf(rv, r.nation, { height: 20 }),
     h('span', { class: 'rl-nb-name' }, r.nation.name, rel === 'own' ? h('span', { class: 'rl-nb-yours' }, ' · yours') : null),
     relMark(rel),
-    bars ? bar(barShare(r.figure, rows)) : h('span', { class: 'rl-nb-band' }, r.band ?? ''),
+    bars ? bar(barShare(r.figure, rows), `row:${r.nation.key}`) : h('span', { class: 'rl-nb-band' }, r.band ?? ''),
     bars ? h('span', { class: 'rl-nb-num' }, num(r.figure)) : null));
   };
 
@@ -149,11 +165,11 @@ export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = nul
     const figure = r.figure === null ? null : h('div', { class: 'rl-nb-fact' },
       h('h4', {}, 'War economy'),
       h('p', { class: 'rl-nb-figure' }, num(r.figure)),
-      bar(barShare(r.figure, rows)),
+      bar(barShare(r.figure, rows), `card:${r.nation.key}`),
       h('p', { class: 'muted' }, rel === 'own'
         ? `Your war-economy figure, counted for ${worldDate(rv.economy.day)}.`
         : 'Read from the map: what it holds, at what the board prints. You see no more of it.'));
-    const band = r.band ? h('div', { class: 'rl-nb-fact' }, h('h4', {}, 'At home'), meter(r.band), h('p', {}, bandWords(r.band))) : null;
+    const band = r.band ? h('div', { class: 'rl-nb-fact' }, h('h4', {}, 'At home'), meter(r.band, r.nation.key), h('p', {}, bandWords(r.band))) : null;
     return h('section', {
       class: 'rl-nb-card', 'data-nation': r.nation.key, 'data-relation': rel, 'aria-labelledby': 'rl-nb-card-h',
       onkeydown: (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCard(); } },

@@ -20,12 +20,13 @@
 import { h, svg } from '../dom.js';
 import { flagBadge } from '../flags.js';
 import { askedForFull, browserFull } from '../map/view.js';
+import { cameDue, lastDrawn, play, runCount, stepLeft } from '../motion.js';
 import { worldDate } from '../rules.js';
 import { moveWords, movedSince, promiseWords, promisesMade, sinceWords, supportStep, themesFor } from './realism-home.js';
 import { WAY_WORDS, footingOf, footingStrip, footingWords, officePanel, officeQuestions } from './realism-office.js';
 import { personToken } from './realism-people.js';
 import { daysBetween } from './realism-timeline.js';
-import { DUE_FLASH, MARK_MS, along, cameDue, lastDrawn, play, runCount, slideMarker, stated, track as stepTrack } from './realism-tracks.js';
+import { DUE_FLASH, along, slideMarker, stated, track as stepTrack } from './realism-tracks.js';
 
 /** The two boards and their names on the switch `[proposed]`. */
 export const BOARDS = Object.freeze([['map', 'Map'], ['capital', 'Capital']]);
@@ -225,9 +226,16 @@ export function boardSwitch(board, onPick) {
 /** A share of a 100-wide box: `n` of `total`, held between 0 and 100. */
 const share = (n, total) => (total > 0 ? Math.max(0, Math.min(100, (100 * Number(n)) / total)) : 0);
 
-/** The five steps of a support figure, the step and those under it on. */
-const steps = (step) => h('span', { class: 'rl-cap-steps5', 'aria-hidden': 'true', 'data-step': String(step) },
-  [1, 2, 3, 4, 5].map((i) => h('span', { class: `rl-cap-step${i <= step ? ' on' : ''}` })));
+/**
+ * The five steps of a support figure kept as `key`, the step and those under it on; a step moved
+ * since the board last drew it shows the step it left for a moment.
+ */
+function steps(step, key) {
+  const el = h('span', { class: 'rl-cap-steps5', 'aria-hidden': 'true', 'data-step': String(step) },
+    [1, 2, 3, 4, 5].map((i) => h('span', { class: `rl-cap-step${i <= step ? ' on' : ''}` })));
+  stepLeft(el.children, `cap:${key}`, step);
+  return el;
+}
 
 /** The line at the count that carries a vote, on a bar of `total`; null with no count sent. */
 const carryLine = (carries, total, y2 = 10) => (Number.isFinite(carries)
@@ -321,7 +329,7 @@ function piece({ key, name, sub, support, size, theme, since = null, live = null
   since ? h('span', { class: 'rl-cap-since', 'aria-hidden': 'true' }, `${since.change < 0 ? '↓' : '↑'} ${figure(since.change)}`) : null,
   h('span', { class: 'rl-cap-pname' }, name),
   sub ? h('span', { class: 'rl-cap-psub' }, sub) : null,
-  steps(step),
+  steps(step, key),
   moved ? h('span', { class: 'rl-cap-plit', 'aria-hidden': 'true' }, `${moved.n < 0 ? '↓' : '↑'} ${Math.abs(moved.n)}`) : null);
 }
 
@@ -359,14 +367,14 @@ function moveTrack(key, parts, v, offers, countEl) {
   for (const { el } of parts) {
     const g = el.getAttribute('data-group');
     if (el.getAttribute('class').startsWith('rl-cap-yea') && now.live.includes(g) && !was.live.includes(g)) {
-      play(el, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }]);
+      play(el, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], 'offer-in');
       continue;
     }
     const id = `${el.getAttribute('class').split(' ')[0]}:${g}`;
     const [x1, w1] = now.parts[id];
     const old = was.parts[id];
-    if (!old) play(el, [{ opacity: 0 }, { opacity: 1 }]);
-    else if (old[0] !== x1 || old[1] !== w1) play(el, [{ transform: `translateX(${old[0]}px) scaleX(${+(old[1] / w1).toFixed(4)}) translateX(-${x1}px)` }, { transform: 'none' }]);
+    if (!old) play(el, [{ opacity: 0 }, { opacity: 1 }], 'bloc-part');
+    else if (old[0] !== x1 || old[1] !== w1) play(el, [{ transform: `translateX(${old[0]}px) scaleX(${+(old[1] / w1).toFixed(4)}) translateX(-${x1}px)` }, { transform: 'none' }], 'bloc-part');
   }
 }
 
@@ -734,7 +742,7 @@ function promiseLine(p, today) {
     h('span', { class: 'rl-cap-pname' }, `${p.name}: ${p.sentence}`),
     h('span', { class: 'rl-cap-psub' }, p.title),
     h('span', { class: 'rl-cap-pstand' }, promiseWords(p)));
-  if (due) play(li, DUE_FLASH, MARK_MS);
+  if (due) play(li, DUE_FLASH, 'promise-due');
   return li;
 }
 

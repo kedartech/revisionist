@@ -7,6 +7,7 @@
 // the page on import.
 
 import { h, svg } from '../dom.js';
+import { afterLayout, motionMs, play, reducedMotion } from '../motion.js';
 import { worldDate } from '../rules.js';
 import { receiptLine } from './realism-acks.js';
 import { NO_ORDERS, orderChip, orderGroups, orderLines } from './realism-orders.js';
@@ -71,48 +72,17 @@ export function track(label, segs) {
 
 // --- motion ---------------------------------------------------------------------------------
 // Motion shows a change in the game since the board last drew it, once; under reduced motion
-// the end state stands at once. What was drawn is kept here, by key, for the next draw.
+// the end state stands at once. The times, the check and what was last drawn are the room's
+// motion module's (web/js/motion.js).
 
-/** How long a marker, a bloc's part or a count takes to reach its new place `[proposed]`. */
-export const MOVE_MS = 600;
-/** How long a mark that came due takes to mark itself `[proposed]`. */
-export const MARK_MS = 900;
+/** How long a marker, a bloc's part or a count takes to reach its new place. */
+export const MOVE_MS = motionMs('track-marker');
+/** How long a mark that came due takes to mark itself. */
+export const MARK_MS = motionMs('promise-due');
 /** The flash a promise's mark plays once on the draw it came due. */
 export const DUE_FLASH = [{ opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }];
 
-const drawn = new Map();
-
-/** What was drawn under `key` the last time (undefined the first time); keeps `now` for the next. */
-export function lastDrawn(key, now) {
-  const was = drawn.get(key);
-  drawn.set(key, now);
-  return was;
-}
-
-/** Forgets every value kept between draws. */
-export const forgetDrawn = () => drawn.clear();
-
-/** Whether the seat's device asks for reduced motion. */
-export const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
-
-/** Plays `frames` on `el` once; nothing under reduced motion or where the page cannot animate. */
-export function play(el, frames, ms = MOVE_MS) {
-  if (!el || reducedMotion() || typeof el.animate !== 'function') return null;
-  return el.animate(frames, { duration: ms, easing: 'ease-in-out' });
-}
-
-/**
- * Writes `say(to)` into `el`; when `from` differs, it first runs from `say(from)` through the
- * numbers between, ending on `to`. Each of `from` and `to` is a list of numbers.
- */
-export function runCount(el, from, to, say, ms = MOVE_MS) {
-  el.textContent = say(to);
-  if (!from || reducedMotion() || from.every((n, i) => n === to[i])) return;
-  const frames = Math.max(1, Math.round(ms / 50));
-  const at = (k) => to.map((n, i) => Math.round(from[i] + ((n - from[i]) * k) / frames));
-  el.textContent = say(from);
-  for (let k = 1; k <= frames; k += 1) setTimeout(() => { el.textContent = say(at(k)); }, (ms * k) / frames);
-}
+export { cameDue, forgetDrawn, lastDrawn, reducedMotion, runCount } from '../motion.js';
 
 /** A held order's lock, drawn on its marker. */
 const lock = () => svg('svg', { class: 'rl-trk-lock', viewBox: '0 0 10 12', width: 10, height: 12, 'aria-hidden': 'true', focusable: 'false' },
@@ -124,8 +94,7 @@ const lock = () => svg('svg', { class: 'rl-trk-lock', viewBox: '0 0 10 12', widt
  */
 export function slideMarker(m, from, to) {
   if (!from || (from.step === to.step && from.at === to.at) || reducedMotion()) return;
-  const next = globalThis.requestAnimationFrame ?? ((f) => setTimeout(f, 0));
-  next(() => {
+  afterLayout(() => {
     const bars = m.closest('ol.rl-trk')?.querySelectorAll('.rl-trk-bar') ?? [];
     const was = bars[from.step];
     const now = bars[to.step];
@@ -133,18 +102,8 @@ export function slideMarker(m, from, to) {
     const a = was.getBoundingClientRect();
     const b = now.getBoundingClientRect();
     const dx = Math.round(a.left + from.at * a.width - (b.left + to.at * b.width));
-    if (dx) play(m, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }]);
+    if (dx) play(m, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], 'track-marker');
   });
-}
-
-/**
- * Whether the thing kept as `key` came due on this draw: its day `due` is reached by `today`
- * and either the last draw saw it not yet due, or this is the first draw and today is its day.
- */
-export function cameDue(key, due, today) {
-  const now = Boolean(due && today && due <= today);
-  const was = lastDrawn(`due:${key}`, now);
-  return now && (was === false || (was === undefined && due === today));
 }
 
 // --- the Sent part ---------------------------------------------------------------------------

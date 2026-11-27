@@ -2776,7 +2776,9 @@ def salt_raise(browser: object, play: Second, report: dict[str, object]) -> None
         check("the confirm keeps the page as wide as the viewport", width == SIZE[0], str(width))
         shoot(page, "39-raise-confirm")
         check("Raise it can be reached", press(page, ".rl-rs-confirm button", "Raise it"))
-        page.locator(".rl-status:not(:has-text('Sending it'))").first.wait_for(timeout=30_000)
+        # the status line is empty (and hidden) on a phone once the order is in, so wait on the
+        # sheet itself closing, the thing the next check is about
+        page.locator(".rl-rs-sheet").wait_for(state="detached", timeout=30_000)
         page.wait_for_timeout(800)
         check("the sheet closes once the order is sent", page.locator(".rl-rs-sheet").count() == 0)
         check("World can be reached", press(page, ".rl-roombar .rl-sheettab", "World"))

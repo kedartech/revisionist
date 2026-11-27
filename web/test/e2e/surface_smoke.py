@@ -263,13 +263,18 @@ def tap_after_pan(page: Page, cdp: CDPSession, report: dict) -> None:
     """Pick one of the seat's own pieces, pan the map, then tap a lit place."""
     page.get_by_role("button", name="Zoom 1 times").first.click()
     settle(page, 500)
+    rs.fan_own_stack(page)
     own = page.evaluate(
         """() => {
-      for (const m of document.querySelectorAll('.rl-tm-svg .rl-mk.rl-side-own')) {
+      for (const m of document.querySelectorAll('.rl-tm-svg .rl-tm-mark.rl-side-own')) {
         const r = m.getBoundingClientRect();
-        const x = r.left + r.width / 2; const y = r.top + r.height / 2;
-        const on = document.elementFromPoint(x, y);
-        if (on && m.contains(on)) return { x, y, label: m.getAttribute('aria-label') };
+        for (const fy of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+          for (const fx of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+            const x = r.left + r.width * fx; const y = r.top + r.height * fy;
+            const on = document.elementFromPoint(x, y);
+            if (on && m.contains(on)) return { x, y, label: m.getAttribute('aria-label') };
+          }
+        }
       }
       return null;
     }"""
@@ -324,10 +329,14 @@ OWN_JS = """() => {
   // one of the seat's own pieces that can be carried, reachable under the pointer
   for (const m of document.querySelectorAll('.rl-tm-svg .rl-tm-mark[data-grab]')) {
     const r = m.querySelector('.rl-tm-hit').getBoundingClientRect();
-    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
-    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
-    const on = document.elementFromPoint(x, y);
-    if (on && m.contains(on)) return { x, y, name: m.getAttribute('data-grab') };
+    // the middle first, then round it: a mark beside others in a fanned stack is not always
+    // under the pointer at its exact middle
+    for (const fy of [0.5, 0.35, 0.65, 0.2, 0.8]) for (const fx of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+      const x = r.left + r.width * fx; const y = r.top + r.height * fy;
+      if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+      const on = document.elementFromPoint(x, y);
+      if (on && m.contains(on)) return { x, y, name: m.getAttribute('data-grab') };
+    }
   }
   return null;
 }"""
@@ -353,14 +362,15 @@ UNLIT_JS = """(sel) => {
   const targets = [...document.querySelectorAll('.rl-map-target')];
   const lit = new Set(targets.map((t) => t.getAttribute('data-area')));
   const rings = targets.map((t) => t.querySelector('circle').getBoundingClientRect());
-  const left = Math.max(b.left, 0) + 60; const right = Math.min(b.right, innerWidth) - 60;
-  const top = Math.max(b.top, 0) + 60; const bottom = Math.min(b.bottom, innerHeight) - 60;
+  const phone = innerWidth < 600; const gap = phone ? 30 : 60; const away = phone ? 48 : 80;
+  const left = Math.max(b.left, 0) + gap; const right = Math.min(b.right, innerWidth) - gap;
+  const top = Math.max(b.top, 0) + gap; const bottom = Math.min(b.bottom, innerHeight) - gap;
   for (let y = top; y < bottom; y += 23) {
     for (let x = left; x < right; x += 23) {
       const on = document.elementFromPoint(x, y);
       if (!on || !on.matches('.rl-tm-svg path.rl-area')) continue;
       if (lit.has(on.getAttribute('data-area'))) continue;
-      const far = (r) => Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) >= 80;
+      const far = (r) => Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) >= away;
       if (!rings.every(far)) continue;
       return { x, y, area: on.getAttribute('data-area') };
     }
@@ -427,7 +437,13 @@ def clear(page: Page) -> None:
     """Back out of a chosen move and close the sheet over the map, so the map has its room."""
     back = page.locator(".rl-pup-chip").get_by_role("button", name="Back")
     if back.count():
-        back.first.click()
+        # a move that is still being filed holds Back disabled for a moment; give it the time
+        for _ in range(50):
+            if not back.count() or back.first.is_enabled():
+                break
+            page.wait_for_timeout(100)
+        if back.count() and back.first.is_enabled():
+            back.first.click()
     close = page.locator(".rl-over .rl-over-head").get_by_role("button", name="Close")
     if close.count():
         close.first.click()
@@ -439,6 +455,7 @@ def pick_up(page: Page, cdp: CDPSession, what: str) -> dict | None:
     clear(page)
     page.get_by_role("button", name="Zoom 1 times").first.click()
     settle(page, 500)
+    rs.fan_own_stack(page)
     own = page.evaluate(OWN_JS)
     rs.check(f"{what}: one of the seat's own pieces can be reached", own is not None)
     if own is None:

@@ -88,7 +88,8 @@ def resolve(state: State, order: Order) -> tuple[QuantityChange | Relationship, 
     if order.status is not OrderStatus.ENACTED:
         return ()
     if on(state):
-        return _message(state, order) or _requisition(state, order)
+        said = _message(state, order)
+        return said if said is not None else _requisition(state, order)
     as_of = rs.settled_on(order)
     if order.lever == "naval_order" and order.params.get("zone") in ESCORT_ZONES:
         level = ESCORT_LEVEL.get(str(order.params.get("order")))
@@ -520,19 +521,17 @@ def _requisition(state: State, order: Order) -> tuple[QuantityChange, ...]:
     return () if change is None else (change,)
 
 
-def _message(state: State, order: Order) -> tuple[Relationship, ...]:
-    """A form whose every parameter is free text is a message, not a requisition: once
-    enacted, the first person of another nation who decides a step of its pipeline thinks
-    better of the issuer by ``MESSAGE_REGARD``. Nothing for any other form, or a message
-    no one abroad decides."""
+def _decider(state: State, order: Order) -> EntityId | None:
+    """The first person of another nation who decides a step of the order's pipeline, when
+    every parameter of its form is free text; None for any other form."""
     issuer = state.seats[order.issuer].embodies
     card = state.cards.get(issuer)
     lever = next((lv for lv in card.levers if lv.name == order.lever), None) if card else None
     if lever is None or not lever.params or any(p.kind is not ParamKind.TEXT for p in lever.params):
-        return ()
+        return None
     nation = polity_of(state, issuer)
     pipeline = state.pipelines.get(order.pipeline)
-    decider = next(
+    return next(
         (
             step.person
             for step in (pipeline.steps if pipeline is not None else ())
@@ -541,19 +540,42 @@ def _message(state: State, order: Order) -> tuple[Relationship, ...]:
         ),
         None,
     )
+
+
+def _message(state: State, order: Order) -> tuple[Relationship, ...] | None:
+    """A form whose every parameter is free text is a message, not a requisition: once
+    enacted, the first person of another nation who decides a step of its pipeline thinks
+    better of the issuer by ``MESSAGE_REGARD``. None for any other form, or a message no
+    one abroad decides.
+
+    The regard is the issuer's alone: it lands on a relationship sealed to the issuer's
+    seat, its own unless one between the two is already sealed to that seat alone. A
+    relationship another seat knows is never moved, so no other seat learns of the message.
+    """
+    decider = _decider(state, order)
     if decider is None:
+        return None
+    issuer = state.seats[order.issuer].embodies
+    rid = RelationshipId(derived_id(state.campaign_id, "rel", decider, issuer, "message"))
+    scope = private_to(order.issuer)
+    now = state.relationships.get(rid) or next(
+        (
+            r
+            for r in state.relationships.values()
+            if (r.a, r.b) == (decider, issuer) and r.scope == scope
+        ),
+        None,
+    )
+    if now is not None and now.scope != scope:
         return ()
-    now = next((r for r in state.relationships.values() if (r.a, r.b) == (decider, issuer)), None)
     if now is None:
         return (
             Relationship(
-                relationship_id=RelationshipId(
-                    derived_id(state.campaign_id, "rel", decider, issuer)
-                ),
+                relationship_id=rid,
                 a=decider,
                 b=issuer,
                 disposition=max(-5, min(5, MESSAGE_REGARD)),
-                scope=private_to(order.issuer),
+                scope=scope,
             ),
         )
     moved = max(-5, min(5, now.disposition + MESSAGE_REGARD))

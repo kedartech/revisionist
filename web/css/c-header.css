@@ -1,6 +1,8 @@
 /* The frame header, the wake in it and the game menu. Tokens only (web/css/tokens.css). */
 .frame-head {
   min-height: 56px;
+  /* Over the strip below: a wrapped second row that a browser has not given height yet must still take the pointer. */
+  position: relative; z-index: 1;
   display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 6px;
   padding: 6px 12px;
   background: var(--chrome-bg);

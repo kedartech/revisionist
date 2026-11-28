@@ -8156,6 +8156,43 @@
         "title": "IncidentAnswered",
         "type": "object"
       },
+      "IncidentChoiceFiled": {
+        "additionalProperties": false,
+        "description": "The superior's seat's sealed answer to an open incident (DFY): backed, disowned or\ndismissed. A later choice replaces it. Sealed to that seat and never fed: the answer\nlands on the due day as the card's would, so the commander never learns that a\nperson gave it, nor when.",
+        "properties": {
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "incident_choice_filed",
+            "default": "incident_choice_filed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/$defs/Verdict"
+          }
+        },
+        "required": [
+          "incident_id",
+          "seat_id",
+          "verdict",
+          "on"
+        ],
+        "title": "IncidentChoiceFiled",
+        "type": "object"
+      },
       "IncidentOpened": {
         "additionalProperties": false,
         "description": "An order sent anyway was carried out, or a step on an order from above refused\n(DFY): a question on the commander before his superior. Sealed to their seats.",
@@ -17011,6 +17048,7 @@
             "groups_declared": "#/$defs/GroupsDeclared",
             "held_order_ended": "#/$defs/HeldOrderEnded",
             "incident_answered": "#/$defs/IncidentAnswered",
+            "incident_choice_filed": "#/$defs/IncidentChoiceFiled",
             "incident_opened": "#/$defs/IncidentOpened",
             "influence_decided": "#/$defs/InfluenceDecided",
             "intelligence_declared": "#/$defs/IntelligenceDeclared",
@@ -17315,6 +17353,9 @@
           },
           {
             "$ref": "#/$defs/IncidentAnswered"
+          },
+          {
+            "$ref": "#/$defs/IncidentChoiceFiled"
           },
           {
             "$ref": "#/$defs/MatterChosen"
@@ -29306,6 +29347,16 @@
         ],
         "default": null,
         "title": "In World Date"
+      },
+      "incident_choices": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Incident Choices",
+        "type": "object"
       },
       "incidents": {
         "additionalProperties": {

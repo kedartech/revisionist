@@ -380,10 +380,27 @@ def sent_and_carried(tmp: Path, *more: Callable[[World], None]) -> tuple[MemoryS
     return store, carried(store)
 
 
-def answer(store: MemoryStore, incident: Incident, verdict: str, person: Any = ILSE) -> Any:
+def choose(store: MemoryStore, incident: Incident, verdict: str, person: Any = ILSE) -> Any:
+    """The seat's sealed answer, filed today."""
     return realism_tick.answer_incident(
         store, CAMPAIGN, seat(person), incident.incident_id, verdict
     )
+
+
+def landed(store: MemoryStore, incident: Incident) -> ev.IncidentAnswered:
+    """Tick until the incident's answer lands on its due day, and return it."""
+    tick_until(store, lambda s: s.incidents[incident.incident_id].verdict is not None, ticks=6)
+    done: list[ev.IncidentAnswered] = logged(store, ev.IncidentAnswered)
+    (found,) = [e for e in done if e.incident_id == incident.incident_id]
+    return found
+
+
+def answer(
+    store: MemoryStore, incident: Incident, verdict: str, person: Any = ILSE
+) -> ev.IncidentAnswered:
+    """The seat's answer, filed today and landed on the due day."""
+    choose(store, incident, verdict, person)
+    return landed(store, incident)
 
 
 def regard(store: MemoryStore, of: Any, toward: Any) -> int:
@@ -490,8 +507,10 @@ def two_on_one_day(tmp: Path) -> tuple[MemoryStore, Incident, Incident]:
 
 def test_two_incidents_dismissed_on_one_day_order_one_step_down(tmp_path: Path) -> None:
     store, first, second = two_on_one_day(tmp_path)
-    answer(store, first, "dismissed")
-    done = answer(store, second, "dismissed")
+    choose(store, first, "dismissed")
+    choose(store, second, "dismissed")
+    landed(store, first)
+    done = landed(store, second)
     assert done.verdict is Verdict.DISMISSED
     (move,) = [p.move for p in logged(store, ev.PostMoveOrdered)]
     assert (move.person, move.post, move.appoint) == (KARA, COMMAND, False)
@@ -521,16 +540,15 @@ def test_an_answer_the_log_refuses_is_told_in_words_and_stores_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     store, incident = sent_and_carried(tmp_path)
-    answered = defiance.answer
+    chosen = defiance.choose
 
-    def twice(*args: Any, **kw: Any) -> list[Any]:
-        out = answered(*args, **kw)
-        return [*out, out[0]]
+    def as_kara(*args: Any, **kw: Any) -> ev.IncidentChoiceFiled:
+        return chosen(*args, **kw).model_copy(update={"seat_id": seat(KARA)})
 
-    monkeypatch.setattr(defiance, "answer", twice)
+    monkeypatch.setattr(defiance, "choose", as_kara)
     before = len(list(store.read(CAMPAIGN)))
     with pytest.raises(ValueError, match=f"^{defiance.NOT_LANDED}$"):
-        answer(store, incident, "dismissed")
+        choose(store, incident, "dismissed")
     assert len(list(store.read(CAMPAIGN))) == before
 
 

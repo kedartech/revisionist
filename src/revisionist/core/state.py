@@ -63,7 +63,7 @@ from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, Post, SeatCard, Topic
 from revisionist.core.realism.conference import Conferences
-from revisionist.core.realism.defiance import Act, Defied, Incident
+from revisionist.core.realism.defiance import Act, Defied, Incident, Verdict
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
@@ -456,6 +456,9 @@ class State(_World):
     office_base_fell: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each post resting on a base, and the day its base last fell under its line (OFQ;
     the turn below writes and reads it)."""
+    incident_choices: dict[Label, Verdict] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each open incident's sealed answer by its superior's seat (``incident_choice_filed``,
+    DFY), until the due day lands it. Engine only: nobody else learns that it was given."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )

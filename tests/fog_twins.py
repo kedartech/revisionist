@@ -576,6 +576,35 @@ def toy_asked(s: Side, hidden: bool) -> None:
     _done(s.act("kara", "ask", order_id=held_id))
 
 
+def toy_defiant(w: World, hidden: bool) -> None:
+    """Both games: Kara may cross a border without leave, a move to the Isle needs Ilse,
+    and Olav carries out Kara's command (``tests/test_defiance.py``'s world)."""
+    from tests.test_defiance import defiant
+
+    toy_locks.isle_move(w)
+    defiant("border")(w)
+
+
+def toy_incident(s: Side, hidden: bool) -> None:
+    """Both games: Kara sends her march to the Isle anyway, the wake closes and Olav
+    carries it out, which puts the incident before Ilse. In the first game Ilse, a
+    person, answers it at once, as her card will answer it in the second."""
+    from revisionist.core.realism import defiance
+    from tests.test_defiance import to_isle
+
+    held = s.run(
+        lambda store: realism_tick.commit_order(store, CAMPAIGN, s.seat("kara"), (to_isle(),))
+    )
+    _done(s.act("kara", "send-anyway", order_id=held.order_id))
+    close_wake(s)
+    state = s.state()
+    (incident,) = state.incidents.values()
+    assert incident.verdict is None, incident
+    if not hidden:
+        verdict = defiance.card_verdict(state, incident)
+        _done(s.act("ilse", "answer", item=incident.incident_id, verdict=verdict.value))
+
+
 def toy_aims(w: World, hidden: bool) -> None:
     """Ilse's own aims."""
     _find(w["cards"], "ilse")["aims"] = (
@@ -816,6 +845,19 @@ PAIRS: tuple[Pair, ...] = (
         seam=True,
         apart=True,
     ),
+    Pair(
+        "person or code answering an incident",
+        "toy",
+        ("kara",),
+        change=toy_defiant,
+        act=toy_incident,
+        unseated="ilse",
+        swapped="tomas",
+        host="olaf",
+        wakes=1,
+        seam=True,
+        apart=True,
+    ),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(
         "written order awaiting the close",
@@ -869,6 +911,9 @@ NOT_BUILT: dict[str, str] = {
     "salt-person-or-code-answering-an-ask": "Salt Strait declares no locks, so nothing is asked",
     "salt-hidden-law": "Salt Strait declares no law",
     "salt-ask-to-a-person-with-no-seat": "Salt Strait declares no locks, so nothing is asked",
+    "salt-person-or-code-answering-an-incident": (
+        "Salt Strait declares no locks, so no order is held or sent anyway"
+    ),
     "salt-report-author": "Salt Strait seats one player besides the host, so no second author",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the

@@ -65,6 +65,7 @@ from revisionist.core.realism import answer as rans
 from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import conference as rconf
+from revisionist.core.realism import defiance as rdef
 from revisionist.core.realism import detect as rdet
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
@@ -1457,6 +1458,13 @@ realism_payloads = st.one_of(
         question_id=labels,
         seat_id=seat_ids,
         remove=st.booleans(),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.IncidentChoiceFiled,
+        incident_id=labels,
+        seat_id=seat_ids,
+        verdict=st.sampled_from(rdef.Verdict),
         on=in_world_dates,
     ),
     st.builds(

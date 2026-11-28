@@ -19,8 +19,8 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, OrderDefied, IncidentOpened, IncidentAnswered, MatterChosen,
-AimPatternsDeclared, OwnAimSet, OfferMade, OfferSettled, LossesHeld, PostChanged,
+OrderAsked, AskAnswered, OrderDefied, IncidentOpened, IncidentAnswered, IncidentChoiceFiled,
+MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade, OfferSettled, LossesHeld, PostChanged,
 OfficeQuestionOpened, OfficeChoiceFiled, OfficeQuestionDecided, SeatsRedrawn,
 WarEnded``, and
 under engine v2 ``OrderRouted, OrderExecuted,
@@ -811,6 +811,19 @@ class IncidentAnswered(Model):
     on: date
     by_card: bool = False
     seats: tuple[SeatId, ...] = Field(default=(), max_length=2)
+
+
+class IncidentChoiceFiled(Model):
+    """The superior's seat's sealed answer to an open incident (DFY): backed, disowned or
+    dismissed. A later choice replaces it. Sealed to that seat and never fed: the answer
+    lands on the due day as the card's would, so the commander never learns that a
+    person gave it, nor when."""
+
+    kind: Literal["incident_choice_filed"] = "incident_choice_filed"
+    incident_id: Label
+    seat_id: SeatId
+    verdict: Verdict
+    on: date
 
 
 class AskAnswered(Model):
@@ -1712,6 +1725,7 @@ Payload = Annotated[
     | OrderDefied
     | IncidentOpened
     | IncidentAnswered
+    | IncidentChoiceFiled
     | MatterChosen
     | OfferMade
     | OfferSettled
@@ -1836,6 +1850,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_defied",
         "incident_opened",
         "incident_answered",
+        "incident_choice_filed",
         "matter_chosen",
         "offer_made",
         "offer_settled",

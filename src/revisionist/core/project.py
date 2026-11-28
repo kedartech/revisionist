@@ -53,6 +53,7 @@ from revisionist.core.ontology import (
     Character,
     Controller,
     Phase,
+    Relationship,
     ScheduledEvent,
     ScheduleSource,
     Seat,
@@ -82,6 +83,15 @@ class HasScope(Protocol):
 
 def _visible[K, S: HasScope](items: Mapping[K, S], seat: SeatId) -> dict[K, S]:
     return {k: v for k, v in items.items() if v.scope.visible_to(seat)}
+
+
+def relationship_seen(r: Relationship, seat: SeatId) -> Relationship:
+    """A relationship as ``seat`` reads it: one sealed to several seats names the viewer
+    alone, for the others it names would tell which of the people in it a seat holds."""
+    if r.scope.visibility is not Visibility.RESTRICTED or r.scope.known_by == {seat}:
+        return r
+    sealed = Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({seat}))
+    return r.model_copy(update={"scope": sealed})
 
 
 def _scheduled(
@@ -215,7 +225,9 @@ def project(state: State, seat: SeatId) -> View:
         settings=state.settings,
         entities=dict(state.entities),
         assets=assets,
-        relationships=_visible(state.relationships, seat),
+        relationships={
+            k: relationship_seen(r, seat) for k, r in _visible(state.relationships, seat).items()
+        },
         meters=_visible(state.meters, seat),
         clocks=_visible(state.clocks, seat),
         facts=_visible(state.facts, seat),

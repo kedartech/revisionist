@@ -574,6 +574,9 @@ def test_the_commanders_seat_sees_the_incident_and_then_its_answer(tmp_path: Pat
     assert line["answers"] == [] and line["verdict"] is None
     done = agenda_api.answer_incident(store, CAMPAIGN, seat(ILSE), incident.incident_id, "backed")
     assert done == {"reply": "You have backed Kara Lind.", "refused": False}
+    # Sealed until the due day: Kara reads the incident as before.
+    assert _incidents(store, KARA) == [line]
+    tick_until(store, lambda s: s.incidents[incident.incident_id].verdict is not None)
     (line,) = _incidents(store, KARA)
     assert line["verdict"] == "backed" and "Ilse Varg has backed you" in line["words"]
     (theirs,) = _incidents(store, ILSE)
@@ -728,5 +731,5 @@ def test_the_answer_action_carries_the_verdict_for_an_incident(tmp_path: Path) -
     store, incident = _incident(tmp_path)
     args = {"item": incident.incident_id, "verdict": "disowned"}
     assert held.file_one(store, CAMPAIGN, seat(ILSE), "answer", args) is None
-    verdict = state_of(store).incidents[incident.incident_id].verdict
-    assert verdict is not None and verdict.value == "disowned"
+    chosen = state_of(store).incident_choices[incident.incident_id]
+    assert chosen.value == "disowned"

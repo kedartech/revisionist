@@ -32,8 +32,8 @@ from datetime import date
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
-from revisionist.core.project import project, untold_goals
-from revisionist.core.realism import answering
+from revisionist.core.project import project, relationship_seen, untold_goals
+from revisionist.core.realism import answering, defiance
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
@@ -110,7 +110,7 @@ FEED_KINDS: frozenset[str] = frozenset(
         # An order sent anyway (DFY): sealed to the issuer's seat alone.
         "order_defied",
         # An incident and its answer (DFY): sealed to the commander's seat and the
-        # superior's, and fed to both.
+        # superior's, and fed to both without who gave the answer.
         "incident_opened",
         "incident_answered",
         # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
@@ -162,6 +162,9 @@ NEVER: frozenset[str] = frozenset(
         # A member's sealed choice on an office question is his until the sitting counts
         # it, and nobody reads who chose what (OFQ).
         "office_choice_filed",
+        # A superior's sealed answer to an incident is his until the due day lands it, and
+        # nobody reads whether a person or his card gave it (DFY).
+        "incident_choice_filed",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -359,6 +362,18 @@ def _as_asked(state: State, event: Event, payload: ev.OrderAsked, seat: SeatId) 
     return event.model_copy(update={"payload": payload.model_copy(update={"asked": asked})})
 
 
+def _incident_seen(
+    event: Event, payload: ev.IncidentOpened | ev.IncidentAnswered, seat: SeatId
+) -> Event:
+    """An incident or its answer as a party to it reads it (``defiance.seen_by``)."""
+    seen: ev.Payload = (
+        payload.model_copy(update={"incident": defiance.seen_by(payload.incident, seat)})
+        if isinstance(payload, ev.IncidentOpened)
+        else payload.model_copy(update={"seats": (seat,), "by_card": False})
+    )
+    return event.model_copy(update={"payload": seen})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
@@ -404,6 +419,13 @@ def feed(
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.OrderAsked):
             e = _as_asked(state, e, p, seat)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.IncidentOpened | ev.IncidentAnswered):
+            e = _incident_seen(e, p, seat)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.RelationshipSet):
+            seen = relationship_seen(p.relationship, seat)
+            e = e.model_copy(update={"payload": p.model_copy(update={"relationship": seen})})
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:

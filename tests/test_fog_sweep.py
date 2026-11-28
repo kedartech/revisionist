@@ -41,11 +41,13 @@ KINDS = (
     "report author",
     "ask to a person with no seat",
     "person or code answering an ask",
+    "person or code answering an incident",
 )
 """The contract's eleven kinds of hidden fact, in its order, then the seat whose player
 has left in the open wake, which is the code's from the close, then which seat filed a
 player report the host reads, then whether a seat asked a person nobody plays, then
-whether a person or code answers an ask."""
+whether a person or code answers an ask, then whether a person or code answers an
+incident."""
 
 FINDINGS: dict[str, str] = {}
 """Pairs that differ today: the pair's id and the fix it waits on, in the owner's lane."""

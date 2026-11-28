@@ -56,6 +56,7 @@ from revisionist.core.ontology import (
 from revisionist.core.realism import (
     agreement,
     conference,
+    defiance,
     detect,
     economy,
     elections,
@@ -352,14 +353,32 @@ def _incident_opened(state: State, p: ev.IncidentOpened) -> State:
 
 
 def _incident_answered(state: State, p: ev.IncidentAnswered) -> State:
-    """The superior's answer to an open incident, once (DFY)."""
+    """The superior's answer to an open incident, once (DFY). His sealed choice goes with
+    it."""
     i = _need(state.incidents, p.incident_id, "incident")
     if i.verdict is not None:
         raise FoldError(f"incident {i.incident_id} is answered already")
     if p.on < i.opened:
         raise FoldError(f"incident {i.incident_id} is answered before it opened")
     done = i.model_copy(update={"verdict": p.verdict, "answered": p.on, "by_card": p.by_card})
-    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: done}})
+    chosen = {k: v for k, v in state.incident_choices.items() if k != i.incident_id}
+    return state.model_copy(
+        update={"incidents": {**state.incidents, i.incident_id: done}, "incident_choices": chosen}
+    )
+
+
+def _incident_choice_filed(state: State, p: ev.IncidentChoiceFiled) -> State:
+    """The superior's seat's sealed answer to an open incident (DFY); a later one
+    replaces it."""
+    try:
+        found = defiance.may_choose(state, p.seat_id, p.incident_id)
+    except ValueError as exc:
+        raise FoldError(f"incident_choice_filed: {p.seat_id} on {p.incident_id}: {exc}") from exc
+    if p.on < found.opened:
+        raise FoldError(f"incident {found.incident_id} is chosen on before it opened")
+    return state.model_copy(
+        update={"incident_choices": _put(state.incident_choices, found.incident_id, p.verdict)}
+    )
 
 
 def _ask_answered(state: State, p: ev.AskAnswered) -> State:
@@ -1311,6 +1330,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OrderDefied()
             | ev.IncidentOpened()
             | ev.IncidentAnswered()
+            | ev.IncidentChoiceFiled()
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
@@ -1790,6 +1810,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _incident_opened(state, p)
         case ev.IncidentAnswered():
             return _incident_answered(state, p)
+        case ev.IncidentChoiceFiled():
+            return _incident_choice_filed(state, p)
         case ev.MatterChosen():
             return _matter_chosen(state, p)
         case ev.OfferMade():

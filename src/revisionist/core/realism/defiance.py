@@ -20,7 +20,9 @@ anyway.
 Carried out, or a step on an order from above refused (CMD), it is an incident: a question
 on the commander before the person who could have allowed it, answered within
 ``INCIDENT_DAYS`` world days as backed, disowned or dismissed, by that person's seat or,
-unanswered or unplayed, by his card. One incident per order.
+unanswered or unplayed, by his card. A seat's answer is its sealed choice until the due
+day passes, when it lands as the card's would, so nothing shown says who gave it. One
+incident per order.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -330,8 +332,36 @@ def _abroad(
     ]
 
 
+def may_choose(state: "State", seat: SeatId, incident_id: str) -> Incident:
+    """The open incident ``incident_id`` the seat answers as its superior, with the rule
+    on. Raises ``ValueError`` in the seat's words."""
+    found = state.incidents.get(incident_id) if on(state) else None
+    if (
+        found is None
+        or found.verdict is not None
+        or seat not in state.seats
+        or state.seats[seat].embodies != found.superior
+    ):
+        raise ValueError(NOT_YOURS)
+    return found
+
+
+def choose(
+    state: "State", seat: SeatId, incident_id: str, verdict: Verdict, today: date
+) -> "ev.IncidentChoiceFiled":
+    """The superior's sealed answer to an open incident, filed today and landed on its
+    due day as the card's would be (``due``). Raises ``ValueError`` in the seat's words."""
+    from revisionist.core import events as ev
+
+    found = may_choose(state, seat, incident_id)
+    return ev.IncidentChoiceFiled(
+        incident_id=found.incident_id, seat_id=seat, verdict=verdict, on=max(today, found.opened)
+    )
+
+
 def due(state: "State", day: date) -> list[Label]:
-    """The incidents left unanswered past their due day, oldest first: the card answers."""
+    """The incidents left unanswered past their due day, oldest first: each is answered
+    now, by the superior's sealed choice or else by his card."""
     if not on(state):
         return []
     late = (i for i in state.incidents.values() if i.verdict is None and i.due < day)
@@ -412,8 +442,14 @@ def told(view: "View", incident: Incident) -> str:
     )
 
 
+def seen_by(incident: Incident, seat: SeatId) -> Incident:
+    """The incident as a seat party to it reads it: without the other party's seat or who
+    gave the answer, which would tell a person from code."""
+    return incident.model_copy(update={"seats": (seat,), "by_card": False})
+
+
 def as_seen(incidents: Mapping[Label, Incident], seat: SeatId) -> dict[Label, Incident]:
-    return {k: i for k, i in incidents.items() if seat in i.seats}
+    return {k: seen_by(i, seat) for k, i in incidents.items() if seat in i.seats}
 
 
 def _held_by(state: "State", place: EntityId) -> EntityId | None:

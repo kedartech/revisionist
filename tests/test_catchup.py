@@ -121,6 +121,13 @@ def test_the_ladders_and_a_pending_change_of_post_are_fed() -> None:
     assert "office_choice_filed" in catchup.NEVER
 
 
+def test_an_incident_and_its_answer_are_fed_and_the_sealed_choice_never_is() -> None:
+    # An incident and its answer are fed to its two seats; the superior's sealed answer
+    # before the due day is his alone (DFY).
+    assert {"incident_opened", "incident_answered"} <= catchup.FEED_KINDS
+    assert "incident_choice_filed" in catchup.NEVER
+
+
 def test_the_worlds_aim_patterns_and_a_seats_own_aim_are_fed() -> None:
     # The aim patterns are public rules of the world; a player's own aim is sealed to the
     # seat holding the person and kept only while that seat's view holds it (OWC).

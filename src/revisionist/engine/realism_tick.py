@@ -437,6 +437,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(payload.asker)
     if isinstance(payload, ev.OrderDefied):
         return private_to(payload.defied.issuer)
+    if isinstance(payload, ev.IncidentChoiceFiled):
+        return private_to(payload.seat_id)  # DFY: sealed to the superior's seat
     if isinstance(payload, ev.IncidentOpened | ev.IncidentAnswered):
         seats = payload.incident.seats if isinstance(payload, ev.IncidentOpened) else payload.seats
         return (
@@ -635,13 +637,11 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(elections.walk(state, day))  # ELE: a post's election told, put, and chambers redrawn
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
-        for incident in defiance.due(state, day):  # DFY: an incident unanswered, by the card
+        for incident in defiance.due(state, day):  # DFY: the sealed choice, else the card
             found = state.incidents[incident]
-            add(
-                defiance.answer(
-                    state, found, defiance.card_verdict(state, found), day, by_card=True
-                )
-            )
+            chosen = state.incident_choices.get(incident)
+            verdict = chosen if chosen is not None else defiance.card_verdict(state, found)
+            add(defiance.answer(state, found, verdict, day, by_card=chosen is None))
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         add(defiance.arising(state, steps, day))  # DFY: a step from above refused
@@ -868,33 +868,27 @@ def send_anyway(
 
 def answer_incident(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, incident_id: str, verdict: str
-) -> ev.IncidentAnswered:
+) -> ev.IncidentChoiceFiled:
     """The superior's seat answers an open incident before its due day passes (DFY):
-    backed, disowned or dismissed. Raises ``ValueError`` with the seat's words."""
+    backed, disowned or dismissed, as a sealed choice dated today that a later one
+    replaces. It lands on the due day as the card's answer would. Raises ``ValueError``
+    with the seat's words."""
     state = load_state(store, campaign_id)
     today = state.in_world_date
-    found = state.incidents.get(incident_id) if defiance.on(state) else None
-    if (
-        today is None
-        or found is None
-        or found.verdict is not None
-        or seat not in state.seats
-        or state.seats[seat].embodies != found.superior
-    ):
+    if today is None:
         raise ValueError(defiance.NOT_YOURS)
+    defiance.may_choose(state, seat, incident_id)
     try:
         chosen = defiance.Verdict(verdict)
     except ValueError:
         raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
-    landed = defiance.answer(state, found, chosen, max(today, found.opened), by_card=False)
+    filed = defiance.choose(state, seat, incident_id, chosen, today)
     try:
-        _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+        _append_all(store, state, [(filed, _scope_of(state, filed))], seat)
     except FoldError as exc:
         log.warning("incident %s not answered: %s", incident_id, exc)
         raise ValueError(defiance.NOT_LANDED) from None
-    first = landed[0]
-    assert isinstance(first, ev.IncidentAnswered)
-    return first
+    return filed
 
 
 def choose_matter(

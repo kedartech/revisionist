@@ -959,8 +959,8 @@ def test_a_game_without_office_prints_no_office_lines(tmp_path: Path) -> None:
 def defiance_log(tmp: Path) -> list[Event]:
     """The defiance world of ``tests/test_defiance.py``. Wake 0: Kara's march to the Isle
     is held and she sends it anyway. Wake 1: it is carried out, the incident opens, and
-    Ilse disowns it; a refusal of an order from above opens a second incident. Wake 2 is
-    open."""
+    Ilse disowns it, which lands on the due day; a refusal of an order from above opens a
+    second incident. Wake 2 is open."""
     from revisionist.core.realism import defiance
     from revisionist.core.visibility import PUBLIC
     from revisionist.engine import campaign as cmp
@@ -991,6 +991,7 @@ def defiance_log(tmp: Path) -> list[Event]:
     state = tick_until(store, lambda s: bool(s.incidents))
     (incident,) = state.incidents.values()
     realism_tick.answer_incident(store, CAMPAIGN, seat(ILSE), incident.incident_id, "disowned")
+    tick_until(store, lambda s: s.incidents[incident.incident_id].verdict is not None)
     refused = incident.model_copy(
         update={"incident_id": "refusal", "order_id": "refused", "cause": defiance.Cause.REFUSED}
     )

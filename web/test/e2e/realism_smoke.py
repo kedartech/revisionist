@@ -124,6 +124,8 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
         dialog.get_by_role("button", name="Run it", exact=True).click()
     busy = page.locator(".rl-status.busy")
     busy.wait_for(timeout=5_000)
+    # a seat cannot tell from the counts that its Done runs the wake: a call still out says so
+    busy.filter(has_text="wake is running").wait_for(timeout=5_000)
     check(f"{name}: busy line says the wake is running", "wake is running" in busy.inner_text())
     check(
         f"{name}: busy line is announced",
@@ -1661,8 +1663,8 @@ def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
         and page.locator(".frame-head").get_by_role("button", name="Done for today").count() == 0,
     )
     check(
-        "Run the day now is hidden (a one-player game, or a seat that is not the host)",
-        page.get_by_role("button", name=RUN_NOW).count() == 0,
+        "Run the day now is the host's alone (every seat is told the same wake counts)",
+        page.get_by_role("button", name=RUN_NOW).count() == (1 if host else 0),
     )
 
 

@@ -61,7 +61,7 @@ import { threatsPanel } from './realism-threats.js';
 import { fitStrip, lightTogether, timelineStrip } from './realism-timeline.js';
 import { sentTracks } from './realism-tracks.js';
 import { trayView } from './realism-tray.js';
-import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
+import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, runningAfter, stylePicker, wakeHeader } from './realism-wake.js';
 
 const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
@@ -490,14 +490,22 @@ export function realismRoom(ctx) {
     if (clicked?.tagName === 'BUTTON') clicked.classList.add('rl-working');
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
-    if (message === RUNNING) {
+    const showRunning = (message) => {
       root.append(wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders }));
-    }
+    };
+    if (message === RUNNING) showRunning(message);
+    const cancelRunning = runningAfter(message, () => {
+      if (ui.busy !== message) return;
+      ui.busy = RUNNING;
+      showStatus();
+      showRunning(RUNNING);
+    });
     try {
       await fn();
     } catch (ex) {
       ui.error = ex.message;
     } finally {
+      cancelRunning();
       ui.busy = null;
     }
     try {

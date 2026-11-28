@@ -116,9 +116,26 @@ export function commitHint(wake) {
   return 'Your aide plays any seat that has not committed when the wake closes.';
 }
 
+/** The busy line for a commit that may not be the last. */
+export const SEALING = 'Sealing your orders…';
+
+/** How long a commit may stay out before it is taken to be the one that runs the wake. */
+export const RUNNING_AFTER_MS = 1200;
+
 /** The busy line for a commit: the last one runs the wake. */
 export function commitBusy(wake) {
-  return wake.committed + 1 >= wake.humans ? RUNNING : 'Sealing your orders…';
+  return wake.committed + 1 >= wake.humans ? RUNNING : SEALING;
+}
+
+/**
+ * The counts are the same whoever plays the other leaders, so a seat cannot tell from them
+ * whether its Done runs the wake. A commit still out after `ms` does: `upgrade` is called
+ * then. Returns the cancel; any other busy line sets no timer.
+ */
+export function runningAfter(message, upgrade, { wait = setTimeout, stop = clearTimeout, ms = RUNNING_AFTER_MS } = {}) {
+  if (message !== SEALING) return () => {};
+  const timer = wait(upgrade, ms);
+  return () => stop(timer);
 }
 
 // The server words its dates, and worldDate cannot read words: only a bare ISO day goes through it.

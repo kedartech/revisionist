@@ -32,6 +32,7 @@ from revisionist.core import fold
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import Phase
 from revisionist.core.realism import locks
+from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
 from revisionist.core.state import Rule, State
 from revisionist.core.world import WorldFile
@@ -1545,3 +1546,130 @@ def test_a_written_allocation_past_its_cap_with_no_route_named_files_nothing(
     assert told == f"written unreadable: share_pct: {share} is outside 0..100"
     assert [o for o in in_writing.state.orders.values() if o.issuer == seat(AID.person)] == []
     assert not in_writing.state.routed
+
+
+# --- production forms -------------------------------------------------------------------
+
+
+@functools.cache
+def _opening_1941(person: str) -> State:
+    store = MemoryStore()
+    store.append_all(opened("1941", who=person).events)
+    return load_state(store, CAMPAIGN)
+
+
+def _twin(person: str, effect: dict[str, Any] | None, **params: str) -> Any:
+    state = _opening_1941(person)
+    if effect is None:
+        ask = Ask(ask="An order.", target=entity("roosevelt"))
+    else:
+        ask = Ask(ask="An order.", effect=_keyed(effect))
+    return orders_reader.twin(state, seat(person), ask, dict(params))
+
+
+@pytest.mark.parametrize(
+    ("person", "effect", "params", "form"),
+    [
+        (
+            "churchill",
+            give("uk", "escorts", 1, "priority"),
+            {"force": "home_fleet"},
+            ("production_priority", {"sector": "escorts", "force": "home_fleet"}),
+        ),
+        (
+            "konoe",
+            give("japan", "oil", 1, "priority"),
+            {},
+            ("mobilisation_plan", {"sector": "oil"}),
+        ),
+        ("stalin", None, {"item": "tanks"}, ("aid_request", {"item": "tanks"})),
+    ],
+    ids=["priority", "mobilisation", "request"],
+)
+def test_a_written_production_order_is_its_form(
+    person: str, effect: dict[str, Any] | None, params: dict[str, str], form: Any
+) -> None:
+    assert _twin(person, effect, **params) == form
+
+
+@pytest.mark.parametrize(
+    ("person", "effect", "params"),
+    [
+        ("churchill", give("ussr", "escorts", 1, "priority"), {"force": "home_fleet"}),
+        ("churchill", give("uk", "tanks", 1, "priority"), {"force": "home_fleet"}),
+        (
+            "churchill",
+            give("uk", "escorts", 0, "points") | {"intel": "codebreaking"},
+            {"force": "home_fleet"},
+        ),
+        ("stalin", None, {"sector": "tanks", "force": "soviet_western_front"}),
+        ("konoe", None, {"sector": "oil"}),
+        ("stalin", give("ussr", "tanks", 1, "priority"), {}),
+    ],
+    ids=[
+        "another-nation",
+        "not-a-sector",
+        "codebreaking",
+        "priority-by-detail",
+        "mobilise-by-detail",
+        "request-by-effect",
+    ],
+)
+def test_a_written_order_that_is_not_a_production_form_gets_none(
+    person: str, effect: dict[str, Any] | None, params: dict[str, str]
+) -> None:
+    """A priority for another nation, a sector the form does not offer, and the
+    codebreakers' fund are not the form; a priority or a mobilisation is given by its
+    effect, never by a detail alone: only a request, which no effect holds, is. Stalin's
+    tanks with no force named are neither his State Defence order nor his request."""
+    assert _twin(person, effect, **params) is None
+
+
+def _lever(person: str, name: str) -> Any:
+    state = _opening_1941(person)
+    card = state.cards[entity(person)]
+    return state, next(x for x in card.levers if x.name == name)
+
+
+def _param(name: str, kind: str = "enum") -> Any:
+    from revisionist.core.realism.card import ParamKind, ParamSpec
+
+    if kind == "int":
+        return ParamSpec(name=name, kind=ParamKind.INT, lo=0, hi=100)
+    return ParamSpec(name=name, kind=ParamKind.ENUM, choices=("a", "b"))
+
+
+@pytest.mark.parametrize(
+    ("change", "asks"),
+    [
+        ({}, True),
+        ({"params": ("force",)}, False),
+        ({"params": ("adds_to",)}, False),
+        ({"params": ("share",)}, False),
+        ({"params": ("kind", "place")}, False),
+        ({"resolver": "economy"}, False),
+        ({"pipeline": "state_defence_order"}, False),
+    ],
+    ids=["request", "force", "figure", "share", "raising", "not-production", "own-decider"],
+)
+def test_a_production_request_is_a_form_another_nation_decides(
+    change: dict[str, Any], asks: bool
+) -> None:
+    """Stalin's aid request, decided in Washington, is a request; the same form naming a
+    force, a figure, a share, or a kind and place, under another rule name, or decided at
+    home is not."""
+    from revisionist.core.realism.resolvers import production
+
+    state, lever = _lever("stalin", "aid_request")
+    update: dict[str, Any] = {}
+    for name in change.get("params", ()):
+        update["params"] = (
+            *update.get("params", lever.params),
+            _param(name, "int" if name == "share" else "enum"),
+        )
+    if "resolver" in change:
+        update["resolver"] = change["resolver"]
+    if "pipeline" in change:
+        update["pipeline"] = _lever("stalin", change["pipeline"])[1].pipeline
+    changed = lever.model_copy(update=update)
+    assert production.request_form(state, seat("stalin"), changed) is asks

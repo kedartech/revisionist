@@ -256,7 +256,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "production_priority",
         {"sector": "escorts", "force": "home_fleet"},
         "Escorts first in production, for the Home Fleet.",
-        give("uk", "escorts", 1, "priority"),
+        detail(give("uk", "escorts", 1, "priority"), force="home_fleet"),
     ),
     f41(
         "churchill",
@@ -327,14 +327,14 @@ NINETEEN_41: tuple[Case, ...] = (
         "state_defence_order",
         {"sector": "tanks", "force": "soviet_western_front"},
         "Tanks first, for the Western Front.",
-        give("ussr", "tanks", 1, "priority"),
+        detail(give("ussr", "tanks", 1, "priority"), force="soviet_western_front"),
     ),
     f41(
         "stalin",
         "aid_request",
         {"item": "tanks"},
         "Ask the Americans for tanks.",
-        approach("roosevelt"),
+        {"detail": {"item": "tanks"}},
     ),
     f41(
         "stalin",
@@ -370,7 +370,11 @@ NINETEEN_41: tuple[Case, ...] = (
         "production_priority",
         {"sector": "uboats", "force": "uboat_arm", "adds_to": "uboats_operational"},
         "U-boats first in production.",
-        give("germany", "uboats", 1, "priority"),
+        detail(
+            give("germany", "uboats", 1, "priority"),
+            force="uboat_arm",
+            adds_to="uboats_operational",
+        ),
     ),
     f41(
         "hitler",
@@ -486,7 +490,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "production_priority",
         {"sector": "tanks", "force": "italian_army_libya"},
         "Tanks first, for the army in Libya.",
-        give("italy", "tanks", 1, "priority"),
+        detail(give("italy", "tanks", 1, "priority"), force="italian_army_libya"),
     ),
     f41(
         "mussolini",
@@ -515,7 +519,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "arsenal_output",
         {"sector": "ammunition", "force": "ninth_war_area"},
         "The arsenals are to make ammunition for the Ninth War Area.",
-        give("china", "ammunition", 1, "priority"),
+        detail(give("china", "ammunition", 1, "priority"), force="ninth_war_area"),
     ),
     f41(
         "chiang",
@@ -852,10 +856,6 @@ AUDIENCE = (
     "core lane fix item: a written statement to another nation lands as its form does"
     " (the form is heard at home through its audience's theme)"
 )
-PRODUCTION = (
-    "core lane fix item: a written production order lands as its form does"
-    " (the form builds a step, mobilises, or brings the aid another nation let through)"
-)
 MESSAGE = (
     "core lane fix item: a written message lands as its form does"
     " (the form raises the regard of the person abroad who let it through)"
@@ -868,19 +868,11 @@ SHIPPING = (
 FIXES: dict[str, str] = {
     "1941.roosevelt.cable_to_churchill": MESSAGE,
     "1941.churchill.convoy_orders": SHIPPING,
-    "1941.churchill.production_priority": PRODUCTION,
     "1941.churchill.broadcast": AUDIENCE,
-    "1941.stalin.state_defence_order": PRODUCTION,
-    "1941.stalin.aid_request": PRODUCTION,
     "1941.hitler.uboat_directive": SHIPPING,
-    "1941.hitler.production_priority": PRODUCTION,
     "1941.konoe.requisition_shipping": SHIPPING,
-    "1941.konoe.mobilisation_plan": PRODUCTION,
     "1941.tojo.requisition_shipping": SHIPPING,
-    "1941.tojo.mobilisation_plan": PRODUCTION,
     "1941.mussolini.libya_convoys": STAMP,
-    "1941.mussolini.production_priority": PRODUCTION,
-    "1941.chiang.arsenal_output": PRODUCTION,
     "1941.chiang.appeal_abroad": AUDIENCE,
 }
 """Each case whose written order and form still differ, and the fix item that owns the

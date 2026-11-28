@@ -267,8 +267,12 @@ def _finding(state: State, order: Order) -> bool:
 def _giver(state: State, order: Order) -> EntityId | None:
     """The other nation whose person decides a step of the order's pipeline: the first in
     the pipeline's order; None when only the issuer's own nation decides it."""
-    asker = polity_of(state, state.seats[order.issuer].embodies)
-    pipeline = state.pipelines.get(order.pipeline)
+    return _giver_of(state, order.issuer, order.pipeline)
+
+
+def _giver_of(state: State, issuer: SeatId, pipeline_id: PipelineId) -> EntityId | None:
+    asker = polity_of(state, state.seats[issuer].embodies)
+    pipeline = state.pipelines.get(pipeline_id)
     for step in pipeline.steps if pipeline is not None else ():
         nation = polity_of(state, step.person)
         if step.kind is StepKind.DECISION and nation is not None and nation != asker:
@@ -289,6 +293,18 @@ def _requested(state: State, order: Order) -> "_Aid | None":
     if asker is None or giver is None:
         return None
     return _Aid(giver, asker, None, REQUEST_SHARE_PCT)
+
+
+def request_form(state: State, seat: SeatId, lever: Lever) -> bool:
+    """Whether ``lever``, filed by the seat, is a ``production`` request as ``_requested``
+    reads one: it names no force, figure, share (a finding or an aid order names one), or
+    kind and place, and another nation's person decides a step of its pipeline."""
+    names = {p.name for p in lever.params}
+    if lever.resolver != "production" or names & {FORCE, ADDS_TO} or {KIND, PLACE} <= names:
+        return False
+    if any(p.kind is ParamKind.INT for p in lever.params):
+        return False
+    return _giver_of(state, seat, lever.pipeline) is not None
 
 
 def _mobilises(state: State, order: Order) -> bool:

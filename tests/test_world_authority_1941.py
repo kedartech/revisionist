@@ -112,7 +112,8 @@ def test_each_form_s_order_is_a_command_inside_its_card_s_domain(
 ) -> None:
     case = _case(person, lever)
     assert len(case.reading) == 1
-    ask = Ask.model_validate(_ask(case.sentence, case.reading[0]))
+    read = _ask(case.sentence, case.reading[0])
+    ask = Ask.model_validate({k: v for k, v in read.items() if k != "detail"})
     routed = route(state, seat(person), ask, FILED)
     assert routed.part is not None, routed.refusal
     assert routed.part.route is Route.COMMAND

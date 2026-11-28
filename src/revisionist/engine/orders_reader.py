@@ -46,7 +46,7 @@ from revisionist.core.realism.locks import HeldOrder, zone_of
 from revisionist.core.realism.reach import channels_to
 from revisionist.core.realism.resolvers import intel
 from revisionist.core.realism.resolvers.movement import FORCE, TO
-from revisionist.core.realism.resolvers.production import _matter
+from revisionist.core.realism.resolvers.production import _matter, request_form
 from revisionist.core.realism.resolvers.shipping import ESCORT_LEVEL
 from revisionist.core.realism.resolvers.votes import measure_key
 from revisionist.core.realism.route import held, route
@@ -573,6 +573,23 @@ def _aid(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     return out if len(out) == 2 else None
 
 
+def _produced(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """A production form's choice of what to press ahead: an allocation to the seat's own
+    nation, other than the codebreakers' fund, of what one of the form's choices names. The
+    force or figure it is for is the detail's. A request is given by its detail alone: an
+    allocation to one's own nation is not what it asks for."""
+    if not isinstance(effect, Allocate) or effect.intel is not None:
+        return None
+    if effect.recipient != polity_of(state, state.seats[seat].embodies):
+        return None
+    if request_form(state, seat, lever):
+        return None
+    spec = next(
+        (p for p in lever.params if p.kind is ParamKind.ENUM and effect.what in p.choices), None
+    )
+    return None if spec is None else {spec.name: effect.what}
+
+
 def _bill(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     """A bill form's bill: a measure whose title names one of the form's bills, as the
     votes rule keys it (with ``laws`` on, by the declared law's title or key)."""
@@ -594,12 +611,13 @@ def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[st
     if lever.resolver == "shipping":
         return _escort(state, lever, effect)
     if lever.resolver == "production":
-        return _aid(state, lever, effect)
+        return _aid(state, lever, effect) or _produced(state, seat, lever, effect)
     return None
 
 
 PARAM_FORMS = frozenset({"economy", "trade"})
-"""The resolvers whose forms no effect kind holds: a written order names their parameters."""
+"""The resolvers whose forms no effect kind holds: a written order names their parameters,
+as it does a production request's (``production.request_form``)."""
 
 _DECISION = {Posture.ATTACK: "press", Posture.HOLD: "hold", Posture.WITHDRAW: "withdraw"}
 """The battle decision a written posture stands for, in the battle form's words."""
@@ -686,7 +704,8 @@ def twin(state: State, seat: SeatId, ask: Ask, detail: dict[str, str]) -> Twin |
     found: list[Twin] = []
     if ask.effect is None:
         for lever in card.levers if detail else ():
-            if lever.resolver in PARAM_FORMS and set(detail) == {p.name for p in lever.params}:
+            by_detail = lever.resolver in PARAM_FORMS or request_form(state, seat, lever)
+            if by_detail and set(detail) == {p.name for p in lever.params}:
                 found.append((lever.name, dict(detail)))
         return found[0] if len(found) == 1 else None
     for lever in card.levers:

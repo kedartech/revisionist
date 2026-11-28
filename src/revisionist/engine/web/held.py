@@ -7,6 +7,10 @@ catch-up page for the wake it was due in says so, as does its own payload while 
 wake is open. Each row keeps what the action needs, already checked as far as the wake
 it was given in allows. A new player taking up a seat starts with none of its rows.
 
+A seat is shown its held orders by number, counted over its own rows in the game alone
+(``MINE``), so another seat's orders, or another game's, never move it. A withdrawn
+row stays, marked ``WITHDRAWN``, so no number is given twice.
+
 The table lives in Postgres only, like every web table. Code that reads it treats a
 missing table (before ``db migrate`` has run 0013) as empty and logs once.
 """
@@ -36,12 +40,20 @@ HELD = "Held for the next wake."
 """The reply to an order that is held [proposed]."""
 TABLE = "web_held_orders"
 CLOSE_CLASS = 0x72767363  # "rvsc": first key of the advisory lock that marks a close
+WITHDRAWN = -1
+"""``filed_in`` of a row its seat withdrew: no wake has this number."""
+MINE = (
+    "(SELECT *, ROW_NUMBER() OVER (ORDER BY held_id) AS n FROM web_held_orders"
+    " WHERE campaign_id = %s AND seat_id = %s) AS mine"
+)
+"""The seat's own rows in the game, each with ``n``, the number the seat knows it by."""
 
 
 class Listed(TypedDict):
     """One held order in its own seat's payload."""
 
     id: int
+    """The seat's own number for it in this game; ``withdraw`` takes it as ``held_id``."""
     label: str
     wake: int
     """The wake it was given in; it is filed when a later one opens."""
@@ -145,8 +157,8 @@ def hold(
     args: dict[str, Any],
     label: str,
 ) -> int | None:
-    """Keep ``action`` for the first wake opened after ``wake``; returns its id, or None
-    when it cannot be kept (no table)."""
+    """Keep ``action`` for the first wake opened after ``wake``; returns the seat's number
+    for it, or None when it cannot be kept (no table)."""
     conn = _conn(store)
     if conn is None:
         return None
@@ -161,7 +173,11 @@ def hold(
             return None
         raise
     assert row is not None
-    return int(row[0])
+    counted = conn.execute(
+        f"SELECT n FROM {MINE} WHERE held_id = %s", (campaign_id, seat, row[0])
+    ).fetchone()
+    assert counted is not None
+    return int(counted[0])
 
 
 def listing(
@@ -172,14 +188,13 @@ def listing(
     payload carries them."""
     rows = _rows(
         store,
-        "SELECT held_id, label, wake, dropped FROM web_held_orders WHERE campaign_id = %s"
-        " AND seat_id = %s AND (filed_in IS NULL OR (dropped IS NOT NULL AND filed_in = %s))"
-        " ORDER BY held_id",
+        f"SELECT n, label, wake, dropped FROM {MINE}"
+        " WHERE filed_in IS NULL OR (dropped IS NOT NULL AND filed_in = %s) ORDER BY held_id",
         (campaign_id, seat, open_wake),
     )
     out: list[Listed] = []
-    for held_id, label, wake, why in rows:
-        listed = Listed(id=int(held_id), label=label, wake=int(wake))
+    for number, label, wake, why in rows:
+        listed = Listed(id=int(number), label=label, wake=int(wake))
         if why is not None:
             listed["dropped"] = _line(label, why)
         out.append(listed)
@@ -211,13 +226,14 @@ def _line(label: str, why: str) -> str:
     return f"{label} was not filed: {why}"
 
 
-def drop(store: EventStore, campaign_id: CampaignId, seat: SeatId, held_id: int) -> bool:
-    """Withdraw the seat's own held order before it is filed; False if there is none."""
+def drop(store: EventStore, campaign_id: CampaignId, seat: SeatId, number: int) -> bool:
+    """Withdraw the seat's own held order ``number`` before it is filed; False if there is
+    none."""
     rows = _rows(
         store,
-        "DELETE FROM web_held_orders WHERE held_id = %s AND campaign_id = %s"
-        " AND seat_id = %s AND filed_in IS NULL RETURNING 1",
-        (held_id, campaign_id, seat),
+        "UPDATE web_held_orders SET filed_in = %s WHERE filed_in IS NULL"
+        f" AND held_id = (SELECT held_id FROM {MINE} WHERE n = %s) RETURNING 1",
+        (WITHDRAWN, campaign_id, seat, number),
     )
     return bool(rows)
 
@@ -362,6 +378,8 @@ def file_held(
 __all__ = [
     "CLOSE_CLASS",
     "HELD",
+    "MINE",
+    "WITHDRAWN",
     "Filer",
     "Listed",
     "clear",

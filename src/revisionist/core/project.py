@@ -12,8 +12,12 @@ half is copied. A seat sees its own orders only. Cards show as faces, with the
 viewer's own person as a desk; AI policy fields never leave the state.
 
 Engine v2 adds three more. A seat sees its own routed orders, never the
-estimator's effects; its own play style; and only its own mandates. The shared
-wake is public: who has committed, never what.
+estimator's effects; its own play style; and only its own mandates. Of the shared
+wake it sees only whether it has committed itself.
+
+In a realism game in play no seat learns which other leaders a person plays: of the
+other player seats it sees no face and no claim on the roster, so a leader a person
+plays reads the same as one the code runs.
 
 Detection adds one: a seat sees enemy pieces only as the reports that have reached its
 nation (``View.reports``); a pending report, and the piece a report is about, never. Every
@@ -44,7 +48,16 @@ from revisionist.core.ids import (
     ScheduledEventId,
     SeatId,
 )
-from revisionist.core.ontology import Asset, Controller, ScheduledEvent, ScheduleSource, Seat
+from revisionist.core.ontology import (
+    Asset,
+    Character,
+    Controller,
+    Phase,
+    ScheduledEvent,
+    ScheduleSource,
+    Seat,
+    SeatKind,
+)
 from revisionist.core.realism import (
     agreement,
     answering,
@@ -58,7 +71,7 @@ from revisionist.core.realism import (
 from revisionist.core.realism.card import CardFace, CardPath, SeatCard
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.quantity import Quantity
-from revisionist.core.state import Rule, SeatFace, State, View, seat_of_person
+from revisionist.core.state import Rule, SeatFace, State, View, Wake, seat_of_person
 from revisionist.core.visibility import Scope, Visibility
 
 
@@ -155,6 +168,39 @@ def _quantities(state: State, seat: SeatId, post: bool) -> dict[QuantityId, Quan
     }
 
 
+def _wake(state: State, seat: SeatId) -> Wake | None:
+    """The shared wake with only ``seat``'s own commit in it."""
+    wake = state.wake
+    if wake is None:
+        return None
+    return wake.model_copy(update={"committed": wake.committed & {seat}})
+
+
+def _unplayed(state: State) -> bool:
+    """A realism game in play: the seats people hold are not shown to one another."""
+    return state.ruleset == "realism" and state.phase is Phase.PLAY
+
+
+def _roster(state: State, seat: SeatId) -> dict[EntityId, Character]:
+    """The roster, with no claim but ``seat``'s own once play has begun."""
+    if not _unplayed(state):
+        return dict(state.roster)
+    return {
+        k: c if c.claimed_by in (None, seat) else c.model_copy(update={"claimed_by": None})
+        for k, c in state.roster.items()
+    }
+
+
+def _faces(state: State, seat: SeatId) -> dict[SeatId, SeatFace]:
+    """Every seat's face; once play has begun, of the player seats only ``seat``'s own."""
+    hide = _unplayed(state)
+    return {
+        k: face(v)
+        for k, v in state.seats.items()
+        if not hide or k == seat or v.kind is not SeatKind.PLAYER
+    }
+
+
 def project(state: State, seat: SeatId) -> View:
     if seat not in state.seats:
         raise KeyError(f"unknown seat {seat!r}")
@@ -191,15 +237,15 @@ def project(state: State, seat: SeatId) -> View:
         offers=() if post else offers.seen_by(state, seat),
         agreements=agreement.seen_by(state, seat, post=post),
         conferences=conference.seen_by(state, seat),
-        wake=state.wake,
+        wake=_wake(state, seat),
         phase=state.phase,
-        roster=dict(state.roster),
+        roster=_roster(state, seat),
         contests=_visible(state.contests, seat),
         divergence=state.divergence,
         in_world_date=state.in_world_date,
         ruleset=state.ruleset,
         me=me,
-        seats={k: face(v) for k, v in state.seats.items()},
+        seats=_faces(state, seat),
         own_pending=tuple(i for i in state.pending.values() if i.actor == seat),
         cards={k: _face(c, assets) for k, c in state.cards.items()},
         desk=card.desk() if card is not None else None,

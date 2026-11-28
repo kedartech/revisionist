@@ -47,29 +47,7 @@ has left in the open wake, which is the code's from the close, then which seat f
 player report the host reads, then whether a seat asked a person nobody plays, then
 whether a person or code answers an ask."""
 
-HUMANS = (
-    "rules lane fix: the wake header's human count and the commit reply's 'waiting for N "
-    "other player(s)' tell whether a seat is played by a person or by code "
-    "(src/revisionist/engine/web/wake_api.py, wake_header and commit)"
-)
-HELD = (
-    "rules lane fix: held orders are numbered in one sequence for the whole game, so a "
-    "seat's own held order's number, and a withdraw by number, show another seat's "
-    "order waiting for the close (src/revisionist/engine/web/held.py, server.py _hold "
-    "and _withdraw)"
-)
-LEFT = (
-    "rules lane fix: the wake header's committed count (the leaver's wake is sealed at "
-    "once) and, after the close, its human count tell that a seat's player has left "
-    "(src/revisionist/engine/web/wake_api.py, wake_header)"
-)
-FINDINGS: dict[str, str] = {
-    "toy-person-or-code": HUMANS,
-    "salt-person-or-code": HUMANS,
-    "toy-pending-leave": LEFT,
-    "salt-pending-leave": LEFT,
-    "toy-written-order-awaiting-the-close": HELD,
-}
+FINDINGS: dict[str, str] = {}
 """Pairs that differ today: the pair's id and the fix it waits on, in the owner's lane."""
 
 LEAVERS = ("person or code", "pending leave")
@@ -123,8 +101,7 @@ def test_the_seat_reads_and_is_refused_the_same_in_both_games(
 def test_the_opening_reads_the_same_whether_a_seat_is_a_person_or_code(
     pair: ft.Pair, pg_cluster: Cluster, tmp_path: Path
 ) -> None:
-    """The pairs above wait on the wake header's fix; the opening must not differ
-    meanwhile, before or after the close."""
+    """The opening, refused in play, reads the same too, before and after the close."""
     with ft.twins(pair, pg_cluster, tmp_path) as (a, b):
         assert ft.truth(a) != ft.truth(b), "the hidden fact did not land"
         for n in range(pair.wakes + 1):

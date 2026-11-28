@@ -133,12 +133,14 @@ def test_a_leaver_keeps_its_orders_in_flight(table: AsyncTable) -> None:
 def test_the_leader_looks_the_same_to_the_others(table: AsyncTable) -> None:
     t = table
     t.open_play()
-    before = project(t.state, t.fdr).seats[t.churchill]
+    before = project(t.state, t.fdr).seats
+    assert t.churchill not in before  # no other player seat's face is shown in play
     leave(t, t.churchill)
     pending = project(t.state, t.fdr)
     assert "handovers" not in pending.model_dump()
+    assert pending.seats == before
     t.close()
-    assert project(t.state, t.fdr).seats[t.churchill] == before
+    assert project(t.state, t.fdr).seats == before
     (landed,) = handovers(t)
     assert landed.scope.known_by == frozenset({t.churchill})
     seen = catchup.seat_events(t.store, CAMPAIGN, t.fdr, 0, 0)
@@ -326,7 +328,7 @@ def test_leaving_on_the_web_hands_the_leader_to_the_code(
     state = state_of(game)
     assert state.wake is not None and state.wake.number == 1  # the leave sealed wake 0
     assert state.seats[roosevelt].controller is Controller.AI
-    assert realism_of(ada)["wake"]["humans"] == 1
+    assert realism_of(ada)["wake"]["humans"] == 3  # every seat, whoever plays it
     assert not post(ada, "commit")[1]["refused"]
     assert realism_of(ada)["wake"]["wake"] == 2  # wake 1 closed without waiting
 
@@ -367,7 +369,7 @@ def test_a_handed_leader_joins_at_the_next_wake_with_a_catch_up_from_wake_0(
     cat, _ = game.web.signed_up("cat")
     joined = cat.seat("join", code=out["code"])
     assert "Roosevelt" in joined, joined
-    assert realism_of(ada)["wake"]["humans"] == 1  # not counted in wake 1
+    assert realism_of(ada)["wake"]["humans"] == 3  # every seat, whoever plays it
     _, early_done = post(cat, "commit")
     assert early_done == {"reply": wake_api.JOINING, "refused": True}
     status, filed = post(cat, "lever", **BILL)
@@ -376,7 +378,7 @@ def test_a_handed_leader_joins_at_the_next_wake_with_a_catch_up_from_wake_0(
     state = state_of(game)
     assert state.wake is not None and state.wake.number == 2
     assert state.seats[roosevelt].controller is Controller.HUMAN
-    assert realism_of(ada)["wake"]["humans"] == 2
+    assert realism_of(ada)["wake"]["humans"] == 3
     bills = [
         e
         for e in log_of(game)

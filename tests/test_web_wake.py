@@ -120,11 +120,11 @@ def test_the_first_commit_waits_and_the_second_closes(
     status, out = post(bea, "commit")
     assert status == 200
     assert out == {
-        "reply": "Your orders are sealed. Waiting for 1 other player(s).",
+        "reply": "Your orders are sealed. Waiting for 2 other player(s).",
         "refused": False,
     }
     seen = realism_of(ada)["wake"]
-    assert (seen["committed"], seen["humans"], seen["you_committed"]) == (1, 2, False)
+    assert (seen["committed"], seen["humans"], seen["you_committed"]) == (1, 3, False)
     assert realism_of(bea)["wake"]["you_committed"] is True
     assert state_of(game).tick == 0
 
@@ -170,7 +170,7 @@ def test_no_wake_open_is_a_refusal(web: Web) -> None:  # noqa: F811
     make_host(game, ada)
     game.open_play()
     head = realism_of(ada)["wake"]
-    assert (head["deadline"], head["can_close"], head["humans"]) == (None, True, 1)
+    assert (head["deadline"], head["can_close"], head["humans"]) == (None, True, 3)
     _, out = post(ada, "commit")
     assert out == {"reply": "No wake is open.", "refused": True}
     _, out = post(ada, "close")

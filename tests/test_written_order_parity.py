@@ -58,13 +58,16 @@ from tests.written_order_cases import (
     PLANTED_FACT,
     PLANTED_FIGURE,
     RULED_BY,
+    RULED_READING,
     RULINGS,
     Case,
     detail,
+    engage,
     f41,
     give,
     move,
     naval,
+    say,
     war,
 )
 
@@ -1444,7 +1447,7 @@ def test_a_written_vote_the_form_refuses_is_refused_in_its_words(
 # --- canned rulings on a written order no form covers -------------------------------------
 
 
-RULED = next(c for c in CASES if c.lever == RULED_BY)
+RULED = replace(next(c for c in CASES if c.lever == RULED_BY), reading=RULED_READING)
 _RULING_ENTITIES = frozenset({"of", "toward", "counterparty"})
 
 
@@ -1625,10 +1628,235 @@ def test_a_written_order_that_is_not_a_production_form_gets_none(
     assert _twin(person, effect, **params) is None
 
 
+# --- shipping, message and statement forms -----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("person", "effect", "params", "form"),
+    [
+        (
+            "churchill",
+            engage("hx_route", "escort"),
+            {"priority": "atlantic"},
+            ("convoy_orders", {"route": "hx_route", "priority": "atlantic"}),
+        ),
+        (
+            "mussolini",
+            engage("tripoli_route", "escort"),
+            {},
+            ("libya_convoys", {"route": "tripoli_route"}),
+        ),
+        (
+            "mussolini",
+            engage("Convoys to Tripoli", "escort"),
+            {},
+            ("libya_convoys", {"route": "tripoli_route"}),
+        ),
+        (
+            "hitler",
+            engage("north_atlantic", "shoot_on_sight"),
+            {"posture": "unrestricted_atlantic"},
+            (
+                "uboat_directive",
+                {"theatre": "north_atlantic", "posture": "unrestricted_atlantic"},
+            ),
+        ),
+        (
+            "konoe",
+            give("japan", "shipping", 1, "requisition"),
+            {"tonnage_class": "army"},
+            ("requisition_shipping", {"tonnage_class": "army"}),
+        ),
+        (
+            "roosevelt",
+            None,
+            {"message": "We stand with you."},
+            ("cable_to_churchill", {"message": "We stand with you."}),
+        ),
+        (
+            "churchill",
+            say("broadcast", "usa"),
+            {"audience": "america"},
+            ("broadcast", {"audience": "america"}),
+        ),
+        (
+            "chiang",
+            say("appeal_abroad", "usa"),
+            {"audience": "britain"},
+            ("appeal_abroad", {"audience": "britain"}),
+        ),
+    ],
+    ids=[
+        "convoy-priority",
+        "supply-convoy",
+        "route-by-name",
+        "raid-directive",
+        "requisition",
+        "message",
+        "broadcast",
+        "appeal",
+    ],
+)
+def test_a_written_shipping_message_or_statement_order_is_its_form(
+    person: str, effect: dict[str, Any] | None, params: dict[str, str], form: Any
+) -> None:
+    assert _twin(person, effect, **params) == form
+
+
+@pytest.mark.parametrize(
+    ("person", "effect", "params"),
+    [
+        ("churchill", engage("hx_route", "escort", "home_fleet"), {"priority": "atlantic"}),
+        ("churchill", engage("hx_route", "shoot_on_sight"), {"priority": "atlantic"}),
+        (
+            "churchill",
+            engage("hx_route", "escort") | {"concealed": True},
+            {"priority": "atlantic"},
+        ),
+        ("mussolini", engage("tripoli", "escort"), {}),
+        ("hitler", engage("north_atlantic", "escort"), {"posture": "unrestricted_atlantic"}),
+        (
+            "hitler",
+            engage("north_atlantic", "shoot_on_sight", "uboat_arm"),
+            {"posture": "unrestricted_atlantic"},
+        ),
+        (
+            "hitler",
+            engage("unrestricted_atlantic", "shoot_on_sight"),
+            {"theatre": "north_atlantic"},
+        ),
+        (
+            "roosevelt",
+            engage("western_atlantic", "shoot_on_sight"),
+            {"order": "shoot_on_sight"},
+        ),
+        ("konoe", give("usa", "shipping", 1, "requisition"), {"tonnage_class": "army"}),
+        ("konoe", give("japan", "steel", 1, "requisition"), {"tonnage_class": "army"}),
+        (
+            "konoe",
+            give("japan", "shipping", 0, "points") | {"intel": "codebreaking"},
+            {"tonnage_class": "army"},
+        ),
+        (
+            "churchill",
+            give("uk", "shipping", 1, "requisition"),
+            {"priority": "atlantic", "route": "hx_route"},
+        ),
+        ("churchill", None, {"priority": "atlantic", "route": "hx_route"}),
+        ("roosevelt", give("usa", "shipping", 1, "requisition"), {"message": "Ships."}),
+        ("churchill", say("broadcast", "uk"), {"audience": "britain"}),
+        ("churchill", say("broadcast"), {"audience": "america"}),
+        ("churchill", say("broadcast", "roosevelt"), {"audience": "america"}),
+        ("churchill", None, {"audience": "america"}),
+    ],
+    ids=[
+        "convoy-names-a-force",
+        "convoy-not-an-escort",
+        "convoy-concealed",
+        "convoy-not-a-route",
+        "raid-not-shooting",
+        "raid-names-a-force",
+        "raid-not-waters",
+        "escort-order-by-detail",
+        "requisition-for-another-nation",
+        "requisition-not-shipping",
+        "requisition-codebreaking",
+        "requisition-form-names-a-route",
+        "convoy-by-detail",
+        "requisition-form-is-a-message",
+        "statement-at-home",
+        "statement-to-the-public",
+        "statement-to-a-person",
+        "statement-by-detail",
+    ],
+)
+def test_a_written_order_that_is_not_a_shipping_or_statement_form_gets_none(
+    person: str, effect: dict[str, Any] | None, params: dict[str, str]
+) -> None:
+    """An engagement that names a force, sets another rule, conceals, or names no route
+    or waters of the form's is not a convoy or raid form, nor is an escort order's level
+    given by a detail; a requisition is tonnage for one's own nation on a form that names
+    nothing else; a message form is the only shipping form a detail alone gives; a
+    statement is a broadcast or an appeal only when it is made to another nation."""
+    assert _twin(person, effect, **params) is None
+
+
 def _lever(person: str, name: str) -> Any:
     state = _opening_1941(person)
     card = state.cards[entity(person)]
     return state, next(x for x in card.levers if x.name == name)
+
+
+def test_without_territories_no_written_order_is_a_convoy_raid_or_requisition_form() -> None:
+    """The shipping forms read the board only in a territory game; elsewhere a written
+    engagement or allocation is filed as written."""
+    from revisionist.core.state import Rule
+
+    for person, effect, params in [
+        ("churchill", engage("hx_route", "escort"), {"priority": "atlantic"}),
+        ("hitler", engage("north_atlantic", "shoot_on_sight"), {"posture": "restrict_us_ships"}),
+        ("konoe", give("japan", "shipping", 1, "requisition"), {"tonnage_class": "army"}),
+    ]:
+        state = _opening_1941(person)
+        rules = type(state.rules)(r for r in state.rules if r is not Rule.TERRITORIES)
+        bare = state.model_copy(update={"rules": rules})
+        ask = Ask(ask="An order.", effect=_keyed(effect))
+        assert orders_reader.twin(bare, seat(person), ask, params) is None
+
+
+def test_waters_two_parameters_name_give_no_raid_form() -> None:
+    from revisionist.core.realism.effect import Engagement, SetEngagement
+
+    state, lever = _lever("hitler", "uboat_directive")
+    posture, theatre = lever.params
+    both = lever.model_copy(
+        update={"params": (posture.model_copy(update={"choices": theatre.choices}), theatre)}
+    )
+    raid = SetEngagement(zone="north_atlantic", rule=Engagement.SHOOT_ON_SIGHT)
+    assert orders_reader._convoy(state, lever, raid) == {"theatre": "north_atlantic"}
+    assert orders_reader._convoy(state, both, raid) is None
+
+
+def test_a_port_on_a_route_is_not_the_route() -> None:
+    """A convoy form is given by an engagement naming its route, never a port on it, even
+    where the form offers that route alone."""
+    from revisionist.core.realism.effect import Engagement, SetEngagement
+
+    state, lever = _lever("mussolini", "libya_convoys")
+    (spec,) = lever.params
+    alone = lever.model_copy(
+        update={"params": (spec.model_copy(update={"choices": ("tripoli_route",)}),)}
+    )
+    to = SetEngagement(zone="tripoli_route", rule=Engagement.ESCORT)
+    assert orders_reader._convoy(state, alone, to) == {"route": "tripoli_route"}
+    port = SetEngagement(zone="tripoli", rule=Engagement.ESCORT)
+    assert orders_reader._convoy(state, alone, port) is None
+
+
+@pytest.mark.parametrize(
+    "choice",
+    [None, "usa", "escort_convoys", "hx_route", "north_atlantic"],
+    ids=["requisition", "nation", "escort", "route", "waters"],
+)
+def test_a_requisition_is_a_form_whose_choices_name_nothing_on_the_board(
+    choice: str | None,
+) -> None:
+    """A requisition form's choices name no nation, escort value, route or waters; any
+    of them makes it another shipping form (``shipping.form``)."""
+    state, lever = _lever("konoe", "requisition_shipping")
+    (spec,) = lever.params
+    if choice is not None:
+        spec = spec.model_copy(update={"choices": (*spec.choices, choice)})
+    assert orders_reader._names_nothing(state, lever.model_copy(update={"params": (spec,)})) is (
+        choice is None
+    )
+
+
+def test_a_message_form_is_a_shipping_form_of_free_text_only() -> None:
+    _, cable = _lever("roosevelt", "cable_to_churchill")
+    assert orders_reader._message_form(cable)
+    assert not orders_reader._message_form(cable.model_copy(update={"resolver": "opinion"}))
+    assert not orders_reader._message_form(cable.model_copy(update={"params": ()}))
 
 
 def _param(name: str, kind: str = "enum") -> Any:

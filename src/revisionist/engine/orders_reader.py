@@ -35,16 +35,17 @@ from revisionist.core.realism.effect import (
     Engagement,
     IntelOrder,
     Investigate,
+    MakeStatement,
     MoveForce,
     Posture,
     ProposeMeasure,
     Route,
     SetEngagement,
 )
-from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.locks import HeldOrder, zone_of
 from revisionist.core.realism.reach import channels_to
-from revisionist.core.realism.resolvers import intel
+from revisionist.core.realism.resolvers import intel, shipping
 from revisionist.core.realism.resolvers.movement import FORCE, TO
 from revisionist.core.realism.resolvers.production import _matter, request_form
 from revisionist.core.realism.resolvers.shipping import ESCORT_LEVEL
@@ -600,6 +601,100 @@ def _bill(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
     return {"bill": key} if key in spec.choices else None
 
 
+REQUISITIONED = "shipping"  # [proposed]
+"""What a written requisition allocates to the seat's own nation: merchant shipping."""
+
+
+def _route(state: State, choice: str) -> Feature | None:
+    """The route ``choice`` names, if it names one."""
+    found = shipping._feature(state, choice)
+    return found if found is not None and found.kind is FeatureKind.ROUTE else None
+
+
+def _route_named(state: State, choice: str, zone: str) -> bool:
+    """Whether ``choice`` names a route the engagement's zone names: by key, id or name."""
+    found = _route(state, choice)
+    if found is None:
+        return False
+    return zone in (choice, found.feature_id) or found.name.casefold() == zone.strip().casefold()
+
+
+def _waters_named(state: State, choice: str, zone: str) -> bool:
+    """Whether ``choice`` names waters the engagement's zone names: by key or as the entity."""
+    if not shipping._waters(state, choice):
+        return False
+    return choice == zone or object_id(state.campaign_id, "entity", choice) == zone_of(state, zone)
+
+
+def _convoy(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """A shipping form's route or waters, for an engagement that names none of the seat's
+    forces: escorting on a route the form names is its convoy priority or supply convoy;
+    shooting on sight in waters a form that names no route names is its raid directive.
+    Its other parameters are the detail's."""
+    if not isinstance(effect, SetEngagement) or effect.force is not None:
+        return None
+    if effect.concealed is not None or effect.contingency is not None or not shipping.on(state):
+        return None
+    routes = any(_route(state, c) is not None for p in lever.params for c in p.choices)
+    if routes and effect.rule is Engagement.ESCORT:
+        named = _route_named
+    elif not routes and effect.rule is Engagement.SHOOT_ON_SIGHT:
+        named = _waters_named
+    else:
+        return None
+    found = [(p.name, c) for p in lever.params for c in p.choices if named(state, c, effect.zone)]
+    return dict(found) if len(found) == 1 else None
+
+
+def _names_nothing(state: State, lever: Lever) -> bool:
+    """Whether ``lever`` is a requisition: a shipping form each of whose parameters is a
+    choice that names no route, piece, waters, nation or escort value (``shipping.form``)."""
+    if not shipping.on(state):
+        return False
+    if any(spec.kind is not ParamKind.ENUM for spec in lever.params):
+        return False
+    for c in (c for spec in lever.params for c in spec.choices):
+        named = state.entities.get(EntityId(object_id(state.campaign_id, "entity", c)))
+        nation = named is not None and named.kind is EntityKind.POLITY
+        if nation or c in ESCORT_LEVEL or shipping._feature(state, c) is not None:
+            return False
+        if shipping._waters(state, c):
+            return False
+    return True
+
+
+def _requisitioned(
+    state: State, seat: SeatId, lever: Lever, effect: Effect
+) -> dict[str, str] | None:
+    """A requisition form, for merchant shipping allocated to the seat's own nation. Its
+    parameters are the detail's."""
+    if not isinstance(effect, Allocate) or effect.intel is not None:
+        return None
+    if effect.what != REQUISITIONED:
+        return None
+    if effect.recipient != polity_of(state, state.seats[seat].embodies):
+        return None
+    return {} if _names_nothing(state, lever) else None
+
+
+def _message_form(lever: Lever) -> bool:
+    """A shipping form whose every parameter is free text: a message (``shipping``)."""
+    texts = [p.kind is ParamKind.TEXT for p in lever.params]
+    return lever.resolver == "shipping" and bool(texts) and all(texts)
+
+
+def _heard(state: State, seat: SeatId, effect: Effect) -> dict[str, str] | None:
+    """An opinion form, for a statement made to another nation. The audience the form
+    takes is the detail's: the form's choices name the theme it is heard at home through,
+    not the nation."""
+    if not isinstance(effect, MakeStatement) or effect.audience is None:
+        return None
+    nation = state.entities.get(effect.audience)
+    if nation is None or nation.kind is not EntityKind.POLITY:
+        return None
+    return None if nation.entity_id == polity_of(state, state.seats[seat].embodies) else {}
+
+
 def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[str, str] | None:
     """The parameters of ``lever`` the effect names, when its form gives that effect."""
     if lever.resolver == "movement":
@@ -609,9 +704,12 @@ def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[st
     if lever.resolver == "intel":
         return _intel(state, seat, lever, effect)
     if lever.resolver == "shipping":
-        return _escort(state, lever, effect)
+        found = _escort(state, lever, effect) or _convoy(state, lever, effect)
+        return found if found is not None else _requisitioned(state, seat, lever, effect)
     if lever.resolver == "production":
         return _aid(state, lever, effect) or _produced(state, seat, lever, effect)
+    if lever.resolver == "opinion":
+        return _heard(state, seat, effect)
     return None
 
 
@@ -695,16 +793,20 @@ def twin(state: State, seat: SeatId, ask: Ask, detail: dict[str, str]) -> Twin |
     """The one form on the seat's card that gives the ask's effect, with every parameter
     filled: from the effect, and from ``detail`` for what the effect cannot hold. A detail
     never names what the effect fills. A form no effect kind holds (an evacuation, a trade
-    order) is given by an ask with no effect whose detail names each of its parameters; its
-    values are the form's to check when it is filed. None when no form, or more than one,
-    fits."""
+    order, a message) is given by an ask with no effect whose detail names each of its
+    parameters; its values are the form's to check when it is filed. None when no form, or
+    more than one, fits."""
     card = state.cards.get(state.seats[seat].embodies)
     if card is None:
         return None
     found: list[Twin] = []
     if ask.effect is None:
         for lever in card.levers if detail else ():
-            by_detail = lever.resolver in PARAM_FORMS or request_form(state, seat, lever)
+            by_detail = (
+                lever.resolver in PARAM_FORMS
+                or request_form(state, seat, lever)
+                or _message_form(lever)
+            )
             if by_detail and set(detail) == {p.name for p in lever.params}:
                 found.append((lever.name, dict(detail)))
         return found[0] if len(found) == 1 else None

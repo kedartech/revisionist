@@ -220,7 +220,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "cable_to_churchill",
         {"message": "We stand with you."},
         "Cable the Prime Minister that we stand with him.",
-        approach("churchill"),
+        {"detail": {"message": "We stand with you."}},
     ),
     f41(
         "roosevelt",
@@ -249,7 +249,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "convoy_orders",
         {"priority": "atlantic", "route": "hx_route"},
         "The escorts are to see the HX convoys across the Atlantic first.",
-        engage("hx_route", "escort"),
+        detail(engage("hx_route", "escort"), priority="atlantic"),
     ),
     f41(
         "churchill",
@@ -284,7 +284,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "broadcast",
         {"audience": "america"},
         "Broadcast to America.",
-        say("broadcast", "usa"),
+        detail(say("broadcast", "usa"), audience="america"),
     ),
     f41(
         "churchill",
@@ -363,7 +363,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "uboat_directive",
         {"posture": "unrestricted_atlantic", "theatre": "north_atlantic"},
         "The U-boats are to wage unrestricted war in the North Atlantic.",
-        engage("north_atlantic", "shoot_on_sight", "uboat_arm"),
+        detail(engage("north_atlantic", "shoot_on_sight"), posture="unrestricted_atlantic"),
     ),
     f41(
         "hitler",
@@ -410,7 +410,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "requisition_shipping",
         {"tonnage_class": "army"},
         "Requisition merchant shipping for the army.",
-        give("japan", "shipping", 1, "requisition"),
+        detail(give("japan", "shipping", 1, "requisition"), tonnage_class="army"),
     ),
     f41(
         "konoe",
@@ -439,7 +439,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "requisition_shipping",
         {"tonnage_class": "army"},
         "Requisition merchant shipping for the army.",
-        give("japan", "shipping", 1, "requisition"),
+        detail(give("japan", "shipping", 1, "requisition"), tonnage_class="army"),
     ),
     f41(
         "tojo",
@@ -483,7 +483,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "libya_convoys",
         {"route": "tripoli_route"},
         "Run the Libya convoys to Tripoli.",
-        engage("tripoli", "escort"),
+        engage("tripoli_route", "escort"),
     ),
     f41(
         "mussolini",
@@ -526,7 +526,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "appeal_abroad",
         {"audience": "america"},
         "Appeal to America for help.",
-        say("appeal_abroad", "usa"),
+        detail(say("appeal_abroad", "usa"), audience="america"),
     ),
     f41(
         "chiang",
@@ -847,34 +847,7 @@ piece) is read as an ask with no effect whose detail names each of its parameter
 
 # --- the open differences ----------------------------------------------------------------
 
-STAMP = (
-    "core lane fix item: a written engagement that sets no force's rule leaves the dates of"
-    " the forces its domain names as they were"
-)
-INERT = "core lane fix item for the forms that change nothing (EFD's list)"
-AUDIENCE = (
-    "core lane fix item: a written statement to another nation lands as its form does"
-    " (the form is heard at home through its audience's theme)"
-)
-MESSAGE = (
-    "core lane fix item: a written message lands as its form does"
-    " (the form raises the regard of the person abroad who let it through)"
-)
-SHIPPING = (
-    "core lane fix item: a written shipping order lands as its form does"
-    " (the form acts through escort levels, losses and the lift pool)"
-)
-
-FIXES: dict[str, str] = {
-    "1941.roosevelt.cable_to_churchill": MESSAGE,
-    "1941.churchill.convoy_orders": SHIPPING,
-    "1941.churchill.broadcast": AUDIENCE,
-    "1941.hitler.uboat_directive": SHIPPING,
-    "1941.konoe.requisition_shipping": SHIPPING,
-    "1941.tojo.requisition_shipping": SHIPPING,
-    "1941.mussolini.libya_convoys": STAMP,
-    "1941.chiang.appeal_abroad": AUDIENCE,
-}
+FIXES: dict[str, str] = {}
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""
 
@@ -886,8 +859,10 @@ CASES: tuple[Case, ...] = tuple(
 # --- canned rulings: written orders no form covers ---------------------------------------
 
 RULED_BY = "cable_to_churchill"
-"""The case whose written sentence is an approach the estimator rules on: the President's
-cable, written to the Prime Minister, which no form of the President's covers in writing."""
+RULED_READING: tuple[Effect, ...] = (approach("churchill"),)
+"""The case whose sentence, read as a plain approach to the Prime Minister that names no
+message, the estimator rules on: an approach no form of the President's gives. Read with
+its message, the same sentence is the cable form."""
 
 PLANTED_FACT = "planted_fact"
 PLANTED_FIGURE = "planted_figure"

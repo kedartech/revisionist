@@ -439,18 +439,26 @@ def _lands(state: State, m: PostMove) -> str:
 
 def pending(state: State, seat: SeatId) -> list[PendingPost]:
     """Each change of post pending on the person the seat plays, as sealed as its notice:
-    the person moved's seat alone reads it, and only while it waits."""
+    the person moved's seat alone reads it, and only while it waits. An appointment that
+    puts the seat's person down is listed by the notice the seat holds, while it still
+    would; its rung is the first the posts leave free, which names no appointee."""
     me = state.seats[seat].embodies
     out: list[PendingPost] = []
     for m in sorted(state.post_moves.values(), key=lambda m: (m.ordered, m.move_id)):
-        if m.person != me or m.seat != seat:
+        if m.person == me and m.seat == seat:
+            doc_id = ladder.notice_id(state, m.move_id)
+            move: Literal["appoint", "relieve"] = "appoint" if m.appoint else "relieve"
+            lands_on = m.post if m.appoint else ladder.rung(state, m.post)
+        elif ladder.displaced(state, m) == me and ladder.told(state, m.move_id, seat):
+            doc_id, move = ladder.down_notice_id(state, m.move_id), "relieve"
+            lands_on = ladder.rung(state, m.post)
+        else:
             continue
-        lands_on = m.post if m.appoint else ladder.rung(state, m.post)
         out.append(
             PendingPost(
-                id=ladder.notice_id(state, m.move_id),
+                id=doc_id,
                 post=state.assets[m.post].name,
-                move="appoint" if m.appoint else "relieve",
+                move=move,
                 lands=_lands(state, m),
                 wake=None if m.question else m.wake + 1,
                 rung=None if m.question or lands_on is None else state.assets[lands_on].name,

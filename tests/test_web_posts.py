@@ -14,6 +14,7 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId
+from revisionist.core.project import project
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.land import appointment
@@ -176,6 +177,128 @@ def test_a_pending_change_is_shown_to_the_person_moved_and_nobody_else(g: Ladder
     after = block(g.state, KARA)
     assert after["pending"] == [] and after["post"] == {"id": GARRISON, "name": NORRHAVN}
     assert post_due(g.state, KARA) == []
+
+
+def test_the_holder_an_appointment_puts_down_has_the_line_until_it_lands(g: Ladders) -> None:
+    """Olav, whom no seat plays, is appointed to Kara's command: Kara's block and what
+    needs her carry the fall a wake ahead, by the notice she holds; no other seat's do."""
+    g.open(0)
+    g.order(OLAV, COMMAND)
+    state = g.state
+    (line,) = block(state, KARA)["pending"]
+    assert (line["post"], line["move"]) == (LEVY, "relieve")
+    assert (line["lands"], line["wake"], line["rung"]) == (
+        "at the close of the next wake",
+        1,
+        NORRHAVN,
+    )
+    assert line["id"] in project(state, seat(KARA)).documents
+    for other in (ILSE, TOMAS):
+        assert block(state, other)["pending"] == []
+        assert post_due(state, other) == []
+    (due,) = post_due(state, KARA)
+    assert (due.what, due.due, due.subject) == (
+        f"You are relieved of {LEVY}",
+        "at the close of the next wake",
+        line["id"],
+    )
+    told = notice.compose(state, seat(KARA), None, "Norra")[1]
+    assert f"You are relieved of {LEVY}. Due at the close of the next wake." in told
+    assert "Olav" not in str(block(state, KARA)["pending"]) + told
+    landed(g, 0)
+    assert block(g.state, KARA)["pending"] == [] and post_due(g.state, KARA) == []
+    assert block(g.state, KARA)["post"] == {"id": GARRISON, "name": NORRHAVN}
+
+
+def test_a_holder_who_left_the_post_before_it_lands_loses_the_line(g: Ladders) -> None:
+    """Kara is relieved of the command, then told Olav's appointment to it puts her down.
+    Her relief lands first: the appointment no longer puts her down, so its line goes
+    while it still waits."""
+    g.open(0)
+    g.order(KARA, COMMAND, appoint=False)
+    g.close(0)
+    g.open(1)
+    g.order(OLAV, COMMAND)
+    assert [p["post"] for p in block(g.state, KARA)["pending"]] == [LEVY, LEVY]
+    g.close(1)
+    g.walk()
+    assert g.held(COMMAND) is None and g.held(GARRISON) == KARA
+    assert block(g.state, KARA)["pending"] == []
+    assert post_due(g.state, KARA) == []
+
+
+def test_a_holder_who_came_to_the_post_after_the_order_is_told_before_it_lands(
+    g: Ladders,
+) -> None:
+    """Olav is appointed to the vacant garrison a wake after Kara is: nobody is put down
+    when it is ordered. Kara takes the garrison first, so at its landing it would put her
+    down untold: it is ordered afresh instead, she has the notice and the line, and it
+    lands a wake later."""
+    g.open(0)
+    g.order(KARA, GARRISON)
+    g.close(0)
+    g.open(1)
+    g.order(OLAV, GARRISON)
+    g.close(1)
+    g.walk()
+    g.open(2)
+    assert g.held(GARRISON) == KARA
+    assert block(g.state, KARA)["pending"] == []  # no notice held, no line
+    g.close(2)
+    out = g.walk()
+    assert g.held(GARRISON) == KARA
+    (again,) = [p.move for p in out if isinstance(p, ev.PostMoveOrdered)]
+    assert (again.person, again.wake, again.question) == (OLAV, 2, False)
+    (paper,) = [p.document for p in out if isinstance(p, ev.DocumentIssued)]
+    assert paper.scope.known_by == frozenset({seat(KARA)})
+    assert paper.title == f"You are relieved of {NORRHAVN}"
+    g.open(3)
+    (line,) = block(g.state, KARA)["pending"]
+    assert (line["post"], line["lands"], line["wake"]) == (
+        NORRHAVN,
+        "at the close of this wake",
+        3,
+    )
+    g.close(3)
+    g.walk()
+    assert (g.held(GARRISON), g.held(STAFF)) == (OLAV, KARA)
+    assert not g.state.post_moves
+
+
+def test_a_notice_to_the_holder_before_tells_nothing_to_the_holder_now(g: Ladders) -> None:
+    """Kara holds the command when both Tomas's and Olav's appointments to it are
+    ordered, so she has both notices. Tomas's lands first: Olav's would now put Tomas
+    down, and Kara's notice is not his, so it is ordered afresh with Tomas's."""
+    g.open(0)
+    g.order(TOMAS, COMMAND)
+    g.close(0)
+    g.open(1)
+    g.order(OLAV, COMMAND)
+    g.close(1)
+    g.walk()
+    g.open(2)
+    assert (g.held(COMMAND), g.held(GARRISON)) == (TOMAS, KARA)
+    assert block(g.state, KARA)["pending"] == []
+    g.close(2)
+    out = g.walk()
+    assert g.held(COMMAND) == TOMAS
+    (paper,) = [p.document for p in out if isinstance(p, ev.DocumentIssued)]
+    assert paper.scope.known_by == frozenset({seat(TOMAS)})
+
+
+def test_the_line_a_holder_is_shown_names_no_rung_from_the_appointee(g: Ladders) -> None:
+    """Olav holds the garrison when Ilse appoints him to Kara's command, so the garrison
+    he gives up is the rung Kara lands on. Kara is not told who comes, and a held rung on
+    her line would name him: her line reads the first rung free in the open."""
+    g.open(0)
+    g.order(OLAV, GARRISON)
+    landed(g, 0)
+    g.open(2)
+    g.order(OLAV, COMMAND)
+    (line,) = block(g.state, KARA)["pending"]
+    assert line["rung"] == STAFF_POST
+    landed(g, 2)
+    assert (g.held(COMMAND), g.held(GARRISON)) == (OLAV, KARA)
 
 
 def test_a_change_that_would_take_the_last_authority_waits_for_the_sitting(

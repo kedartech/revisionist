@@ -17,6 +17,7 @@ from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import FoldError, apply
 from revisionist.core.ids import AssetId, EntityId, EventId, SeatId, derived_id
+from revisionist.core.project import project
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import ladder, posts, route
 from revisionist.core.realism.agenda import Ask, PlayStyle
@@ -24,8 +25,10 @@ from revisionist.core.realism.land import appointment
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope
+from revisionist.core.world_compile import compile_world
 from revisionist.engine import campaign as cmp
-from revisionist.engine import catchup, wake
+from revisionist.engine import catchup, realism_tick, session_zero, wake
+from revisionist.engine.store import MemoryStore
 from tests.test_posts import (
     CHANCELLERY,
     COMMAND,
@@ -224,6 +227,112 @@ def test_the_notice_comes_the_day_it_is_ordered_a_wake_ahead(g: Ladders) -> None
     assert paper.title == "You are relieved of General of the Norra Levy"
     assert any(f.value == "At the close of the next wake" for f in paper.body)
     assert g.held(COMMAND) == KARA  # the change has not landed
+
+
+def test_the_holder_an_appointment_puts_down_is_told_a_wake_ahead(g: Ladders) -> None:
+    """Olav, whom no seat plays, is appointed to Kara's command: Kara, a seat, falls a
+    rung when it lands, so her seat has the notice the day it is ordered. It names the
+    post, the mover and the day, not who takes her place."""
+    g.open(0)
+    out = g.order(OLAV, COMMAND)
+    (paper,) = [p.document for p in out if isinstance(p, ev.DocumentIssued)]
+    assert paper.issued == DAY and paper.scope.known_by == frozenset({seat(KARA)})
+    assert paper.author == ILSE
+    assert paper.title == "You are relieved of General of the Norra Levy"
+    assert any(f.value == "At the close of the next wake" for f in paper.body)
+    assert "Olav" not in paper.model_dump_json()
+    assert g.held(COMMAND) == KARA
+    landed = [*_close_and_walk(g, 0), *_close_and_walk(g, 1)]
+    assert (g.held(COMMAND), g.held(GARRISON)) == (OLAV, KARA)
+    assert not any(isinstance(p, ev.DocumentIssued) for p in landed)
+
+
+def _close_and_walk(g: Ladders, n: int) -> list[ev.Payload]:
+    g.close(n)
+    out = g.walk()
+    g.open(n + 1)
+    return out
+
+
+def test_an_appointment_that_puts_down_a_holder_nobody_plays_sends_no_paper(
+    tmp_path: Path,
+) -> None:
+    g = Unseated(world(tmp_path, ladders))
+    g.open(0)
+    out = g.order(OLAV, COMMAND)
+    assert [type(p) for p in out] == [ev.PostMoveOrdered]
+
+
+def test_an_appointee_who_is_his_own_holder_gets_one_notice(g: Ladders) -> None:
+    """Kara appointed to the garrison, a rung of her own command's ladder: she is the
+    one put down, and has the one notice of the appointee."""
+    g.open(0)
+    out = g.order(KARA, GARRISON)
+    (paper,) = [p.document for p in out if isinstance(p, ev.DocumentIssued)]
+    assert paper.title == "You are to take up Commandant of Norrhavn"
+
+
+def test_a_question_the_appointment_opens_tells_the_holder_it_waits_for_the_sitting(
+    g: Ladders,
+) -> None:
+    """Both rungs full: Ilse's appointment of herself would take Kara's last authority,
+    so it waits for the office question, and each notice says so."""
+    g.open(0)
+    g.order(OLAV, GARRISON)
+    g.order(TOMAS, STAFF)
+    _close_and_walk(g, 0)
+    _close_and_walk(g, 1)
+    assert (g.held(GARRISON), g.held(STAFF)) == (OLAV, TOMAS)
+    out = g.order(ILSE, COMMAND)
+    (move,) = [p.move for p in out if isinstance(p, ev.PostMoveOrdered)]
+    assert move.question
+    papers = {
+        s: p.document
+        for p in out
+        if isinstance(p, ev.DocumentIssued)
+        for s in p.document.scope.known_by
+    }
+    assert set(papers) == {seat(ILSE), seat(KARA)}
+    assert papers[seat(KARA)].title == "You are relieved of General of the Norra Levy"
+    for paper in papers.values():
+        assert any(f.value == "Only at the sitting of the office question" for f in paper.body)
+
+
+class Unseated(Ladders):
+    """The same game with Kara played by nobody."""
+
+    def __init__(self, w: Any) -> None:
+        self.store = MemoryStore()
+        self.store.append_all(compile_world(w, CAMPAIGN, cmp.versions()))
+        for person in (ILSE, TOMAS):
+            name = self.state.entities[person].name
+            session_zero.claim(self.store, CAMPAIGN, seat(person), name)
+        realism_tick.open_play(self.store, CAMPAIGN)
+
+
+def _seen(g: Ladders, person: EntityId) -> str:
+    return project(g.state, seat(person)).model_dump_json()
+
+
+@pytest.mark.parametrize("game", [Ladders, Unseated], ids=["kara seated", "kara unseated"])
+def test_twin_games_with_and_without_the_appointment_read_the_same_to_other_seats(
+    tmp_path: Path, game: type[Ladders]
+) -> None:
+    """Twin games, one where Ilse's appointment of Olav puts Kara down a wake from now and
+    one where nothing is ordered: every seat but Kara's reads the same bytes."""
+    for d in ("moved", "still"):
+        (tmp_path / d).mkdir()
+    moved, still = (
+        game(world(tmp_path / "moved", ladders)),
+        game(world(tmp_path / "still", ladders)),
+    )
+    for g in (moved, still):
+        g.open(0)
+    moved.order(OLAV, COMMAND)
+    for person in (ILSE, TOMAS):
+        assert _seen(moved, person) == _seen(still, person)
+    if game is Ladders:
+        assert _seen(moved, KARA) != _seen(still, KARA)
 
 
 def test_a_dismissal_with_no_free_rung_leaves_no_post(g: Ladders) -> None:

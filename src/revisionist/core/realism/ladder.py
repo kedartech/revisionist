@@ -4,7 +4,8 @@ A post may carry a ladder, the lesser posts its holder falls to when he is put o
 and ``moved_by``, the posts whose holders may move him on their own order
 (``ladders_declared``). An appointment or a dismissal to a post does not land the day it
 is ordered: it is a pending change (``post_move_ordered``), sealed to the seat of the
-person moved, that lands at the close of the wake after the one it was ordered in. A
+person moved, that lands at the close of the wake after the one it was ordered in. The
+holder an appointment puts down is sent a notice too, sealed to his own seat. A
 dismissal puts the person on the first free rung of his ladder, or leaves him with no post
 when it has none. A move that would take a seat's last authority, leaving the person a
 seat plays with no post, is not done on order: it stands as the office question's cause
@@ -162,21 +163,58 @@ def notice_id(state: State, move_id: str) -> DocumentId:
     return DocumentId(derived_id(state.campaign_id, "move-notice", move_id))
 
 
+def down_notice_id(state: State, move_id: str) -> DocumentId:
+    """The notice to the holder an appointment puts down, when he is not the appointee."""
+    return DocumentId(derived_id(state.campaign_id, "move-notice", move_id, "down"))
+
+
+def displaced(state: State, move: PostMove) -> EntityId | None:
+    """The holder an appointment puts down when it lands, as the posts stand now; None
+    for a dismissal, a vacant post, or an appointee who is the one put down."""
+    down = _down(state, move.person, move.post, move.appoint)
+    return down if down != move.person else None
+
+
+def told(state: State, move_id: str, seat: SeatId) -> bool:
+    """Whether ``seat`` holds the notice that the move ``move_id`` puts its person down."""
+    page = state.documents.get(down_notice_id(state, move_id))
+    return page is not None and seat in page.view.scope.known_by
+
+
 def _notice(state: State, move: PostMove) -> list[ev.Payload]:
-    """One paper, the day it is ordered, to the seat of the person moved: the notice a
-    wake ahead. None for a person no seat plays."""
-    if move.seat is None:
-        return []
-    doc_id = notice_id(state, move.move_id)
-    if doc_id in state.documents:
-        return []
+    """One paper, the day it is ordered, to the seat of the person moved, and one to the
+    seat of the holder an appointment puts down: the notice a wake ahead. None for a
+    person no seat plays. The holder's names the post and the mover, not the appointee."""
     office = state.assets[move.post].name
     when = (
         "Only at the sitting of the office question"
         if move.question
         else "At the close of the next wake"
     )
-    title = f"You are to take up {office}" if move.appoint else f"You are relieved of {office}"
+    out: list[ev.Payload] = []
+    if move.seat is not None:
+        title = f"You are to take up {office}" if move.appoint else f"You are relieved of {office}"
+        out += _paper(state, notice_id(state, move.move_id), move, move.seat, title, office, when)
+    holder = displaced(state, move)
+    seat = seat_of_person(state, holder) if holder is not None else None
+    if seat is not None:
+        doc_id = down_notice_id(state, move.move_id)
+        title = f"You are relieved of {office}"
+        out += _paper(state, doc_id, move, seat.seat_id, title, office, when)
+    return out
+
+
+def _paper(
+    state: State,
+    doc_id: DocumentId,
+    move: PostMove,
+    seat: SeatId,
+    title: str,
+    office: str,
+    when: str,
+) -> list[ev.Payload]:
+    if doc_id in state.documents:
+        return []
     return [
         ev.DocumentIssued(
             document=DocumentView(
@@ -192,7 +230,7 @@ def _notice(state: State, move: PostMove) -> list[ev.Payload]:
                     BodyField(label="Post", value=_clip(office)),
                     BodyField(label="Takes effect", value=when),
                 ),
-                scope=private_to(move.seat),
+                scope=private_to(seat),
             ),
             truth=DocumentTruth(doc_id=doc_id),
         )
@@ -212,7 +250,8 @@ def due(state: State) -> list[str]:
 def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
     """The events that land a pending change: the posts it moves, the regard it costs and
     its settling. Void, with no post moved, when the person or the post is no longer as it
-    was, or the move would now take a seat's last authority."""
+    was, or the move would now take a seat's last authority. Ordered afresh, a wake on,
+    when the holder it puts down is a seat that was never sent its notice."""
     m = state.post_moves[move_id]
     settled = ev.PostMoveSettled(move_id=m.move_id, seat=m.seat, on=day, landed=False)
     current = posts.holder(state, m.post)
@@ -227,18 +266,15 @@ def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
     if takes_last(state, m.person, m.post, m.appoint):
         # The world moved under it: it would now take a seat's last authority, so it is
         # not done on order but stands, a fresh pending change, as the question's cause.
-        wake = state.wake.number if state.wake is not None else -1
-        seat = seat_of_person(state, m.person)
-        stand = m.model_copy(
-            update={
-                "move_id": derived_id(state.campaign_id, "move-stands", m.move_id),
-                "seat": seat.seat_id if seat is not None else None,
-                "ordered": day,
-                "wake": wake,
-                "question": True,
-            }
-        )
+        stand = _afresh(state, m, "move-stands", day, question=True)
         return [settled, ev.PostMoveOrdered(move=stand), *_notice(state, stand)]
+    holder = displaced(state, m)
+    held_by = seat_of_person(state, holder) if holder is not None else None
+    if held_by is not None and not told(state, m.move_id, held_by.seat_id):
+        # The holder it puts down came to the post after it was ordered and was never
+        # told: it stands afresh, a wake from now, with his notice.
+        again = _afresh(state, m, "move-told", day, question=False)
+        return [settled, ev.PostMoveOrdered(move=again), *_notice(state, again)]
     down = _down(state, m.person, m.post, m.appoint)
     out: list[ev.Payload] = []
     if m.appoint:
@@ -253,6 +289,21 @@ def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
     if down is not None and down != m.by:
         out += _regard(state, down, m.by)
     return [*out, settled.model_copy(update={"landed": True})]
+
+
+def _afresh(state: State, m: PostMove, tag: str, day: date, question: bool) -> PostMove:
+    """``m`` ordered again today, in this wake, as a fresh pending change."""
+    wake = state.wake.number if state.wake is not None else -1
+    seat = seat_of_person(state, m.person)
+    return m.model_copy(
+        update={
+            "move_id": derived_id(state.campaign_id, tag, m.move_id),
+            "seat": seat.seat_id if seat is not None else None,
+            "ordered": day,
+            "wake": wake,
+            "question": question,
+        }
+    )
 
 
 def _fall(
@@ -345,6 +396,8 @@ def scope_of(state: State, seat: SeatId | None) -> Scope:
 
 __all__ = [
     "REGARD_COST",
+    "displaced",
+    "down_notice_id",
     "due",
     "land",
     "may_move",
@@ -356,4 +409,5 @@ __all__ = [
     "rung",
     "scope_of",
     "takes_last",
+    "told",
 ]

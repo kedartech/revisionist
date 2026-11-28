@@ -62,9 +62,46 @@ adjacency:
   - [isle, open_sea]
   - {a: isle, b: norra_plain, crossing: the ferry}
 
+# The weather by region and month, read with the `weather` rule on: the calendar's, never
+# a draw, and public. The north and the south take the mainland's row. The months the toy
+# world's games are played in, from April, are fair: tests/test_weather.py sets its own. A kind of weather
+# may add days to a step into an area (by the terrain entered and the kind or domain of
+# the piece), change a kind's figures, ground the air, and close areas to a kind or domain.
+weather:
+  kinds:
+    - {key: fair, name: Fair}
+    - key: thaw
+      name: The Thaw
+      slows:
+        - {days: 2, terrain: [plain], pieces: [land]}
+      figures:
+        - {pieces: [levy], attack: -1}
+    - key: gales
+      name: Gales
+      slows:
+        - {days: 1, pieces: [sea]}
+      grounds_air: true
+      closes:
+        - {pieces: [galley], terrain: [deep]}
+  regions:
+    mainland: {jan: fair, feb: fair, mar: thaw, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: thaw, dec: fair}
+    waters: {jan: gales, feb: gales, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: gales, dec: gales}
+
 # Norra's shipping, from which a levy's lift across the water is drawn.
 quantities:
   - {key: norra_shipping, owner: norra, name: Norra's shipping, value: 100000, unit: tons, source: toy}
+  - {key: barge_act_passed, owner: norra, name: Barge Act passed, value: 0, unit: flag, source: toy}
+
+# The world's own law, read with the laws rule on: no code table knows its key, its
+# clause or its flag.
+laws:
+  - key: barge_act
+    title: The Barge Act
+    nation: norra
+    clauses:
+      - {kind: power, subject: arm the gulf barges}
+    passed: barge_act_passed
+    does: {kind: arms_merchant_ships}
 
 # What the land yields. Two resources share the output role; none has supply or
 # prestige.
@@ -88,6 +125,27 @@ piece_kinds:
     carries: [levy]
   - {key: kite, name: Kite Wing, domain: air, days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}, range_steps: 2, detect: 60}
   - {key: herald, name: Herald, domain: envoy, days_per_step: {hills: 3, plain: 2, shallows: 2, deep: 4}}
+  # A kind with every figure a kind may carry. No piece of it stands at the start; a
+  # nation raises one (tests/test_piece_kinds.py, raising_site).
+  - key: fire_kite
+    name: Fire Kites
+    domain: air
+    days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}
+    range_steps: 2
+    attack: 4
+    defence: 2
+    on_terrain: {hills: {defence: 1}}
+    against:
+      - {facing: galley, attack: 1, when: no_enemy_air}
+      - {facing: air, defence: -1}
+    strike_steps: 2
+    covers: true
+    may_attack: true
+    holds_ground: false
+    picture: bombers
+    cost: {output: 10, manpower: 1}
+    lead_days: 30
+    raised_at: air
 
 features:
   - {key: norra_levy, kind: piece, piece: levy, name: The Norra Levy, side: norra, places: [norrhavn], source: toy}
@@ -143,7 +201,7 @@ groups:
         start: 40
         baseline: 45
         feeds: {standing: 3, opinion: 1}
-        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2}
+        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2, battle_losses: -1}
   - nation: sudland
     groups:
       - key: farmers
@@ -152,7 +210,72 @@ groups:
         start: 30
         baseline: 35
         feeds: {output: 1}
-        moved_by: {territory_taken: 2, battle_lost: -3}
+        moved_by: {territory_taken: 2, battle_lost: -3, battle_losses: -1}
+
+# How each kind of happening reaches the groups, read with the `classes` rule on: felt,
+# reported or secret. A kind not listed is reported; a mixed kind is reported with the
+# share of it that is felt.
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: agreement_broken, reach: secret}
+
+# Places with political weight, read with the `places` rule on: a territory, the nation
+# it matters to, and the points each of that nation's groups moves when it is lost after
+# a fight. Abandoning it costs twice that; retaking it moves them back.
+places:
+  - {territory: norra_plain, nation: norra, moves: {greys: -4, public: -2}}
+
+# Elections, read with the `elections` rule on: each redraws its chambers by support; one
+# that names a post (`post: <office key>`) removes its holder when what the post rests on
+# is under the line that day.
+elections:
+  - {nation: norra, chambers: [assembly], day: 1900-05-01}
+
+# The player's own aim, read with the own_aim rule on: patterns a player may fill to
+# replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
+# as `{name}`; `$nation` and `$person` stand for the person's own nation and the person.
+# A blank takes a closed list of values or a kind resolved from the seat's view.
+aim_patterns:
+  - key: take_ground
+    posts: [head_of_government, military]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+  - key: keep_support
+    posts: [political]
+    sentence: Keep {group} at {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [55, 65, 75]}
+    government: false
+  - key: make_peace
+    posts: [head_of_government]
+    sentence: Make peace with {foe}.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
+  - key: army_peace
+    posts: [army_commander]
+    sentence: Make peace with {foe} on the army's terms.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, values: [norra, sudland]}
+
+# The chancellery is an office the chancellor holds: with the posts rule on, her card's
+# post, which may pass to another person while she plays on. Its ladder (LDR): a
+# chancellor put out of office falls to the council of state, if its seat is free.
+assets:
+  - key: norra_chancellery
+    kind: office
+    name: Chancellor of Norra
+    tier: 4
+    controller: ilse
+    ladder: [norra_council_seat]
+  - {key: norra_council_seat, kind: office, name: Councillor of State, tier: 2, controller: norra}
 
 cards:
   - person: ilse
@@ -160,6 +283,8 @@ cards:
     playable: true
     principals: [norra]
     horizon_days: 14
+    post_kind: head_of_government
+    post: norra_chancellery
   - person: tomas
     office: Premier of Sudland
     playable: true
@@ -171,3 +296,7 @@ seats: []
 roster:
   - {entity: ilse, pitch: The chancellor who started the war., reach: The army of Norra., composite: true}
   - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}
+# The roster holds two to four people, not the drafted 8 to 12. [proposed]
+roster_limit: [2, 4]
+# The floor a card must reach with the playable rule on: the default lines, written out.
+playable_floor: {rank: 2, tier: 3}

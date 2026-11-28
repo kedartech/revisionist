@@ -31,8 +31,9 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, DocumentId, SeatId
-from revisionist.core.project import project
+from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
+from revisionist.core.project import project, relationship_seen, untold_goals
+from revisionist.core.realism import answering, defiance
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
@@ -56,12 +57,23 @@ FEED_KINDS: frozenset[str] = frozenset(
         "divergence_changed",
         "date_advanced",
         "war_declared",
+        "war_ended",
         "map_declared",
         "kinds_declared",
         # Which orders need whose decision (DCD): public rules of the world.
         "locks_declared",
+        # The laws a world declares (LWC): public rules of the world.
+        "laws_declared",
+        # The aim patterns a world declares (OWC): public rules of the world.
+        "aim_patterns_declared",
+        # A player's own aim (OWC): sealed to the seat holding the person, and kept only
+        # while that seat's view holds it.
+        "own_aim_set",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
+        # A move of its own nation's group (sealed to its seats, HFR): its home block shows
+        # it already; playback's source for the home front.
+        "group_moved",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
         "step_refused",
         # Who holds each territory, as it changes (THL): public.
@@ -92,6 +104,31 @@ FEED_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         # An ask for a held order (ASK): sealed to the asker and the seat asked.
         "order_asked",
+        # The answer to an ask (AAK, QKD): sealed to the asker's seat alone, and fed only on
+        # a row answered on its due day whoever holds the decider (``answering.told``).
+        "ask_answered",
+        # An order sent anyway (DFY): sealed to the issuer's seat alone.
+        "order_defied",
+        # An incident and its answer (DFY): sealed to the commander's seat and the
+        # superior's, and fed to both without who gave the answer.
+        "incident_opened",
+        "incident_answered",
+        # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
+        # the bloc's nation, and kept only while the offer is in the seat's view.
+        "offer_made",
+        "offer_settled",
+        # A post changing hands (PPP): public, as an appointment is news; never its part.
+        "post_changed",
+        # Who may move a post and where its holder falls (LDR): public rules of the world.
+        "ladders_declared",
+        # The pending change of post (LDR): sealed to the seat of the person moved alone.
+        "post_move_ordered",
+        "post_move_settled",
+        # An office question (OFQ): its opening sealed to every seat of the holder's
+        # nation, whoever plays it; its decision public, as news.
+        "office_question_opened",
+        "office_question_decided",
+        "seats_redrawn",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -119,6 +156,15 @@ NEVER: frozenset[str] = frozenset(
         "request_answered",
         # A seat's sealed vote is its own until the tally counts its nation (CNF).
         "vote_sealed",
+        # A seat's choice on a matter is its own until the due day counts it, and the
+        # asker reads only the answer (QKD).
+        "matter_chosen",
+        # A member's sealed choice on an office question is his until the sitting counts
+        # it, and nobody reads who chose what (OFQ).
+        "office_choice_filed",
+        # A superior's sealed answer to an incident is his until the due day lands it, and
+        # nobody reads whether a person or his card gave it (DFY).
+        "incident_choice_filed",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -170,11 +216,11 @@ NEVER: frozenset[str] = frozenset(
         "agent_set",
         "codebreaking_set",
         # Groups at home (GRP): true support. A seat reads its own nation's groups from its
-        # own data and others' from the press; the declaration and the writing in waiting
-        # are engine only.
+        # own data and others' from the press; the declaration, the writing in waiting and
+        # the battle losses held (LSS) are engine only. A move is fed (HFR).
         "groups_declared",
-        "group_moved",
         "group_proposed",
+        "losses_held",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.
@@ -212,6 +258,10 @@ NEVER: frozenset[str] = frozenset(
 )
 
 
+GOAL_NEWS = (ev.GoalProgressed, ev.GoalMet, ev.GoalUndone)
+"""The news of a goal: none is told of one in ``untold_goals``."""
+
+
 @dataclass(frozen=True)
 class SeatEvent:
     wake: int
@@ -233,11 +283,27 @@ def _named(p: ev.Payload, view: View) -> bool:
         case ev.HeldOrderEnded():
             return p.issuer == view.viewer
         case ev.OrderAsked():
-            return view.viewer in (p.asked.asker, p.asked.seat)
+            return view.viewer in (p.asked.asker, p.asked.seat, *p.asked.seats)
+        case ev.OrderDefied():
+            return p.defied.issuer == view.viewer
+        case ev.IncidentOpened():
+            return view.viewer in p.incident.seats
+        case ev.IncidentAnswered():
+            return view.viewer in p.seats
+        case ev.AskAnswered():
+            return p.asker == view.viewer
+        case ev.OfferMade():
+            return any(o.offer_id == p.offer.offer_id for o in view.offers)
+        case ev.OfferSettled():
+            return any(o.offer_id == p.offer_id for o in view.offers)
         case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():
             return p.order_id in view.routed
         case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():
             return p.goal_id in view.goals
+        case ev.OwnAimSet():
+            return p.own.person in view.own_aims
+        case ev.PostChanged():
+            return p.post in view.assets
         case ev.ContestMoved() | ev.ContestDecided():
             return p.contest_id in view.contests
         case ev.ScheduledEventFired():
@@ -258,6 +324,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.conference.key in view.conferences.held
         case ev.ConferenceTallied():
             return p.conference in view.conferences.held
+        case ev.GroupMoved():
+            return p.polity in view.groups.declared  # a view holds its own nation's only
     return True
 
 
@@ -289,19 +357,40 @@ def _routed_view(event: Event, payload: ev.OrderRouted) -> Event:
     return event.model_copy(update={"payload": payload.model_copy(update={"order": order})})
 
 
+def _as_asked(state: State, event: Event, payload: ev.OrderAsked, seat: SeatId) -> Event:
+    asked = answering.as_asked(state, payload.asked, seat)
+    return event.model_copy(update={"payload": payload.model_copy(update={"asked": asked})})
+
+
+def _incident_seen(
+    event: Event, payload: ev.IncidentOpened | ev.IncidentAnswered, seat: SeatId
+) -> Event:
+    """An incident or its answer as a party to it reads it (``defiance.seen_by``)."""
+    seen: ev.Payload = (
+        payload.model_copy(update={"incident": defiance.seen_by(payload.incident, seat)})
+        if isinstance(payload, ev.IncidentOpened)
+        else payload.model_copy(update={"seats": (seat,), "by_card": False})
+    )
+    return event.model_copy(update={"payload": seen})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
     """``seat_events`` over a log already read, ``state`` being its fold."""
     view = project(state, seat)
+    untold = untold_goals(state, seat)
     log = list(events)
     opened: list[tuple[int, date]] = []
+    rows: dict[OrderId, str | None] = {}
     today: date | None = None
     for e in log:
         if isinstance(e.payload, ev.DateAdvanced):
             today = e.payload.to
         elif isinstance(e.payload, ev.WakeOpened) and today is not None:
             opened.append((e.payload.wake, today))
+        elif isinstance(e.payload, ev.OrderHeld):
+            rows[e.payload.held.order_id] = e.payload.held.row
     final = state.in_world_date
 
     out: list[SeatEvent] = []
@@ -316,6 +405,10 @@ def feed(
             current = p.wake
         if e.kind not in FEED_KINDS or not _visible(e, view):
             continue
+        if isinstance(p, GOAL_NEWS) and p.goal_id in untold:
+            continue
+        if isinstance(p, ev.AskAnswered) and not answering.told(state, rows.get(p.order_id)):
+            continue
         if isinstance(p, ev.DocumentIssued):
             if final is None or p.document.arrives > final:
                 continue
@@ -323,6 +416,16 @@ def feed(
             e = _view_only(e, p)
         elif isinstance(p, ev.OrderRouted):
             e = _routed_view(e, p)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.OrderAsked):
+            e = _as_asked(state, e, p, seat)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.IncidentOpened | ev.IncidentAnswered):
+            e = _incident_seen(e, p, seat)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.RelationshipSet):
+            seen = relationship_seen(p.relationship, seat)
+            e = e.model_copy(update={"payload": p.model_copy(update={"relationship": seen})})
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:

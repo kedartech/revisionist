@@ -415,12 +415,12 @@ def test_a_game_begun_before_the_answers_takes_them_at_its_next_wake() -> None:
     assert not any(c.answers for c in load_state(store, CAMPAIGN).cards.values())
     run_realism_tick(store, CAMPAIGN)
     amended = [p for p in _payloads(store) if isinstance(p, ev.CardAmended)]
-    assert len(amended) == 8
+    assert len(amended) == 10
     state = load_state(store, CAMPAIGN)
     assert state.cards[KEYS["hitler"]].answers == load_state_fresh().cards[KEYS["hitler"]].answers
     assert len(answering.answerers(state)) == 7
     run_realism_tick(store, CAMPAIGN)
-    assert not [p for p in _payloads(store) if isinstance(p, ev.CardAmended)][8:]
+    assert not [p for p in _payloads(store) if isinstance(p, ev.CardAmended)][10:]
 
 
 def load_state_fresh() -> State:

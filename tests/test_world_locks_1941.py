@@ -35,11 +35,12 @@ from revisionist.core.world_compile import WorldError, compile_world, resolve_ke
 from revisionist.engine import campaign as cmp
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
+from tests.test_world_forces import parts, with_parts
 
-BEFORE = "9f79ef33c61e55ef8970852b7f64aa79"
+BEFORE = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with ``command`` and ``locks`` taken out of the rules, with the
 receipt an enacted Lend-Lease finding records (a fact, as a written allocation records one)."""
-AFTER = "9f79ef33c61e55ef8970852b7f64aa79"
+AFTER = "5cb9d48860d1833b119a377cd7b0863d"
 """The scripted run's digest with ``command`` and ``locks`` on, recorded once by this item.
 It equals ``BEFORE``: the script seats the President alone and files no order a lock holds,
 and his naval order passes King's step on the day the record gives."""
@@ -60,8 +61,9 @@ def _card(world: WorldFile, person: str) -> Any:
 
 
 def without_switches(world: WorldFile) -> WorldFile:
-    """A copy of ``world`` with ``command`` and ``locks`` taken out of its rules."""
-    off = {Rule.COMMAND.value, Rule.LOCKS.value}
+    """A copy of ``world`` with ``command`` and ``locks`` taken out of its rules, and
+    ``defiance`` with them, which needs ``locks`` (OFD switched it on in the 1941 world)."""
+    off = {Rule.COMMAND.value, Rule.LOCKS.value, Rule.DEFIANCE.value}
     return world.model_copy(update={"rules": tuple(r for r in world.rules if r not in off)})
 
 
@@ -121,7 +123,7 @@ def test_the_atlantic_fleet_commander_is_a_playable_military_card_on_the_roster(
 def test_his_domain_names_the_atlantic_fleet_and_no_other_military_card_does() -> None:
     world = _world()
     forces = {k for dm in _card(world, "king").authority for k in dm.forces}
-    assert forces == {"us_atlantic_fleet"}
+    assert forces == with_parts("us_atlantic_fleet")  # the formation and its parts (KDA)
     others = {
         k
         for c in world.cards
@@ -129,14 +131,17 @@ def test_his_domain_names_the_atlantic_fleet_and_no_other_military_card_does() -
         for dm in c.authority
         for k in dm.forces
     }
-    assert "us_atlantic_fleet" not in others
+    assert not with_parts("us_atlantic_fleet") & others
 
 
 def test_the_commander_with_no_force_does_not_compile() -> None:
     world = _world()
     bare = _card(world, "king").model_copy(update={"authority": ()})
     cards = tuple(bare if c.person == "king" else c for c in world.cards)
+    by_hand = tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)
     with pytest.raises(WorldError, match="a playable military card needs a domain naming a force"):
+        _compile(world.model_copy(update={"cards": cards, "rules": by_hand}))
+    with pytest.raises(WorldError, match=r"king: on the roster, .* a commander with no force"):
         _compile(world.model_copy(update={"cards": cards}))
 
 
@@ -150,7 +155,7 @@ def test_his_own_forms_go_through_a_pipeline_with_no_step_above_him() -> None:
         assert [s.person for s in pipeline.steps] == ["king"], lv.name
     for name in ("move_fleet", "detach_fleet"):
         force = next(p for p in levers[name].params if p.name == "force")
-        assert force.choices == ("us_atlantic_fleet",)
+        assert force.choices == parts("us_atlantic_fleet")
 
 
 def test_he_cables_the_president() -> None:
@@ -214,7 +219,7 @@ def test_iceland_stays_british() -> None:
 
 def test_two_locks_on_his_naval_order_one_naming_the_president_one_congress() -> None:
     world = _world()
-    rows = {r.key: r for r in world.locks}
+    rows = {r.key: r for r in world.locks if r.order.form == "fleet_naval_order"}
     assert set(rows) == {"iceland_shoot_on_sight", "war_zone_escort"}
     shoot, escort = rows["iceland_shoot_on_sight"], rows["war_zone_escort"]
     assert shoot.order.form == escort.order.form == "fleet_naval_order"

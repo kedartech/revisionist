@@ -166,15 +166,18 @@ test('the map-first room has no count tiles, no agenda panel in any sheet, and o
   const { root } = await room();
   assert.equal(root().querySelector('.rl-tiles'), null, 'no count tiles');
   for (const tab of root().querySelectorAll('.rl-sheettabs button')) {
-    tab.click();
-    const sheet = root().querySelector('.rl-over');
-    assert.equal(sheet.querySelector('.rl-ans'), null, `no agenda panel in ${words(tab)}`);
+    if (tab.getAttribute('aria-expanded') !== 'true') tab.click();
+    for (const part of root().querySelectorAll('.rl-over .rl-parts button').map((b) => b.getAttribute('data-sheet'))) {
+      root().querySelectorAll('.rl-over .rl-parts button').find((b) => b.getAttribute('data-sheet') === part).click();
+      const sheet = root().querySelector('.rl-over');
+      assert.equal(sheet.querySelector('.rl-ans'), null, `no agenda panel in ${words(tab)}: ${part}`);
+    }
   }
   root().querySelector('.rl-over .rl-over-close').click();
   const counts = root().querySelectorAll('.rl-needs-count');
   assert.ok(counts.length >= 1, 'the badge');
   assert.ok(counts.every((c) => words(c) === '5'), 'every badge says the list\'s count');
-  const orders = root().querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-sheet') === 'orders');
+  const orders = root().querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'orders');
   assert.equal(orders.querySelector('.rl-tab-count'), null, 'the order waiting on a decision is counted in the list, not on its tab');
 });
 
@@ -223,13 +226,13 @@ test('each line says what it is, from whom and by when, and has one action', asy
     assert.match(words(line.querySelector('.rl-need-what')), new RegExp(what.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${kind}: what`);
     assert.match(words(line.querySelector('.rl-need-from')), new RegExp(from), `${kind}: from whom`);
     assert.equal(words(line.querySelector('.rl-need-due')), due, `${kind}: by when`);
-    assert.deepEqual(line.querySelectorAll('button').map(words), [action], `${kind}: one action`);
+    assert.deepEqual(line.querySelector('.rl-need-detail').querySelectorAll('button').map(words), [action], `${kind}: one action`);
   }
 });
 
 test('a request\'s Answer opens its own sheet with Accept and Decline, and Escape returns to the line', async () => {
   const { root, calls } = await room();
-  lineOf(root(), 'request').querySelector('button').click();
+  lineOf(root(), 'request').querySelector('.rl-need-act').click();
   const [sheet] = root().querySelectorAll('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'matter');
   assert.equal(words(sheet.querySelector('.rl-over-title')), 'Request from Winston Churchill');
@@ -244,12 +247,12 @@ test('a request\'s Answer opens its own sheet with Accept and Decline, and Escap
   assert.equal(document.activeElement, again.querySelector('.rl-over-title'), 'the keyboard is put back into the sheet');
   key(again, 'Escape');
   assert.equal(root().querySelectorAll('.rl-over').length, 0);
-  assert.equal(document.activeElement, lineOf(root(), 'request').querySelector('button'));
+  assert.equal(document.activeElement, lineOf(root(), 'request').querySelector('.rl-need-act'));
 });
 
 test('a held decision\'s Decide opens its sheet with the step\'s own actions', async () => {
   const { root } = await room();
-  lineOf(root(), 'decision').querySelector('button').click();
+  lineOf(root(), 'decision').querySelector('.rl-need-act').click();
   const sheet = root().querySelector('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'matter');
   assert.deepEqual(sheet.querySelectorAll('.rl-ans-pair button').map(words), ['Pass it on', 'Refuse']);
@@ -257,7 +260,7 @@ test('a held decision\'s Decide opens its sheet with the step\'s own actions', a
 
 test('the seat\'s own order waiting on it opens the Orders sheet, which holds its step form', async () => {
   const { root } = await room();
-  lineOf(root(), 'order').querySelector('button').click();
+  lineOf(root(), 'order').querySelector('.rl-need-act').click();
   const sheet = root().querySelector('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'orders');
   assert.ok(sheet.querySelector('.rl-step-form'), 'the step form');
@@ -265,7 +268,7 @@ test('the seat\'s own order waiting on it opens the Orders sheet, which holds it
 
 test('a falling territory\'s paper centres the map on it and opens its area sheet', async () => {
   const { root } = await room();
-  lineOf(root(), 'paper').querySelector('button').click();
+  lineOf(root(), 'paper').querySelector('.rl-need-act').click();
   const sheet = root().querySelector('.rl-mapfirst .rl-area-sheet');
   assert.equal(sheet?.getAttribute('data-area'), 'norra_plain');
   const svg = root().querySelector('.rl-mapfirst svg.rl-map-svg');
@@ -323,7 +326,7 @@ test('later items add a kind through the registry: its lines are sorted in and d
     const { root } = await room();
     const line = lineOf(root(), 'battle');
     assert.equal(words(line.querySelector('.rl-need-kind')), 'Battle');
-    line.querySelector('button').click();
+    line.querySelector('.rl-need-act').click();
     assert.equal(root().querySelector('.rl-over').getAttribute('data-sheet'), 'orders');
   } finally { off(); }
   assert.equal(needs.needLines(seat()).length, before, 'removed again');

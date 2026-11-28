@@ -1,0 +1,81 @@
+/* A picture for every kind of piece (KPC): one filled outline in the side's one colour, inside the
+   frame that says whose it is; on a known mark's filled frame it takes the surface, as a glyph does. */
+.rl-mk-pic { fill: var(--side); stroke: none; }
+.rl-c-known .rl-mk-pic { fill: var(--surface); }
+
+/* A piece's mark beside its name in a list or on a sheet, drawn at the map's own size. */
+.rl-pc-swatch { display: inline-block; flex: none; vertical-align: middle; margin-inline-end: var(--space-2); overflow: visible; cursor: default; }
+.rl-bt-who .rl-pc-swatch { margin-block: -0.4rem; }
+
+/* The piece's card (KPB): the picture and the kind's name, then a row for each figure, its name and
+   its five-step meter; a step the figure lost here is outlined and dashed, a step it gained is
+   ringed. Under them a line for each change, its arrow drawn from its direction, and the weather. */
+.rl-pc-card, .rl-pc-there { display: grid; gap: var(--space-2); margin-block: var(--space-2) var(--space-3); min-width: 0; }
+.rl-pc-head, .rl-pc-report { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; }
+.rl-pc-head .rl-pc-swatch, .rl-pc-report .rl-pc-swatch { margin-inline-end: 0; }
+.rl-pc-kind { font-weight: 600; color: var(--fg-strong); }
+.rl-pc-its, .rl-pc-sub, .rl-pc-cols { font: 600 11px/1.2 var(--font-chrome); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-pc-sub { margin: var(--space-1) 0 0; }
+.rl-pc-said { color: var(--fg-muted); }
+.rl-pc-figs { display: grid; gap: var(--space-1); }
+.rl-pc-row { display: grid; grid-template-columns: 5.5rem auto; align-items: center; gap: var(--space-2); }
+.rl-pc-pair .rl-pc-row { grid-template-columns: 5.5rem auto auto; justify-content: start; column-gap: var(--space-4); }
+.rl-pc-cols { display: grid; grid-template-columns: 5.5rem auto auto; justify-content: start; column-gap: var(--space-4); margin: 0; }
+.rl-pc-cols span:first-child { grid-column: 2; }
+.rl-pc-fig { font: 12px/1.2 var(--font-chrome); color: var(--fg); }
+/* In a narrow chip the comparison's name sits over its two meters, so nothing runs past the edge. */
+.rl-pc-there { container-type: inline-size; }
+@container (max-width: 17rem) {
+  .rl-pc-pair .rl-pc-row { grid-template-columns: auto auto; row-gap: 2px; column-gap: var(--space-3); }
+  .rl-pc-pair .rl-pc-fig { grid-column: 1 / -1; }
+  .rl-pc-cols { grid-template-columns: auto auto; column-gap: var(--space-3); }
+  .rl-pc-cols span:first-child { grid-column: 1; }
+}
+.rl-pc-meter .rl-mark-step.rl-pc-lost { background: transparent; border-style: dashed; border-color: var(--fg-muted); }
+.rl-pc-meter .rl-mark-step.rl-pc-gained { outline: 1px solid var(--fg-strong); outline-offset: 1px; }
+.rl-pc-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.rl-pc-changes li { position: relative; padding-inline-start: 1.2rem; }
+.rl-pc-changes li::before { position: absolute; inset-inline-start: 0; font-size: 0.75em; line-height: 1.8; color: var(--fg-muted); }
+.rl-pc-changes li[data-direction="up"]::before { content: "▲"; }
+.rl-pc-changes li[data-direction="down"]::before { content: "▼"; }
+.rl-pc-weather { margin: 0; color: var(--fg); }
+.rl-pc-there h4 { margin: 0; }
+
+/* The odds' sides: each kind with its mark, the cause that moved the odds most under them. */
+.rl-odds-kinds ul { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-1); }
+.rl-odds-kinds li { display: flex; align-items: center; min-width: 0; }
+.rl-odds-cap { margin: 0; font: 600 11px/1.2 var(--font-chrome); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-odds-moved { margin: var(--space-2) 0; font-weight: 600; }
+
+/* Raising a piece (RNB): a place's line in its sheet, then the kinds it can raise as tiles; a
+   chosen tile is outlined in the strong foreground, a refused one is muted with the check's words
+   on it. Over the map the sheet floats at its foot as the area's sheet does, a little taller. */
+.rl-rs-entry { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-3); }
+.rl-rs-entry-name { font-weight: 600; color: var(--fg-strong); }
+.rl-rs-open, .rl-rs-map, .rl-rs-close { min-height: 44px; }
+.rl-rs-sheet { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule-strong); border-radius: var(--radius); }
+.rl-tmap .rl-tm-stage > .rl-rs-sheet { max-height: 70%; }
+.rl-rs-sheet > p { margin: 0; }
+.rl-rs-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rl-rs-top h3 { margin: 0; font: 600 12px/1.3 var(--font-chrome); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-strong); }
+.rl-rs-top .rl-rs-close { margin: 0; }
+.rl-rs-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: var(--space-2); }
+.rl-rs-tile { display: grid; gap: var(--space-2); align-content: start; min-width: 0; min-height: 44px; padding: var(--space-3); text-align: start; font: inherit; color: var(--fg); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; }
+.rl-rs-tile[aria-pressed="true"] { border: 2px solid var(--fg-strong); padding: calc(var(--space-3) - 1px); }
+.rl-rs-tile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-rs-refused { color: var(--fg-muted); }
+.rl-rs-head { display: flex; align-items: center; gap: var(--space-2); }
+.rl-rs-head .rl-pc-swatch { margin-inline-end: 0; }
+.rl-rs-kind { font-weight: 600; color: var(--fg-strong); }
+.rl-rs-figs .rl-pc-row { grid-template-columns: 4.5rem auto; }
+.rl-rs-costs, .rl-rs-after { display: grid; gap: var(--space-1); }
+.rl-rs-cost { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.rl-rs-pool { font: 12px/1.2 var(--font-chrome); overflow-wrap: anywhere; }
+.rl-rs-day { font: 12px/1.3 var(--font-chrome); color: var(--fg-muted); }
+.rl-rs-why { font-weight: 600; color: var(--fg); }
+.rl-rs-confirm { display: grid; gap: var(--space-2); }
+.rl-rs-confirm p { margin: 0; }
+.rl-rs-checking { margin: 0; color: var(--fg-muted); }
+.rl-rs-places, .rl-rs-raising { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.rl-rs-places li, .rl-rs-raising li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.rl-rs-places .rl-rs-open, .rl-rs-raising .rl-rs-map { margin-inline-start: auto; }

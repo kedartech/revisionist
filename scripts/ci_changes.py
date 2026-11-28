@@ -9,7 +9,8 @@ Markdown file at the top of the repo): world data, engine code and CI files all 
 what the room serves, so they run it as a path under ``web/`` does.
 
 ``gate`` reads the needed jobs' results from the environment and fails unless each
-passed, or the pytest shards were skipped because ``decide`` said no Python changed,
+passed (the dependency audit always runs), or the pytest shards were skipped because
+``decide`` said no Python changed,
 or the browser job was skipped because ``decide`` said only documentation changed.
 
 Standard library only: CI runs it before the project's environment exists.
@@ -24,7 +25,12 @@ SKIPPABLE_PREFIXES = ("docs/", "web/")
 # Under those, the files Python tests or the code they run do open: the seat fixture
 # (several tests), the portraits with their SOURCES.md (dossiers.PORTRAITS_DIR) and the
 # canned smoke server (its start-up is tested).
-READ_BY_TESTS = ("web/test/fixtures/", "web/assets/portraits/", "web/test/e2e/serve_canned.py")
+READ_BY_TESTS = (
+    "web/test/fixtures/",
+    "web/assets/portraits/",
+    "web/assets/flags/",
+    "web/test/e2e/serve_canned.py",
+)
 
 
 def documentation(path: str) -> bool:
@@ -54,7 +60,7 @@ def gate(results: Mapping[str, str]) -> list[str]:
     """The reasons the run is not green; empty when it is."""
     problems = [
         f"{job}: {results.get(job) or 'missing'}"
-        for job in ("changes", "lint", "node")
+        for job in ("changes", "lint", "node", "audit")
         if results.get(job) != "success"
     ]
     pytest, python = results.get("pytest"), results.get("python")
@@ -75,7 +81,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"web={'true' if needs_browser(paths) else 'false'}")
         return 0
     if args == ["gate"]:
-        keys = ("changes", "lint", "node", "pytest", "python", "browser", "web")
+        keys = ("changes", "lint", "node", "audit", "pytest", "python", "browser", "web")
         results = {k: os.environ.get(f"RESULT_{k.upper()}", "") for k in keys}
         for k in keys:
             print(f"{k}: {results[k] or 'missing'}")

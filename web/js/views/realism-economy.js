@@ -1,13 +1,16 @@
 // The war economy on screen (ECO): one figure per nation in the top strip; a tap on the
 // seat's own opens a sheet of its components under the world's own resource names (income,
 // pools, months of fuel, the territories that pay less than they print, with why); a tap on
-// another nation's gives its figure and says it is read from the map; the economy layer of the
+// another nation's gives its figure and says it is read from the map; the seat's own lists the
+// places it can raise a piece at and the pieces it is raising (realism-raise.js); the economy layer of the
 // territory map draws each territory's printed yields as pips, with the numbers on a tap.
 // Another nation's components are never drawn: the server does not send them. No resource is
 // named here: names, units and roles come from the seat's own `economy.own.income`.
 // Nothing here touches the page on import.
 
 import { h, svg } from '../dom.js';
+import { bar } from './realism-marks.js';
+import { economyRaising } from './realism-raise.js';
 import { codebreakingBlock } from './realism-reports.js';
 
 const num = (n) => (Number.isInteger(n) ? String(n) : String(Number(Number(n).toFixed(2))));
@@ -60,13 +63,20 @@ export function shortfalls(own, printedByArea, areaByKey) {
   return out;
 }
 
+/** Months of fuel at the fuel bar's full length [proposed]. */
+export const FUEL_BAR_MONTHS = 12;
+
 let folded = false;
 
 /** Whether the seat's own sheet keeps its components behind "More" (Beginner's room); set at each draw of the room. */
 export function foldEconomy(on) { folded = Boolean(on); }
 
-/** The seat's own sheet: components under the world's names. `map` is the seat's map block. */
-export function ownSheet(economy, map, { levers, act } = {}) {
+/**
+ * The seat's own sheet: components under the world's names, then where the nation can raise a
+ * piece and what it is raising (`onRaise(place)` opens a place's kinds, `onMap(area)` the map at
+ * an area). `map` is the seat's map block.
+ */
+export function ownSheet(economy, map, { levers, act, onRaise = null, onMap = null } = {}) {
   const own = economy.own;
   const income = own.income ?? [];
   const areas = new Map((map?.areas ?? []).map((a) => [a.key, a]));
@@ -79,17 +89,24 @@ export function ownSheet(economy, map, { levers, act } = {}) {
   const fuelLine = own.fuel_months === null || own.fuel_months === undefined
     ? `${fuel || 'Fuel'}: no stock is kept in this game`
     : `${fuel || 'Fuel'} lasts ${num(own.fuel_months)} months at this income`;
+  const stock = own.pools?.fuel;
+  const months = Number(own.fuel_months);
+  const fuelBar = own.fuel_months === null || own.fuel_months === undefined || !Number.isFinite(months) ? null
+    : bar({ value: months, limit: FUEL_BAR_MONTHS, name: `${fuel || 'Fuel'} lasts`, unit: 'months', num: false, extra: 'rl-eco-fuelbar' });
+  const stockMark = stock === undefined ? null : h('span', { class: 'rl-eco-stock' }, `${fuel || 'Fuel'} stock ${num(stock)}`);
   const parts = [
     h('h4', {}, 'Income'),
     h('ul', { class: 'rl-eco-income' }, income.map((r) => h('li', { 'data-resource': r.key }, incomeLine(r)))),
     h('h4', {}, 'Pools'),
     h('ul', { class: 'rl-eco-pools' }, pools),
-    h('p', { class: 'rl-eco-fuel' }, fuelLine),
+    h('div', { class: 'rl-eco-fuelrow' }, stockMark, fuelBar, h('p', { class: 'rl-eco-fuel' }, fuelLine)),
     h('h4', {}, 'Territories that pay less than they print'),
     less.length
       ? h('ul', { class: 'rl-eco-less' }, less.map((t) => h('li', { 'data-area': t.area },
         h('strong', {}, t.name),
-        t.lines.map((l) => h('span', { class: 'rl-eco-why' }, ` ${l.resource}: pays ${num(l.paid)} of ${num(l.want)} printed, because ${l.why}.`)))))
+        t.lines.map((l) => h('span', { class: 'rl-eco-line' },
+          bar({ value: l.paid, limit: l.want, name: `${l.resource} in ${t.name}`, words: `${l.resource} in ${t.name}: pays ${num(l.paid)} of ${num(l.want)} printed` }),
+          h('span', { class: 'rl-eco-why' }, ` ${l.resource}: pays ${num(l.paid)} of ${num(l.want)} printed, because ${l.why}.`))))))
       : h('p', { class: 'muted rl-eco-none' }, 'Every territory you hold pays what it prints.'),
   ];
   const components = folded ? h('details', { class: 'rl-eco-more' }, h('summary', {}, 'More'), parts) : parts;
@@ -97,23 +114,29 @@ export function ownSheet(economy, map, { levers, act } = {}) {
     h('h3', {}, `${own.nation.name}: your war economy`),
     h('p', { class: 'muted' }, `Counted for ${economy.day}.`),
     components,
+    economyRaising(own, { onRaise, onMap }),
     codebreakingBlock(levers, act));
 }
 
-/** Another nation's sheet: its figure, and that it is read from the map. */
-export function otherSheet(figure) {
+/**
+ * Another nation's sheet: its figure, and that it is read from the map; with `onOffer`, a
+ * "Make an offer" that calls `onOffer(nation)`.
+ */
+export function otherSheet(figure, { onOffer = null } = {}) {
   return h('section', { class: 'rl-eco-sheet rl-eco-other', 'aria-label': `${figure.nation.name}: war economy`, 'data-nation': figure.nation.key },
     h('h3', {}, figure.nation.name),
     h('p', { class: 'rl-eco-figure' }, `War-economy figure ${num(figure.figure)}`),
-    h('p', { class: 'muted' }, 'Read from the map: what it holds, at what the board prints. You see no more of it.'));
+    h('p', { class: 'muted' }, 'Read from the map: what it holds, at what the board prints. You see no more of it.'),
+    onOffer ? h('button', { type: 'button', class: 'rl-btn rl-eco-offer', onclick: () => onOffer(figure.nation) }, 'Make an offer') : null);
 }
 
 /**
  * The strip's chips and the sheet under them: `economyStrip(rv)`. One button per nation, the
- * seat's own marked; a tap opens that nation's sheet below, a second tap closes it. `null`
+ * seat's own marked; a tap opens that nation's sheet below, a second tap closes it; `onOffer`
+ * puts "Make an offer" on another nation's sheet. `null`
  * when the game keeps no economy.
  */
-export function economyStrip(rv, { act } = {}) {
+export function economyStrip(rv, { act, onOffer = null } = {}) {
   const economy = rv.economy;
   if (!economy?.figures?.length) return null;
   let open = null;
@@ -127,7 +150,7 @@ export function economyStrip(rv, { act } = {}) {
     ' ', h('span', { class: 'rl-eco-num' }, num(f.figure)))));
     const f = economy.figures.find((x) => x.nation.key === open);
     if (!f) sheet.replaceChildren();
-    else sheet.replaceChildren(rel(f.nation) === 'own' && economy.own ? ownSheet(economy, rv.map, { levers: rv.desk?.levers, act }) : otherSheet(f));
+    else sheet.replaceChildren(rel(f.nation) === 'own' && economy.own ? ownSheet(economy, rv.map, { levers: rv.desk?.levers, act }) : otherSheet(f, { onOffer }));
   };
   draw();
   return h('div', { class: 'rl-eco' }, chips, sheet);

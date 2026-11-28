@@ -12,6 +12,7 @@ import { concealSwitch } from './realism-reports.js';
 import { moveOrder, pieceMoves, theatreBoard } from './realism-theatre.js';
 import { daysLabel } from './realism-forms.js';
 import { heldOn, heldStatus, isLocked, lockCheck, lockTag, locksOn } from './realism-locks.js';
+import { pieceCard } from './realism-piece.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December'];
@@ -99,6 +100,7 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
   }
   return sheet({ 'aria-labelledby': 'rl-piece-h' }, pick,
     h('h2', { id: 'rl-piece-h' }, mark.name),
+    pieceCard(rv.map, mark),
     h('dl', {},
       h('dt', {}, 'What'), h('dd', {}, markWhatWord(mark)),
       h('dt', {}, 'Side'), h('dd', {}, sideLine(mark)),
@@ -198,8 +200,8 @@ export function nextHistoryDate(setting, today) {
  * The pin: the seat's aims and the next date on history's clock, the first thing on the Board.
  * A focus stop of its own so a keyboard reaches it before the board. Null with neither to show.
  */
-export function pinBlock(rv) {
-  const scored = aimList(rv.stakes?.aims, 'rl-pin-aims');
+export function pinBlock(rv, { ownAim = null, onAimSet = null } = {}) {
+  const scored = aimList(rv.stakes?.aims, 'rl-pin-aims', { ownAim, onSet: onAimSet });
   const aims = scored ? { lines: [], note: 'Your own aims and where they stand. Tap one for its rule and evidence.' } : aimsBlock(rv.desk?.aims);
   const next = nextHistoryDate(rv.setting, rv.clock?.world_date);
   if (!aims && !next) return null;
@@ -222,7 +224,7 @@ export function pinBlock(rv) {
  * (`pick({ board })`); `ui.piece` is the selected piece; `write` is the room's order form;
  * `open({ id })` opens a paper.
  */
-export function boardView(rv, ui, { pick, act, write, open }) {
+export function boardView(rv, ui, { pick, act, write, open, ownAim = null, onAimSet = null }) {
   const which = ui.board === 'court' ? 'court' : 'theatre';
   const board = which === 'court'
     ? courtBoard(rv, ui, { pick, act })
@@ -230,7 +232,7 @@ export function boardView(rv, ui, { pick, act, write, open }) {
   const card = which === 'court' ? liftCard(board) : null;
   return h('main', { class: 'rl-board', 'data-board': which },
     h('section', { class: 'rl-board-main', 'aria-label': 'Board' },
-      pinBlock(rv),
+      pinBlock(rv, { ownAim, onAimSet }),
       pressGroup('rl-boardswitch', 'Board', BOARDS, which, (b) => pick({ board: b })),
       board),
     h('aside', { class: 'rl-board-side', 'aria-label': 'Selected piece and order' },

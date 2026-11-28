@@ -134,6 +134,99 @@ def test_every_web_action_is_listed(route: str) -> None:
     assert not missing, f"POST {route}<action> lacks {missing}"
 
 
+SERVER = SRC / "engine" / "web" / "server.py"
+
+
+def _registry(name: str) -> set[str]:
+    """The action names held by one module-level tuple or dict in ``server.py``."""
+    for node in ast.parse(SERVER.read_text()).body:
+        if isinstance(node, ast.Assign):
+            target, value = node.targets[0], node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            target, value = node.target, node.value
+        else:
+            continue
+        if not (isinstance(target, ast.Name) and target.id == name):
+            continue
+        parts = value.keys if isinstance(value, ast.Dict) else list(ast.walk(value))
+        return {p.value for p in parts if isinstance(p, ast.Constant) and isinstance(p.value, str)}
+    raise AssertionError(f"{name} is not in server.py")
+
+
+REGISTRIES = {
+    "REALISM_ACTIONS": "`POST /api/realism/<action>`",
+    "NEW_GAME_ACTIONS": "`POST /api/new/<action>`",
+    "GAME_ACTIONS": "`POST /api/game/<action>`",
+    "GAME_OPEN": "`POST /api/game/<action>`",
+    "SEAT_ACTIONS": "Seat actions (`SEAT_ACTIONS` keys",
+}
+
+
+@pytest.mark.parametrize("registry", sorted(REGISTRIES))
+def test_every_registered_action_is_listed(registry: str) -> None:
+    wanted = _registry(registry)
+    assert wanted, registry
+    row = next(line for line in DOC.splitlines() if REGISTRIES[registry] in line)
+    row = row.split("After the seat has committed")[0]
+    missing = sorted(a for a in wanted if f"`{a}`" not in row)
+    assert not missing, f"{REGISTRIES[registry]} lacks {missing} from {registry}"
+
+
+def _served_paths() -> set[str]:
+    """Every path ``do_GET`` and ``do_POST`` answer by name or by prefix."""
+    paths: set[str] = set()
+    for node in ast.walk(ast.parse(SERVER.read_text())):
+        if not (isinstance(node, ast.FunctionDef) and node.name in {"do_GET", "do_POST"}):
+            continue
+        for part in ast.walk(node):
+            if isinstance(part, ast.Compare) and isinstance(part.left, ast.Name):
+                if part.left.id == "path":
+                    paths.update(
+                        c.value
+                        for c in part.comparators
+                        if isinstance(c, ast.Constant) and isinstance(c.value, str)
+                    )
+            elif (
+                isinstance(part, ast.Call)
+                and isinstance(part.func, ast.Attribute)
+                and part.func.attr == "startswith"
+                and isinstance(part.func.value, ast.Name)
+                and part.func.value.id == "path"
+            ):
+                paths.update(
+                    a.value
+                    for a in part.args
+                    if isinstance(a, ast.Constant) and isinstance(a.value, str)
+                )
+    return paths
+
+
+def test_every_served_path_is_listed() -> None:
+    wanted = _served_paths()
+    assert "/api/signout-all" in wanted and "/.well-known/assetlinks.json" in wanted
+    missing = sorted(p for p in wanted if p not in DOC)
+    assert not missing, f"docs/entry-points.md lacks paths {missing}"
+
+
+def test_every_core_module_is_listed() -> None:
+    names = [p.name for p in sorted((SRC / "core").glob("*.py")) if p.name != "__init__.py"]
+    assert "roster.py" in names and "aim_patterns.py" in names
+    missing = [n for n in names if f"core/{n}" not in DOC and f"`{n}`" not in DOC]
+    assert not missing, f"docs/entry-points.md lacks core modules {missing}"
+
+
+def test_every_client_module_is_listed() -> None:
+    folder = ROOT / "web" / "js"
+    files = sorted(folder.rglob("*.js"))
+    assert folder / "map" / "view.js" in files and folder / "shell.js" in files
+    missing = [
+        p.relative_to(ROOT).as_posix()
+        for p in files
+        if f"`{p.name}`" not in DOC and p.relative_to(ROOT).as_posix() not in DOC
+    ]
+    assert not missing, f"docs/entry-points.md lacks client modules {missing}"
+
+
 def _env_names() -> set[str]:
     names: set[str] = set()
     for folder in (SRC, ROOT / "deploy", ROOT / "scripts"):
@@ -157,11 +250,11 @@ def test_every_environment_variable_is_listed() -> None:
 def test_every_unit_and_script_is_listed() -> None:
     files = [
         p.name
-        for folder in ("systemd", "backup")
+        for folder in ("systemd", "backup", "android")
         for p in sorted((ROOT / "deploy" / folder).iterdir())
         if p.is_file()
     ]
-    assert "revisionist-scheduler@.service" in files
+    assert "revisionist-scheduler@.service" in files and "twa-manifest.json" in files
     missing = [name for name in files if name not in DOC]
     assert not missing, f"docs/entry-points.md lacks {missing}"
 
@@ -201,6 +294,23 @@ def test_every_rule_module_is_listed() -> None:
     assert "locks.py" in modules and "land/allocate.py" in modules
     missing = [m for m in modules if f"`{m}`" not in DOC]
     assert not missing, f"docs/entry-points.md lacks rule modules {missing}"
+
+
+def test_the_event_kind_lists_are_catchups() -> None:
+    from revisionist.engine.catchup import FEED_KINDS, NEVER
+
+    section = _section("event kinds", "### Event kinds", "### Scripts")
+    rows = {line.split(" (", 1)[0]: line for line in section if line.startswith("- ")}
+    for head, kinds in (
+        ("- Fed to a seat through `seat_events()`, after its own view cuts them", FEED_KINDS),
+        ("- Never fed", NEVER),
+    ):
+        listed = set(re.findall(r"`([a-z_]+)`", rows[head].split(": ", 1)[1]))
+        assert listed == set(kinds), (
+            f"{head}: lacks {sorted(set(kinds) - listed)}, extra {sorted(listed - set(kinds))}"
+        )
+        assert f"({len(set(kinds))})" in rows[head]
+    assert any(f"holds {len(set(FEED_KINDS) | set(NEVER))} event kinds" in line for line in section)
 
 
 def test_every_rule_name_is_listed() -> None:

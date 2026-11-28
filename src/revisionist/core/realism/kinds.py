@@ -12,10 +12,16 @@ here, never by the kind's key or name, so a world whose kinds are named ``levy``
 
 A world with no ``piece_kinds`` keeps the five feature kinds (fleet, army, air, front,
 route); ``domain`` answers for those as well.
+
+A kind may carry its own figures (KFG): an attack and a defence from 1 to 5, changed by
+the terrain fought on and by what is on the other side, and held to 1 to 5 after every
+change (``figure``). A kind given none of them has 3 for each, which is the battle's
+arithmetic of a piece with no kind. Rules read the figures only with their own switch on.
 """
 
+from collections.abc import Collection, Iterable, Sequence
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -53,6 +59,72 @@ class Role(StrEnum):
 MAX_STRENGTH = 5  # [proposed] the pips a piece holds when its kind does not say
 Percent = Annotated[int, Field(ge=0, le=100)]
 
+FIGURE_LOW, FIGURE_HIGH = 1, 5  # [proposed] the range of an attack or defence figure
+FIGURE = 3
+"""[proposed] A kind's attack and defence when the world does not say: the middle of the
+range, which a rule reads as no change to today's arithmetic."""
+FigureValue = Annotated[int, Field(ge=FIGURE_LOW, le=FIGURE_HIGH)]
+Shift = Annotated[int, Field(ge=FIGURE_LOW - FIGURE_HIGH, le=FIGURE_HIGH - FIGURE_LOW)]
+BaseDomain = Literal["land", "sea", "air"]
+"""The domains a base serves, and so the domains a kind may be raised at."""
+
+
+class Figure(StrEnum):
+    """The two figures a kind carries into a fight."""
+
+    ATTACK = "attack"
+    DEFENCE = "defence"
+
+
+class Condition(StrEnum):
+    """[proposed] When a change for what is on the other side applies, from a fixed list."""
+
+    NO_ENEMY_AIR = "no_enemy_air"
+    """No enemy air piece has the area in range."""
+    ENEMY_OUT_OF_SUPPLY = "enemy_out_of_supply"
+
+
+class Picture(StrEnum):
+    """[proposed] The pictures a client draws a kind with, by key: the fixed list."""
+
+    INFANTRY = "infantry"
+    ARMOUR = "armour"
+    GARRISON = "garrison"
+    CAVALRY = "cavalry"
+    ARTILLERY = "artillery"
+    BATTLE_FLEET = "battle_fleet"
+    CARRIER = "carrier"
+    SUBMARINES = "submarines"
+    TRANSPORTS = "transports"
+    GUNBOAT = "gunboat"
+    IRONCLAD = "ironclad"
+    FIGHTERS = "fighters"
+    BOMBERS = "bombers"
+    ENVOY = "envoy"
+
+
+class Change(Model):
+    """A change to a kind's figures: added to each, then held to the range."""
+
+    attack: Shift = 0
+    defence: Shift = 0
+
+
+class Against(Change):
+    """A change while a named kind, or a piece of a named domain, is on the other side;
+    with ``when``, only while that condition holds."""
+
+    facing: Label
+    """A kind key or a domain of the world."""
+    when: Condition | None = None
+
+
+class Cost(Model):
+    """What raising one piece of a kind spends: output and manpower points."""
+
+    output: int = Field(ge=0)
+    manpower: int = Field(ge=0)
+
 
 class PieceKind(Model):
     """One kind of piece the world names."""
@@ -71,6 +143,42 @@ class PieceKind(Model):
     conceal: Percent = 0
     carries: tuple[Label, ...] = ()
     """The kinds it can lift, by key."""
+    attack: FigureValue = FIGURE
+    defence: FigureValue = FIGURE
+    on_terrain: dict[Label, Change] = Field(default_factory=dict)
+    """A change to the figures by the terrain key of the area fought in."""
+    against: tuple[Against, ...] = ()
+    strike_steps: int | None = Field(default=None, ge=1)
+    """The steps from a fight within which it supports its side without standing in it."""
+    covers: bool = False
+    """Whether it cancels the enemy's air support within its range."""
+    may_attack: bool = True
+    holds_ground: bool = True
+    """Whether standing in a territory can take it."""
+    picture: Picture | None = None
+    cost: Cost | None = None
+    """What raising one spends. None: the kind is not raised."""
+    lead_days: int | None = Field(default=None, ge=1)
+    """Days from the order to raise to the new piece."""
+    raised_at: BaseDomain | None = None
+    """The domain of base a place needs to raise one."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset(
+        {
+            "attack",
+            "defence",
+            "on_terrain",
+            "against",
+            "strike_steps",
+            "covers",
+            "may_attack",
+            "holds_ground",
+            "picture",
+            "cost",
+            "lead_days",
+            "raised_at",
+        }
+    )
 
     @model_validator(mode="after")
     def _air_range(self) -> "PieceKind":
@@ -141,6 +249,51 @@ def is_force(state: "_World", feature: Feature) -> bool:
     return domain(state, feature) in FIGHTS
 
 
+def held(value: int) -> int:
+    """A figure held to the range."""
+    return max(FIGURE_LOW, min(FIGURE_HIGH, value))
+
+
+def figure(
+    kind: PieceKind,
+    which: Figure,
+    *,
+    terrain: str | None = None,
+    facing: Collection[str] = frozenset(),
+    holds: Collection[Condition] = frozenset(),
+    weather: Sequence[Change] = (),
+) -> int:
+    """The kind's attack or defence in a fight on ``terrain`` (a terrain key) against a
+    side whose kinds and domains are ``facing`` (``facing``), while ``holds`` hold: the
+    kind's own figure, changed first by the terrain, then by each ``against`` that applies
+    in the world file's order, then by each change the ``weather`` makes (KWX), held to 1
+    to 5 after every change."""
+    value: int = getattr(kind, which.value)
+    changes: list[Change] = []
+    if terrain is not None and terrain in kind.on_terrain:
+        changes.append(kind.on_terrain[terrain])
+    changes.extend(
+        a for a in kind.against if a.facing in facing and (a.when is None or a.when in holds)
+    )
+    changes.extend(weather)
+    for change in changes:
+        value = held(value + getattr(change, which.value))
+    return value
+
+
+def facing(state: "_World", pieces: Iterable[Feature]) -> frozenset[str]:
+    """What is on a side, as an ``against`` names it: each piece's kind key and domain."""
+    named: set[str] = set()
+    for piece in pieces:
+        kind = of(state, piece)
+        if kind is not None:
+            named.add(kind.key)
+        where = domain(state, piece)
+        if where is not None:
+            named.add(where.value)
+    return frozenset(named)
+
+
 def with_role(state: "_World", role: Role) -> tuple[Resource, ...]:
     """The world's resources that play this role, in the world file's order."""
     if state.kinds is None:
@@ -150,13 +303,26 @@ def with_role(state: "_World", role: Role) -> tuple[Resource, ...]:
 
 __all__ = [
     "FIGHTS",
+    "FIGURE",
+    "FIGURE_HIGH",
+    "FIGURE_LOW",
     "MAX_STRENGTH",
+    "Against",
+    "BaseDomain",
+    "Change",
+    "Condition",
+    "Cost",
     "Domain",
+    "Figure",
     "Kinds",
+    "Picture",
     "PieceKind",
     "Resource",
     "Role",
     "domain",
+    "facing",
+    "figure",
+    "held",
     "is_force",
     "of",
     "stands_on",

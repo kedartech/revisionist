@@ -7,7 +7,8 @@ the SHA-256 recorded in ``worlds/maps/SOURCES.md``. Nothing here reaches the net
 
 A recipe is one YAML file per region under ``worlds/maps/src/<slug>/``. The build dissolves each
 territory's present-day provinces, cuts provinces along the recipe's lines, cuts each sea zone
-from the ocean (the box less the land), leaves the rest of the box to the backdrop, simplifies every
+from the ocean (the box less the land), leaves the rest of the box to the backdrop (or, on a map
+that says ``cover: whole``, refuses any land or water no area takes), simplifies every
 border once for both its sides, derives the adjacency with the checker's predicate, runs the
 checker, and writes ``<slug>.json``, ``<slug>.world.yaml`` and the map's object under ``objects/``.
 The format is in ``worlds/maps/README.md``.
@@ -58,7 +59,10 @@ DEFAULT_TOLERANCE = 0.05
 """Simplify tolerance in degrees. [proposed]"""
 GRID = 1 / map_check.SCALE
 """Every coordinate is snapped to the checker's 4 decimals before any overlay. [proposed]"""
-LIST_KEYS = ("regions", "territories", "cuts", "sea_zones", "crossings")
+MIN_ISLAND = 0.005
+"""On a whole map, an island no province holds and smaller than this, in square degrees, is dropped
+as water; a larger one goes to the territory nearest it. [proposed]"""
+LIST_KEYS = ("regions", "territories", "cuts", "sea_zones", "rivers", "crossings")
 MANIFEST_HEAD = (
     "# Map objects: one SHA-256 per line, each naming worlds/maps/objects/<sha256>.json.\n"
     "# Append only: a line is never edited or removed, and no object a stored game names is "
@@ -97,6 +101,7 @@ def read_recipes(paths: Sequence[Path]) -> dict[str, Any]:
     merged: dict[str, Any] = {k: [] for k in LIST_KEYS}
     box: list[float] | None = None
     box_from = ""
+    cover: str | None = None
     for f in _recipe_files(paths):
         doc = yaml.safe_load(f.read_text()) or {}
         if not isinstance(doc, dict):
@@ -111,6 +116,10 @@ def read_recipes(paths: Sequence[Path]) -> dict[str, Any]:
             if box is not None and [float(c) for c in raw] != [float(c) for c in box]:
                 raise BuildError(f"{f.name}: its box {raw} differs from {box_from}'s box {box}")
             box, box_from = raw, f.name
+            if "cover" in doc["map"]:
+                cover = doc["map"]["cover"]
+                if cover != "whole":
+                    raise BuildError(f"{f.name}: map.cover is {cover!r}; the one cover is whole")
         for k in LIST_KEYS:
             merged[k] += list(doc.get(k) or [])
     if box is None:
@@ -118,25 +127,32 @@ def read_recipes(paths: Sequence[Path]) -> dict[str, Any]:
             "no recipe file gives the map box (map: {box: [west, south, east, north]})"
         )
     merged["box"] = box
+    merged["cover"] = cover
     _check_keys(merged)
     return merged
 
 
 def _check_keys(r: dict[str, Any]) -> None:
     regions = [str(g["key"]) for g in r["regions"]]
-    areas = [str(a["key"]) for a in r["territories"] + r["sea_zones"]]
+    areas = [str(a["key"]) for a in r["territories"] + r["sea_zones"] + r["rivers"]]
     for kind, keys in (("region", regions), ("area", areas)):
         seen: set[str] = set()
         for k in keys:
             if k in seen:
                 raise BuildError(f"{k}: the {kind} key is given twice")
             seen.add(k)
-    for a in r["territories"] + r["sea_zones"]:
+    for a in r["territories"] + r["sea_zones"] + r["rivers"]:
         if str(a.get("region")) not in regions:
             raise BuildError(f"{a['key']}: its region {a.get('region')!r} is not listed")
     for z in r["sea_zones"]:
         if not (isinstance(z.get("polygon"), list) and len(z["polygon"]) >= 3):
             raise BuildError(f"{z['key']}: a sea zone needs a polygon of at least three points")
+    for v in r["rivers"]:
+        if not (isinstance(v.get("width"), (int, float)) and v["width"] > 0):
+            raise BuildError(f"{v['key']}: a river zone needs a width greater than 0")
+        pairs = v.get("borders")
+        if not (isinstance(pairs, list) and pairs and all(len(p) == 2 for p in pairs)):
+            raise BuildError(f"{v['key']}: a river zone needs borders, a list of province pairs")
     terr = {str(t["key"]) for t in r["territories"]}
     for c in r["cuts"]:
         name = c.get("name", "?")
@@ -367,6 +383,40 @@ def sea_zones(recipe: dict[str, Any], land: Geom, frame: Geom) -> dict[str, Geom
     return out
 
 
+def river_zones(recipe: dict[str, Any], units: dict[str, Geom]) -> dict[str, Geom]:
+    """Each river zone: a strip ``width`` wide along the shared borders of its province pairs,
+    within its polygon when it gives one, on the land of those provinces. Refuses a pair with no
+    shared border and two zones over the same land."""
+    out: dict[str, Geom] = {}
+    for v in recipe["rivers"]:
+        key = str(v["key"])
+        lines, banks = [], []
+        for a, b in v["borders"]:
+            a, b = str(a), str(b)
+            shared = (
+                units[a].boundary.intersection(units[b].boundary, grid_size=GRID)
+                if a in units and b in units
+                else Polygon()
+            )
+            if shared.length == 0:
+                raise BuildError(f"{key}: {a} and {b} share no border inside the box")
+            lines.append(shared)
+            banks += [units[a], units[b]]
+        line = shapely.union_all(lines, grid_size=GRID)
+        if v.get("polygon"):
+            clip = _polygonal(Polygon([(float(x), float(y)) for x, y in v["polygon"]]))
+            line = line.intersection(clip, grid_size=GRID)
+        strip = line.buffer(float(v["width"]) / 2, cap_style="flat")
+        g = _polygonal(strip.intersection(shapely.union_all(banks, grid_size=GRID), grid_size=GRID))
+        if g.is_empty or g.area == 0:
+            raise BuildError(f"{key}: the river zone covers no land of its provinces")
+        for other, h in out.items():
+            if g.intersection(h, grid_size=GRID).area > 0:
+                raise BuildError(f"{key}: the river zone covers land {other} already covers")
+        out[key] = g
+    return out
+
+
 # ---------------------------------------------------------------- one coverage of the box
 
 
@@ -535,7 +585,9 @@ class _Vertices:
         return out
 
 
-def map_document(faces: list[tuple[str | None, Geom]], box: list[Any]) -> dict[str, Any]:
+def map_document(
+    faces: list[tuple[str | None, Geom]], box: list[Any], cover: str | None = None
+) -> dict[str, Any]:
     v = _Vertices()
     areas = {str(k): {"rings": v.rings(g), "label": _label(g)} for k, g in faces if k is not None}
     back = shapely.union_all([g for k, g in faces if k is None], grid_size=GRID)
@@ -544,6 +596,7 @@ def map_document(faces: list[tuple[str | None, Geom]], box: list[Any]) -> dict[s
         "format": 1,
         "coords": "lonlat",
         "box": box,
+        **({"cover": cover} if cover else {}),
         "vertices": v.points,
         "areas": areas,
         "backdrop": backdrop,
@@ -557,7 +610,8 @@ def dump_map(doc: dict[str, Any]) -> bytes:
         return json.dumps(x, separators=(",", ":"))
 
     lines = [
-        f'{{"format":{doc["format"]},"coords":{c(doc["coords"])},"box":{c(doc["box"])},',
+        f'{{"format":{doc["format"]},"coords":{c(doc["coords"])},"box":{c(doc["box"])},'
+        + (f'"cover":{c(doc["cover"])},' if "cover" in doc else ""),
         '"vertices":[',
         ",\n".join(c(p) for p in doc["vertices"]),
         '],"areas":{',
@@ -597,8 +651,9 @@ def world_fragment(
     keep = ("key", "name", "region", "terrain", "sites")
     for t in recipe["territories"]:
         lines.append(f"  - {_flow({k: t[k] for k in keep if k in t})}")
-    lines.append("sea_zones:" if recipe["sea_zones"] else "sea_zones: []")
-    for z in recipe["sea_zones"]:
+    zones = recipe["sea_zones"] + recipe["rivers"]
+    lines.append("sea_zones:" if zones else "sea_zones: []")
+    for z in zones:
         lines.append(
             f"  - {_flow({k: z[k] for k in ('key', 'name', 'region', 'terrain') if k in z})}"
         )
@@ -625,6 +680,42 @@ def _write_object(out: Path, sha: str, data: bytes) -> None:
     manifest.write_text(text)
 
 
+def unclaimed(
+    path: Path, codes: set[str], units: dict[str, Geom], recipe: dict[str, Any]
+) -> list[str]:
+    """Each unit inside the box that no territory or cut claims, as ``CODE (name)``."""
+    claimed = set(_owners(recipe, codes))
+    left = set(units) - claimed
+    if not left:
+        return []
+    names = {
+        str(f["properties"][CODE]): str(f["properties"].get("name") or "")
+        for f in json.loads(Path(path).read_text())["features"]
+    }
+    return [f"{code} ({names.get(code, '')})" for code in sorted(left)]
+
+
+def islands_to_territories(
+    land: Geom, held: Geom, terr: dict[str, Geom]
+) -> tuple[Geom, dict[str, Geom]]:
+    """Give each island no province holds to the territory nearest it; drop one under
+    ``MIN_ISLAND`` as water. The land is then the provinces and the islands kept."""
+    rest = _polygonal(land.difference(held, grid_size=GRID))
+    parts: dict[str, list[Geom]] = defaultdict(list)
+    kept = []
+    for island in shapely.get_parts(rest):
+        if island.area < MIN_ISLAND:
+            continue
+        nearest = min(terr, key=lambda k: (island.distance(terr[k]), k))
+        parts[nearest].append(island)
+        kept.append(island)
+    out = {
+        k: _polygonal(shapely.union_all([g, *parts[k]], grid_size=GRID)) if parts[k] else g
+        for k, g in terr.items()
+    }
+    return shapely.union_all([held, *kept], grid_size=GRID), out
+
+
 def build(
     recipes: Sequence[Path],
     *,
@@ -646,14 +737,33 @@ def build(
     box = [float(c) for c in recipe["box"]]
     frame = make_box(*box)
     codes, units = load_units(Path(data) / PROVINCES, box)
+    whole = recipe["cover"] == "whole"
+    left = unclaimed(Path(data) / PROVINCES, codes, units, recipe) if whole else []
+    if left:
+        raise BuildError(
+            "a whole map leaves nothing out, but no recipe claims this land in the box:\n"
+            + "\n".join(left)
+        )
     terr = territories(recipe, units, codes)
+    rivers = river_zones(recipe, units)
+    if rivers:
+        wet = shapely.union_all(list(rivers.values()), grid_size=GRID)
+        terr = {k: _polygonal(g.difference(wet, grid_size=GRID)) for k, g in terr.items()}
     held = shapely.union_all(list(units.values()), grid_size=GRID) if units else Polygon()
     land = load_land(Path(data) / LAND, box, held, near=max(GRID, tolerance))
+    if whole:
+        land, terr = islands_to_territories(land, held, terr)
     seas = sea_zones(recipe, land, frame)
-    rough: list[tuple[str | None, Geom]] = [*terr.items(), *seas.items()]
+    rough: list[tuple[str | None, Geom]] = [*terr.items(), *seas.items(), *rivers.items()]
     taken = shapely.union_all([g for _, g in rough], grid_size=GRID)
     back = _polygonal(frame.difference(taken, grid_size=GRID))
     if not back.is_empty and back.area > 0:
+        if whole:
+            x, y = back.representative_point().coords[0]
+            raise BuildError(
+                f"a whole map leaves nothing out, but {back.area:g} square degrees of water no sea "
+                f"zone takes would be left to the backdrop (one point of it: {x:g}, {y:g})"
+            )
         rough.append((None, back))
     faces = coverage(rough, frame)
     if tolerance > 0:
@@ -662,7 +772,7 @@ def build(
             if how == "coverage"
             else simplify_arcs(faces, tolerance)
         )
-    raw = map_document(faces, recipe["box"])
+    raw = map_document(faces, recipe["box"], recipe["cover"])
     problems = map_check.check(raw)
     if problems:
         raise BuildError("the built map fails the check:\n" + "\n".join(map(str, problems)))

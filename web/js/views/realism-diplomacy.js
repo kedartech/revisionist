@@ -1,9 +1,11 @@
 // The diplomacy layer (DPL): the map's Diplomatic layer key (each nation's standing to the seat,
 // the capitals the payload pins, the public pacts and the seat's envoys), and the Diplomacy sheet:
 // the agreements with a chip per clause and Publish, the offers, the offer builder with its reading
-// to sign, and the conferences with the call form and the sealed vote. Everything is drawn from the
-// seat's own view (`agreements`, `conferences`, the map); no other seat's vote is drawn before a
-// tally, whatever reaches the client. Nothing here touches the page on import.
+// to sign, and the conferences with the call form and the sealed vote. With peace on, the builder
+// adds the clauses of peace the server lists, an offer of peace says what accepting it would do, and
+// each armistice in force is a line with its last day. Everything is drawn from the seat's own view
+// (`agreements`, `conferences`, the map); no other seat's vote is drawn before a tally, whatever
+// reaches the client. Nothing here touches the page on import.
 
 import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
@@ -37,6 +39,13 @@ const RELATION_WORDS = Object.freeze({
   own: 'your nation', enemy: 'at war with you', ally: 'at war beside you', neutral: 'not at war with you',
 });
 
+/** What accepting an offer of peace would do, by the server's check [proposed]. */
+const ACCEPT_WORDS = Object.freeze({
+  allowed: () => 'Your acceptance stands as you file it.',
+  locked: (who) => `Accepting is held: ${who ?? 'someone above you'} decides it.`,
+  beyond: () => 'Accepting is beyond your post.',
+});
+
 const day = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d ?? '') ? worldDate(d) : d ?? '');
 
 /** "A", "A and B", "A, B and C". */
@@ -64,6 +73,9 @@ export function nationsOf(rv) {
 const ownNation = (rv) => nationsOf(rv).find((n) => n.relation === 'own') ?? null;
 const otherNations = (rv) => nationsOf(rv).filter((n) => n.relation !== 'own');
 
+/** Each armistice in force the seat sees, as the server lists it: `{ agreement, nations, last_day }`. */
+export const armisticesOf = (block) => block?.armistices ?? [];
+
 /** The seat's own envoys on the map: marks whose piece has the envoy domain. */
 export const envoysOf = (map) => (map?.marks ?? []).filter((m) => m.piece?.domain === 'envoy');
 
@@ -87,6 +99,7 @@ export function diplomacyKey(rv) {
   const capitals = rv.map?.capitals ?? [];
   const pacts = publicPacts(rv.agreements);
   const envoys = envoysOf(rv.map);
+  const quiet = armisticesOf(rv.agreements);
   const list = (cls, title, items) => (items.length
     ? h('div', { class: `rl-dp-keypart ${cls}` }, h('h3', {}, title), h('ul', { role: 'list' }, items))
     : null);
@@ -97,6 +110,8 @@ export function diplomacyKey(rv) {
       h('strong', {}, c.place.name), `: ${c.name}, ${c.stance?.word ?? 'stance unknown'}${c.at_war ? ', at war with you' : ''}`))),
     list('rl-dp-pacts', 'Public pacts', pacts.map((a) => h('li', {},
       h('strong', {}, andList(a.parties)), `: ${a.wording || `${a.clauses.length} clauses`} Public since ${day(a.published)}`))),
+    list('rl-dp-quiet', 'Quiet borders', quiet.map((x) => h('li', { class: 'rl-dp-quietline', 'data-agreement': x.agreement },
+      h('strong', {}, andList(x.nations)), `: quiet to ${day(x.last_day)}`))),
     list('rl-dp-envoys', 'Envoys', envoys.map((m) => h('li', {}, h('strong', {}, m.name), `: ${envoyWhere(m)}`))));
 }
 
@@ -147,6 +162,13 @@ function termsList(terms) {
   ];
 }
 
+/** What accepting an offer of peace would do, as the server checked it; null for any other offer. */
+function acceptLine(check) {
+  if (!check || !ACCEPT_WORDS[check.check]) return null;
+  return h('p', { class: `rl-dp-accept rl-dp-accept-${check.check}`, 'data-check': check.check, role: 'note' },
+    h('strong', {}, ACCEPT_WORDS[check.check](check.who)), check.reason ? ` ${check.reason}` : null);
+}
+
 function offerItem(o, act) {
   const own = o.item == null && o.answers.length > 0;
   const others = o.terms.parties.filter((p) => p !== o.by);
@@ -154,7 +176,7 @@ function offerItem(o, act) {
   const answer = (accept, word) => h('button', {
     type: 'button', class: 'rl-btn rl-dp-btn', onclick: () => act?.('Sending your answer…', 'answer', { item: o.item, accept }),
   }, word);
-  return h('li', { class: 'rl-dp-offer', 'data-own': String(own) },
+  return h('li', { class: 'rl-dp-offer', 'data-own': String(own), 'data-item': o.item ?? null },
     h('p', { class: 'rl-dp-head' }, h('strong', {}, own ? `Your offer to ${andList(others)}` : `${o.by} offers`),
       ` · filed ${day(o.filed)}`),
     termsList(o.terms),
@@ -163,12 +185,23 @@ function offerItem(o, act) {
         h('p', { class: 'rl-dp-due' }, `Due ${day(o.expires)}`)]
       : o.item
         ? [h('p', { class: 'rl-dp-due' }, `Your answer is due ${day(o.expires)}`),
+          acceptLine(o.accept),
           h('div', { class: 'rl-dp-pair' }, answer(true, 'Accept'), answer(false, 'Decline')),
           h('p', { class: 'hint' }, ANSWER_AT_CLOSE)]
         : h('p', { class: 'rl-dp-due' }, `Answered; decided on ${day(o.expires)}`));
 }
 
-/** The agreements sheet: each agreement with its clauses' chips and Publish, then the open offers. */
+/** Each armistice in force: its two nations and its last day, as the server gave them. */
+function armisticeList(block) {
+  const xs = armisticesOf(block);
+  return xs.length
+    ? [h('h3', {}, 'Armistices in force'), h('ul', { class: 'rl-dp-list rl-dp-armistices', role: 'list' }, xs.map((x) => h('li', {
+      class: 'rl-dp-armistice', 'data-agreement': x.agreement,
+    }, h('strong', {}, andList(x.nations)), `: an armistice, in force to ${day(x.last_day)}`)))]
+    : null;
+}
+
+/** The agreements sheet: each agreement with its clauses' chips and Publish, the armistices in force, then the open offers. */
 export function agreementsSection(block, { act } = {}) {
   const agreements = block?.agreements ?? [];
   const offers = block?.offers ?? [];
@@ -177,6 +210,7 @@ export function agreementsSection(block, { act } = {}) {
     agreements.length
       ? h('ul', { class: 'rl-dp-list', role: 'list' }, agreements.map((a) => agreementItem(a, act)))
       : h('p', { class: 'muted' }, 'No agreement is in force that you know of.'),
+    armisticeList(block),
     offers.length
       ? [h('h3', {}, 'Open offers'), h('ul', { class: 'rl-dp-list', role: 'list' }, offers.map((o) => offerItem(o, act)))]
       : null);
@@ -212,18 +246,30 @@ function select(attrs, options, value) {
 const nationOptions = (nations) => nations.map((n) => [n.key, n.name]);
 
 /** The fields one clause type takes beyond who it binds and the nation it names. */
-const EXTRA = Object.freeze({ defend: ['days', 'Within days', 0, 60], aid: ['share', 'Share, per cent', 1, 100] });
+const EXTRA = Object.freeze({
+  defend: ['days', 'Within days', 0, 60], aid: ['share', 'Share, per cent', 1, 100], armistice: ['days', 'For days', 1, 60],
+});
 
-function clauseRow(clause, i, nations, draft, redraw) {
-  const words = new Map(CLAUSE_TYPES).get(clause.type) ?? clause.type;
+/**
+ * The clauses of peace the server lists for the builder (`agreements.peace`), each with the nations
+ * it may name; one with no nation to name is not offered. None with peace off.
+ */
+export const peaceClauses = (block) => (block?.peace ?? []).filter((c) => c.type && c.label && (c.nations ?? []).length);
+
+function clauseRow(clause, i, nations, draft, redraw, { types, peace, own }) {
+  const words = new Map(types).get(clause.type) ?? clause.type;
   const set = (name) => (e) => { clause[name] = e.target.value; };
   const extra = EXTRA[clause.type];
+  // a clause of peace binds the seat's own nation and names one the server lists for it
+  const ofPeace = peace.find((c) => c.type === clause.type);
+  const binds = ofPeace ? [own].filter(Boolean) : nations;
+  const named = ofPeace ? ofPeace.nations : nations;
   return h('li', { class: 'rl-dp-clause', 'data-type': clause.type },
     h('p', { class: 'rl-dp-head' }, h('strong', {}, `Clause ${i + 1}: ${words}`)),
     h('label', { class: 'rl-dp-field' }, 'Binds ',
-      select({ name: 'binds', onchange: set('binds') }, nationOptions(nations), clause.binds)),
+      select({ name: 'binds', onchange: set('binds') }, nationOptions(binds), clause.binds)),
     h('label', { class: 'rl-dp-field' }, 'Nation named ',
-      select({ name: 'nation', onchange: set('nation') }, nationOptions(nations), clause.nation)),
+      select({ name: 'nation', onchange: set('nation') }, nationOptions(named), clause.nation)),
     extra
       ? h('label', { class: 'rl-dp-field' }, `${extra[1]} `, h('input', {
         type: 'number', name: extra[0], min: extra[2], max: extra[3], value: clause[extra[0]] ?? '', oninput: set(extra[0]),
@@ -250,7 +296,7 @@ export function offerBody(draft) {
 
 /**
  * The offer builder: free wording, the nations it is offered to, typed clauses added from
- * `CLAUSE_TYPES` and taken out again, and the carrier (the usual channel, or an envoy). "Read the
+ * `CLAUSE_TYPES` and the clauses of peace the server lists, and taken out again, and the carrier (the usual channel, or an envoy). "Read the
  * terms" sends `agreement-offer`; the reply, the terms to sign, goes to `onReading`. `draft` is
  * the room's `freshOffer()`, changed as the player types; `redraw` redraws after a clause is added or taken out.
  */
@@ -259,9 +305,13 @@ export function offerBuilder(rv, draft, { act, redraw, onReading } = {}) {
   const others = otherNations(rv);
   const nations = [own, ...others].filter(Boolean);
   const envoys = envoyChoices(rv);
-  const addType = select({ class: 'rl-dp-addtype', name: 'add', 'aria-label': 'Clause to add' }, CLAUSE_TYPES, CLAUSE_TYPES[0][0]);
+  const peace = peaceClauses(rv.agreements);
+  const types = [...CLAUSE_TYPES, ...peace.map((c) => [c.type, c.label])];
+  const addType = select({ class: 'rl-dp-addtype', name: 'add', 'aria-label': 'Clause to add' }, types, types[0][0]);
   const add = () => {
-    draft.clauses.push({ type: addType.value, binds: own?.key ?? '', nation: others[0]?.key ?? own?.key ?? '' });
+    const ofPeace = peace.find((c) => c.type === addType.value);
+    const nation = ofPeace ? ofPeace.nations[0].key : others[0]?.key ?? own?.key ?? '';
+    draft.clauses.push({ type: addType.value, binds: own?.key ?? '', nation });
     redraw?.();
   };
   return h('section', { class: 'rl-dp-builder', 'aria-labelledby': 'rl-dp-build-h' },
@@ -278,7 +328,7 @@ export function offerBuilder(rv, draft, { act, redraw, onReading } = {}) {
         }), ` ${n.name}`))
         : h('p', { class: 'muted' }, 'No other nation is named to you yet.')),
     draft.clauses.length
-      ? h('ol', { class: 'rl-dp-clauserows', role: 'list' }, draft.clauses.map((c, i) => clauseRow(c, i, nations, draft, redraw)))
+      ? h('ol', { class: 'rl-dp-clauserows', role: 'list' }, draft.clauses.map((c, i) => clauseRow(c, i, nations, draft, redraw, { types, peace, own })))
       : null,
     h('div', { class: 'rl-dp-add' },
       h('label', { class: 'rl-dp-field' }, 'Add a clause the rules check ', addType),

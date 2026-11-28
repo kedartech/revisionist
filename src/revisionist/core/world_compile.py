@@ -15,10 +15,22 @@ from datetime import timedelta
 from itertools import pairwise
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from revisionist.core import events as ev
 from revisionist.core import roster
+from revisionist.core.aim_patterns import (
+    BUILT_IN,
+    KIND_FIELDS,
+    AimBlank,
+    AimPattern,
+    AimPatterns,
+    exposure,
+    sentence_blanks,
+    slots,
+    substitute,
+)
+from revisionist.core.aim_patterns import SECTIONS as BLANK_SECTIONS
 from revisionist.core.events import Event, Versions
 from revisionist.core.fold import FoldError, replay
 from revisionist.core.goals import (
@@ -28,17 +40,9 @@ from revisionist.core.goals import (
     AimRule,
     AllOf,
     AnyOf,
-    AtWar,
-    ContestWon,
-    EntityIs,
     Exposure,
     Goal,
-    HoldsArea,
-    IncomeAt,
-    Leaf,
     Ordered,
-    QuantityAt,
-    RegardAt,
     SupportAt,
     WinCondition,
     depth,
@@ -95,6 +99,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism import kinds
 from revisionist.core.realism import territory as tm
+from revisionist.core.realism import weather as wx
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
 from revisionist.core.realism.card import (
@@ -108,6 +113,7 @@ from revisionist.core.realism.card import (
     Reach,
     SeatCard,
     Topic,
+    escort_level_problems,
     war_need_problems,
 )
 from revisionist.core.realism.document import Feed
@@ -123,19 +129,22 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
 from revisionist.core.realism.kinds import Domain as PieceDomain
-from revisionist.core.realism.kinds import PieceKind, Resource, Role
+from revisionist.core.realism.kinds import Picture, PieceKind, Resource, Role
+from revisionist.core.realism.laws import Does, Law, LawEffect
 from revisionist.core.realism.locks import (
+    Council,
     Decider,
     LawNotInForce,
     LockRow,
     OrderMatch,
     PostureNotSet,
+    Question,
 )
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import Outlet, War, war_id_for
-from revisionist.core.state import Rule, State
+from revisionist.core.state import Ladder, Removal, RemovalWay, Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
     CardDecl,
@@ -149,10 +158,12 @@ from revisionist.core.world import (
     GoalDecl,
     LeverDecl,
     LinkDecl,
+    LockOrderDecl,
     LockWhenDecl,
     MandateDecl,
     PactClauseDecl,
     PieceKindDecl,
+    RemovalDecl,
     ScopeDecl,
     ScopeSpec,
     SeaZoneDecl,
@@ -209,11 +220,51 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
     met = [f"goal {g.key}: already met at tick 0" for g in world.goals if _met(state, g, ids)]
     if met:
         raise WorldError(met)
-    if state.contests:
-        unfit = roster.problems(state)
-        if unfit:
-            raise WorldError(unfit)
+    if Rule.PLAYABLE_RULE in world.rules:
+        unfit = _by_rule(world, state, ids)
+    else:
+        unfit = roster.problems(state) if state.contests else []
+    if unfit:
+        raise WorldError(unfit)
     return [_started(e, state) for e in events]
+
+
+def _flagged(world: WorldFile) -> set[str]:
+    """The people whose cards are playable: the hand flags, or with ``playable_rule`` on
+    (PBR) the carded people on the roster, which the rule's check holds to its verdict."""
+    if Rule.PLAYABLE_RULE in world.rules:
+        carded = {c.person for c in world.cards}
+        return {ch.entity for ch in world.roster if ch.entity in carded}
+    return {c.person for c in world.cards if c.playable}
+
+
+def floor(world: WorldFile) -> roster.Floor:
+    """The world's floor for the playable rule (PBR), or the default lines."""
+    line = world.playable_floor
+    return roster.Floor() if line is None else roster.Floor(rank=line.rank, tier=line.tier)
+
+
+def _by_rule(world: WorldFile, state: State, ids: Mapping[str, str]) -> list[str]:
+    """With ``playable_rule`` on (PBR): the roster is the cards the rule admits, less those
+    the world holds back. The hand flag is not read."""
+    line = floor(world)
+    problems: list[str] = []
+    listed = {ch.entity for ch in world.roster}
+    for c in world.cards:
+        card = state.cards[EntityId(ids[c.person])]
+        why = roster.admits(state, card, line)
+        if c.person in listed and c.held_back:
+            problems.append(f"character {c.person}: held back, so it may not be on the roster")
+        elif c.person in listed and why:
+            problems.append(
+                f"character {c.person}: on the roster, but the playable rule does not admit "
+                f"it: {'; '.join(why)}"
+            )
+        elif c.person not in listed and not why and not c.held_back:
+            problems.append(
+                f"card {c.person}: the playable rule admits it, so it is on the roster or held back"
+            )
+    return problems
 
 
 def _events(
@@ -395,14 +446,16 @@ def check_history(world: WorldFile) -> list[str]:
     """What a drafted historical world must also be (spec §5), beyond compiling.
 
     Humans arrive at the character step and goals at the goal step, so a draft
-    has neither; the roster offers 8-12 people to choose from. Factions need
-    holdings they can act with, so their people must be linked to them.
+    has neither; the roster offers 8-12 people to choose from, or the bound the
+    world's ``roster_limit`` sets. Factions need holdings they can act with, so their
+    people must be linked to them.
     """
     problems: list[str] = []
     if not world.start.strip():
         problems.append("world: no start (place and date)")
-    if not ROSTER_MIN <= len(world.roster) <= ROSTER_MAX:
-        problems.append(f"roster: {len(world.roster)} characters, not {ROSTER_MIN}-{ROSTER_MAX}")
+    least, most = world.roster_limit or (ROSTER_MIN, ROSTER_MAX)
+    if not least <= len(world.roster) <= most:
+        problems.append(f"roster: {len(world.roster)} characters, not {least}-{most}")
     for s in world.seats:
         if s.controller is Controller.HUMAN:
             problems.append(f"seat {s.key}: a draft has no human seats")
@@ -507,9 +560,14 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "trade_lines",
             "intelligence",
             "groups",
+            "happenings",
+            "places",
+            "elections",
             "pacts",
             "conferences",
             "locks",
+            "laws",
+            "aim_patterns",
             "production",
         ):
             if getattr(world, name):
@@ -521,9 +579,18 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_happenings(world, problems)
+    _check_places(world, problems)
+    _check_elections(world, problems)
+    _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
+    _check_aim_patterns(world, sections, problems)
     _check_command(world, problems)
+    _check_posts(world, sections, problems)
+    _check_office(world, sections, problems)
+    _check_defiance(world, problems)
+    _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
@@ -552,6 +619,9 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             person(where, step.person)
         _check_cited(problems, where, pl, sections)
     carded: set[str] = set()
+    flagged = _flagged(world)
+    # With the playable rule on, the rule's own check says what a roster card lacks.
+    by_rule = Rule.PLAYABLE_RULE in world.rules
     for c in world.cards:
         where = f"card {c.person}"
         person(where, c.person)
@@ -567,7 +637,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         domains = [dm.name for dm in c.authority]
         if len(set(domains)) != len(domains):
             problems.append(f"{where}: an authority domain is named twice")
-        if c.playable and c.authority and all(k.person == c.person for k in c.inner_circle):
+        alone = all(k.person == c.person for k in c.inner_circle)
+        if c.playable and not by_rule and c.authority and alone:
             problems.append(f"{where}: has authority but no inner circle to sign its reports")
         for dm in c.authority:
             person(f"{where}: domain {dm.name}", dm.executor)
@@ -595,6 +666,10 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
             _check_war_needs(world, f"{where}: lever {lv.name}", lv, problems)
+            problems += [
+                f"{where}: lever {lv.name}: {p}"
+                for p in escort_level_problems(lv.params, lv.escort_level)
+            ]
     _check_answers(world, sections, problems)
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
@@ -602,13 +677,14 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_production(world, problems)
     _check_pacts(world, sections, problems)
     _check_conferences(world, sections, problems)
-    playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
-    # A listed person with no card yet is built when picked (compile_figure).
-    for key in sorted((listed & carded) - playable):
-        problems.append(f"character {key}: a realism roster lists only playable cards")
-    for key in sorted(playable - listed):
-        problems.append(f"card {key}: playable, so it must be on the roster")
+    # A listed person with no card yet is built when picked (compile_figure). With the
+    # playable rule on, the roster is held to the rule's verdict after the fold.
+    if Rule.PLAYABLE_RULE not in world.rules:
+        for key in sorted((listed & carded) - flagged):
+            problems.append(f"character {key}: a realism roster lists only playable cards")
+        for key in sorted(flagged - listed):
+            problems.append(f"card {key}: playable, so it must be on the roster")
     polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
     orgs = {d.key for d in world.entities if d.kind is EntityKind.ORG}
     for o in world.outlets:
@@ -1218,6 +1294,32 @@ def _check_kinds(world: WorldFile, problems: list[str]) -> None:
         for lifted in k.carries:
             if lifted not in names:
                 problems.append(f"{where}: carries unknown kind {lifted}")
+        _check_figures(world, k, names, problems)
+
+
+PICTURES = frozenset(p.value for p in Picture)
+
+
+def _check_figures(
+    world: WorldFile, k: PieceKindDecl, names: set[str], problems: list[str]
+) -> None:
+    """A kind's own figures name what the world has: terrain, kinds or domains on the
+    other side, and a picture from the fixed list."""
+    where = f"piece kind {k.key}"
+    terrain = {t.key for t in world.terrain}
+    domains = {d.domain.value for d in world.piece_kinds}
+    for key in k.on_terrain:
+        if key not in terrain:
+            problems.append(f"{where}: on_terrain {key} is no terrain")
+    for a in k.against:
+        if a.facing not in names and a.facing not in domains:
+            problems.append(f"{where}: against {a.facing}, which is no kind or domain of the world")
+    if k.picture is not None and k.picture not in PICTURES:
+        problems.append(f"{where}: picture {k.picture} is not one of the pictures")
+    if k.strike_steps is not None and k.domain is PieceDomain.LAND:
+        problems.append(f"{where}: a land kind has no strike_steps")
+    if not k.may_attack and not k.holds_ground:
+        problems.append(f"{where}: a kind that may not attack holds ground")
 
 
 def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
@@ -1369,14 +1471,158 @@ def _check_groups(world: WorldFile, problems: list[str]) -> None:
             ]
 
 
+def _check_happenings(world: WorldFile, problems: list[str]) -> None:
+    """Each kind of happening classed once (HCL). With the rule off they are checked and
+    left out of the game."""
+    seen: set[str] = set()
+    for c in world.happenings:
+        if c.kind in seen:
+            problems.append(f"happenings: {c.kind} is classed twice")
+        seen.add(c.kind)
+
+
+def _check_places(world: WorldFile, problems: list[str]) -> None:
+    """Each place with political weight (PLW): a territory weighed once for a polity, moving
+    only that polity's own groups; a group's ``moved_by`` names no place kind, whose
+    amounts the places give. ``places`` needs groups and holders. With the rule off they
+    are checked and left out of the game."""
+    from revisionist.core.realism.groups import Happening
+
+    if Rule.PLACES in world.rules:
+        problems += [
+            f"rules: places needs {r.value}"
+            for r in (Rule.GROUPS, Rule.HOLDERS)
+            if r not in world.rules
+        ]
+    kinds = {d.key: d.kind for d in world.entities}
+    land = {t.key for t in world.territories}
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    seen: set[tuple[str, str]] = set()
+    for place in world.places:
+        where = f"places {place.territory}"
+        if place.territory not in land:
+            problems.append(f"{where}: not a territory")
+        if kinds.get(place.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {place.nation} is not a polity")
+        if (place.territory, place.nation) in seen:
+            problems.append(f"{where}: weighted twice for {place.nation}")
+        seen.add((place.territory, place.nation))
+        problems += [
+            f"{where}: {k} is not a group of {place.nation}"
+            for k in place.moves
+            if k not in groups_of.get(place.nation, ())
+        ]
+    placed = {Happening.PLACE_LOST, Happening.PLACE_ABANDONED, Happening.PLACE_RETAKEN}
+    for decl in world.groups:
+        for g in decl.groups:
+            problems += [
+                f"groups {decl.nation} {g.key}: {k} is moved by places, not moved_by"
+                for k in g.moved_by
+                if k in placed
+            ]
+
+
+def _check_elections(world: WorldFile, problems: list[str]) -> None:
+    """Each election (ELE): a polity's chambers that have blocs with seats, a day after the
+    start, and a post that is an office (resting on nothing, its holder is never removed);
+    the chambers are read with the rule on, as a world with it off may list no groups.
+    ``elections`` needs groups. With the rule off they are checked and left out of the
+    game."""
+    if Rule.ELECTIONS in world.rules and Rule.GROUPS not in world.rules:
+        problems.append("rules: elections needs groups")
+    kinds = {d.key: d.kind for d in world.entities}
+    offices = {a.key: a for a in world.assets if a.kind is AssetKind.OFFICE}
+    chambers = {d.nation: {g.chamber for g in d.groups if g.seats} for d in world.groups}
+    for e in world.elections:
+        where = f"elections {e.nation} {e.day.isoformat()}"
+        if kinds.get(e.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {e.nation} is not a polity")
+        problems += [
+            f"{where}: {e.nation} has no chamber {c}"
+            for c in e.chambers
+            if Rule.ELECTIONS in world.rules and c not in chambers.get(e.nation, ())
+        ]
+        if world.start_date is not None and e.day <= world.start_date:
+            problems.append(f"{where}: the day is not after the start date")
+        if e.post is None:
+            continue
+        post = offices.get(e.post)
+        if post is None:
+            problems.append(f"{where}: {e.post} is not an office")
+        if Rule.ELECTIONS in world.rules and Rule.OFFICE not in world.rules:
+            problems.append(f"{where}: a post needs the office rule")
+
+
+def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
+    names what the world declares, a group by its nation's own key, and holds at least one
+    check an act changes. With the rule off they are checked and left out of the game."""
+    from revisionist.core.realism.offers import acted_on
+
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for decl in world.groups:
+        for g in decl.groups:
+            keys = [p.key for p in g.prices]
+            if len(set(keys)) != len(keys):
+                problems.append(f"groups {decl.nation} {g.key}: a price key is given twice")
+            for price in g.prices:
+                at = f"groups {decl.nation} {g.key} price {price.key}"
+                if depth(price.condition) > MAX_DEPTH or len(leaves(price.condition)) > MAX_PARTS:
+                    problems.append(f"{at}: condition too large")
+                if not acted_on(price):
+                    problems.append(f"{at}: its condition holds nothing an act changes")
+                for leaf in leaves(price.condition):
+                    for name, section in _CONDITION_REFS.items():
+                        _ref(problems, at, getattr(leaf, name, None), section, sections)
+                    _refs(problems, at, getattr(leaf, "between", ()), "entity", sections)
+                    if isinstance(leaf, SupportAt) and leaf.group not in groups_of.get(
+                        leaf.nation, ()
+                    ):
+                        problems.append(f"{at}: {leaf.nation} has no group {leaf.group}")
+
+
 def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
     from revisionist.core.realism import groups
 
+    def bound(g: groups.Group) -> groups.Group:
+        if not g.prices:
+            return g
+        if Rule.OFFERS not in world.rules:
+            return g.model_copy(update={"prices": ()})
+        prices = tuple(
+            p.model_copy(update={"condition": _bind(p.condition, ids)}) for p in g.prices
+        )
+        return g.model_copy(update={"prices": prices})
+
     return ev.GroupsDeclared(
         nations=tuple(
-            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups, themes=d.themes)
+            groups.NationGroups(
+                nation=EntityId(ids[d.nation]),
+                groups=tuple(bound(g) for g in d.groups),
+                themes=d.themes,
+            )
             for d in world.groups
+        ),
+        classes=world.happenings if Rule.CLASSES in world.rules else (),
+        places=tuple(
+            groups.Place(
+                territory=EntityId(ids[p.territory]), nation=EntityId(ids[p.nation]), moves=p.moves
+            )
+            for p in world.places
         )
+        if Rule.PLACES in world.rules
+        else (),
+        elections=tuple(
+            groups.Election(
+                nation=EntityId(ids[e.nation]),
+                chambers=e.chambers,
+                day=e.day,
+                post=AssetId(ids[e.post]) if e.post is not None else None,
+            )
+            for e in world.elections
+        )
+        if Rule.ELECTIONS in world.rules
+        else (),
     )
 
 
@@ -1500,6 +1746,8 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
         else:
             problems.append(f"{where}: within unknown area {e.within}")
     _check_adjacency(world, areas, sections, problems)
+    if Rule.WEATHER in world.rules:
+        _check_weather(world, problems)
     box = world.map.box
     if world.map.coords == "flat" and box is not None:
         west, south, east, north = box
@@ -1585,6 +1833,77 @@ def _check_map_file(world: WorldFile, problems: list[str]) -> None:
         for district in d.districts:
             if district not in districts:
                 problems.append(f"territory {d.key}: district {district} is not in the map file")
+
+
+def _check_weather(world: WorldFile, problems: list[str]) -> None:
+    """The weather (KWX): every area's region reaches a row, a row names every month and
+    a kind of weather the world names, and a kind of weather names only kinds or domains
+    of piece and terrain the world has. With the rule off the weather is not read, so it
+    is not checked either."""
+    decl = world.weather
+    if decl is None:
+        return
+    parent = {r.key: r.parent for r in world.regions}
+    terrain = {t.key for t in world.terrain}
+    pieces = {k.key for k in world.piece_kinds} | {k.domain.value for k in world.piece_kinds}
+    named: set[str] = set()
+    for k in decl.kinds:
+        where = f"weather {k.key}"
+        if k.key in named:
+            problems.append(f"{where}: duplicate key")
+        named.add(k.key)
+        for names in (
+            *(s.pieces for s in k.slows),
+            *(f.pieces for f in k.figures),
+            *(c.pieces for c in k.closes),
+        ):
+            problems.extend(
+                f"{where}: {p}, which is no kind or domain of the world"
+                for p in names
+                if p not in pieces
+            )
+        for keys in (*(s.terrain for s in k.slows), *(c.terrain for c in k.closes)):
+            problems.extend(f"{where}: unknown terrain {t}" for t in keys if t not in terrain)
+    for region, row in decl.regions.items():
+        if region not in parent:
+            problems.append(f"weather: unknown region {region}")
+        problems.extend(
+            f"weather: region {region} leaves out {m}" for m in wx.MONTHS if m not in row
+        )
+        problems.extend(
+            f"weather: region {region} names {key} in {m}, which is no kind of weather"
+            for m, key in row.items()
+            if key not in named
+        )
+    for region in sorted({d.region for d in _area_decls(world)} & set(parent)):
+        at: str | None = region
+        seen: set[str] = set()
+        while at is not None and at not in decl.regions and at not in seen:
+            seen.add(at)
+            at = parent.get(at)
+        if at is None or at not in decl.regions:
+            problems.append(f"weather: no row for region {region} or a region it lies in")
+
+
+def _weather(world: WorldFile) -> wx.Weather | None:
+    """The weather as the board holds it, with ``weather`` on; None with it off."""
+    decl = world.weather
+    if decl is None or Rule.WEATHER not in world.rules:
+        return None
+    return wx.Weather(
+        kinds={
+            k.key: wx.WeatherKind(
+                key=k.key,
+                name=k.name,
+                slows=k.slows,
+                figures=k.figures,
+                grounds_air=k.grounds_air,
+                closes=k.closes,
+            )
+            for k in decl.kinds
+        },
+        regions={r: tuple(row[m] for m in wx.MONTHS) for r, row in decl.regions.items()},
+    )
 
 
 def _check_regions(world: WorldFile, problems: list[str]) -> set[str]:
@@ -1761,17 +2080,165 @@ _CONDITION_REFS = {
 ``between`` names entities too."""
 
 
+def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """With ``posts`` on (PPP): a card's post is an office asset its person controls, and
+    no two cards name one post. With it off, a card's post is not read, nor an office's
+    ladder or movers (LDR), so one world serves both."""
+    if Rule.POSTS not in world.rules:
+        return
+    held = {d.key: d for d in world.assets}
+    named: set[str] = set()
+    for c in world.cards:
+        if c.post is None:
+            continue
+        where = f"card {c.person}"
+        _ref(problems, f"{where}: post", c.post, "asset", sections)
+        office = held.get(c.post)
+        if office is None:
+            continue
+        if office.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: post {c.post} is not an office")
+        elif office.controller != c.person:
+            problems.append(f"{where}: does not hold {c.post}")
+        if c.post in named:
+            problems.append(f"{where}: post {c.post} is another card's post")
+        named.add(c.post)
+    for a in world.assets:  # LDR: a ladder and its movers are offices, on an office
+        if not (a.ladder or a.moved_by):
+            continue
+        where = f"asset {a.key}"
+        if a.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: only an office has a ladder or moved_by")
+        for field, keys in (("ladder", a.ladder), ("moved_by", a.moved_by)):
+            for k in keys:
+                _ref(problems, f"{where}: {field}", k, "asset", sections)
+                other = held.get(k)
+                if other is not None and other.kind is not AssetKind.OFFICE:
+                    problems.append(f"{where}: {field} {k} is not an office")
+        if a.key in a.ladder or len(set(a.ladder)) < len(a.ladder):
+            problems.append(f"{where}: ladder repeats a post")
+        if a.key in a.moved_by:
+            problems.append(f"{where}: a post may not move itself")
+    below = {a.key: a.ladder for a in world.assets if a.ladder}
+    for start in below:  # a ladder that leads back to its post loops
+        seen, todo = set(), list(below[start])
+        while todo:
+            k = todo.pop()
+            if k == start:
+                problems.append(f"asset {start}: ladder loops back to it")
+                break
+            if k not in seen:
+                seen.add(k)
+                todo.extend(below.get(k, ()))
+
+
+def _check_defiance(world: WorldFile, problems: list[str]) -> None:
+    """With ``defiance`` on (DFY): it needs ``posts`` and ``locks``, and only an office
+    names acts without leave. With it off, no asset's list is read."""
+    if Rule.DEFIANCE not in world.rules:
+        return
+    for rule in (Rule.POSTS, Rule.LOCKS):
+        if rule not in world.rules:
+            problems.append(f"rules: defiance needs the {rule.value} rule")
+    for a in world.assets:
+        if a.without_leave and a.kind is not AssetKind.OFFICE:
+            problems.append(f"asset {a.key}: only an office names acts without leave")
+
+
+def _check_office(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """With ``office`` on (OFQ): it needs ``posts``; what an office rests on is a group
+    or a body, and how its holder is removed names what its way needs. With it off, neither
+    is read."""
+    if Rule.OFFICE not in world.rules:
+        return
+    if Rule.POSTS not in world.rules:
+        problems.append("rules: office needs the posts rule")
+    group_keys = {g.key for n in world.groups for g in n.groups}
+    chambers = {g.chamber for n in world.groups for g in n.groups if g.chamber is not None}
+    for a in world.assets:
+        if not (a.rests_on or a.removed_by):
+            continue
+        where = f"asset {a.key}"
+        if a.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: only an office rests on a base or has removed_by")
+        for k in a.rests_on:
+            if k not in group_keys:
+                _ref(problems, f"{where}: rests_on", k, "entity", sections)
+        r = a.removed_by
+        if r is None:
+            continue
+        if r.by == "vote":
+            if Rule.GROUPS not in world.rules:
+                problems.append(f"{where}: removed by a vote needs the groups rule")
+            if r.chamber is None or r.chamber not in chambers:
+                problems.append(f"{where}: removed by a vote names no chamber a bloc sits in")
+        elif r.by == "council":
+            for m in r.members:
+                _ref(problems, f"{where}: removed_by member", m, "entity", sections)
+            if len(set(r.members)) != len(r.members):
+                problems.append(f"{where}: a council names a member twice")
+            if not 1 <= r.needed <= len(r.members):
+                problems.append(f"{where}: a council needs 1 to {len(r.members)} of its members")
+        elif r.by == "person":
+            if r.person is None:
+                problems.append(f"{where}: removed by a person names no person")
+            _ref(problems, f"{where}: removed_by person", r.person, "entity", sections)
+        elif r.by == "term" and r.ends is None:
+            problems.append(f"{where}: removed at a term's end names no day")
+
+
+def _removal(r: RemovalDecl, ids: Mapping[str, str]) -> Removal:
+    """How an office's holder is removed, keys bound to ids (OFQ)."""
+    return Removal(
+        way=RemovalWay(r.by),
+        chamber=r.chamber,
+        vote=(r.vote or r.chamber) if r.by == "vote" else None,
+        members=tuple(EntityId(ids[k]) for k in r.members) if r.by == "council" else (),
+        needed=r.needed if r.by == "council" else 0,
+        person=EntityId(ids[r.person]) if r.by == "person" and r.person else None,
+        ends=r.ends if r.by == "term" else None,
+    )
+
+
+def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | None:
+    """Each office's ladder and movers, keys bound to ids, in the world's order (LDR);
+    with ``office`` on, what it rests on and how its holder is removed (OFQ)."""
+    office = Rule.OFFICE in world.rules
+    defiance = Rule.DEFIANCE in world.rules
+
+    found = tuple(
+        Ladder(
+            post=AssetId(ids[a.key]),
+            ladder=tuple(AssetId(ids[k]) for k in a.ladder),
+            moved_by=tuple(AssetId(ids[k]) for k in a.moved_by),
+            rests_on=tuple(ids.get(k, k) for k in a.rests_on) if office else (),
+            removed_by=_removal(a.removed_by, ids) if office and a.removed_by else None,
+            without_leave=a.without_leave if defiance else (),
+        )
+        for a in world.assets
+        if a.ladder
+        or a.moved_by
+        or (office and (a.rests_on or a.removed_by))
+        or (defiance and a.without_leave)
+    )
+    return ev.LaddersDeclared(ladders=found) if found else None
+
+
 def _check_command(world: WorldFile, problems: list[str]) -> None:
     """With ``command`` on (CMD): a playable military card has a domain naming a force,
-    and no force is named by two military cards. With it off, a card's path is not read."""
+    and no force is named by two military cards. With it off, a card's path is not read.
+    The playable rule (PBR) reads the aims' conditions, so it needs ``aims`` on."""
+    if Rule.PLAYABLE_RULE in world.rules and Rule.AIMS not in world.rules:
+        problems.append("rules: playable_rule needs aims")
     if Rule.COMMAND not in world.rules:
         return
+    by_rule = Rule.PLAYABLE_RULE in world.rules
     named: dict[str, list[str]] = {}
     for c in world.cards:
         if c.path is not CardPath.MILITARY:
             continue
         forces = {k for dm in c.authority for k in dm.forces}
-        if c.playable and not forces:
+        if c.playable and not by_rule and not forces:
             problems.append(
                 f"card {c.person}: a playable military card needs a domain naming a force"
             )
@@ -1787,9 +2254,10 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
     the form takes, or an effect kind with a zone (an area or place) or a force that
     exists; a condition naming a law clause some declared law carries, or a posture whose
     zone and form exist; a decider that is a person, or a nation's chambers that exist
-    with the person at the head of its government (ASK),
-    and never the person whose own card carries the form. With the rule off they are
-    checked and left out of the game."""
+    with the person at the head of its government (ASK), or a council whose members each
+    have a card and whose count is no more than its members (QKD),
+    and never the person whose own card carries the form; a kind of question from the
+    closed list (QKD). With the rule off they are checked and left out of the game."""
     levers = {(c.person, lv.name): lv for c in world.cards for lv in c.levers}
     chambers = {
         (d.nation, g.chamber) for d in world.groups for g in d.groups if g.chamber is not None
@@ -1802,38 +2270,60 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
         if row.key in seen:
             problems.append(f"{where}: duplicate key")
         seen.add(row.key)
-        o, d = row.order, row.decider
+        d = row.decider
+        o = None if _no_order(row.order) else row.order
+        if o is None and (row.question != Question.PEACE.value or row.when is not None):
+            problems.append(f"{where}: only a row of the kind peace names no order")
+            continue
         try:
-            match = OrderMatch(
-                form=o.form,
-                params=o.params,
-                effect=o.effect,
-                zone=None if o.zone is None else EntityId(o.zone),
-                force=None if o.force is None else FeatureId(o.force),
+            match = (
+                None
+                if o is None
+                else OrderMatch(
+                    form=o.form,
+                    params=o.params,
+                    effect=o.effect,
+                    zone=None if o.zone is None else EntityId(o.zone),
+                    force=None if o.force is None else FeatureId(o.force),
+                )
             )
+            council = d.council
             Decider(
                 person=None if d.person is None else EntityId(d.person),
                 nation=None if d.nation is None else EntityId(d.nation),
                 chambers=d.chambers,
                 head=None if d.head is None else EntityId(d.head),
+                council=None
+                if council is None
+                else Council(
+                    members=tuple(EntityId(m) for m in council.members),
+                    needed=council.needed,
+                    head=EntityId(council.head),
+                ),
             )
         except ValidationError as exc:
             problems.append(f"{where}: {_first_error(exc)}")
             continue
-        if match.form is not None:
+        if row.question is not None and row.question not in {q.value for q in Question}:
+            problems.append(f"{where}: unknown question {row.question}")
+        if d.council is not None:
+            carded = {c.person for c in world.cards}
+            for sitter in (*d.council.members, d.council.head):
+                if kinds.get(sitter) is not EntityKind.PERSON:
+                    problems.append(f"{where}: unknown person {sitter}")
+                elif sitter in d.council.members and sitter not in carded:
+                    problems.append(f"{where}: council member {sitter} has no card")
+        if match is not None and o is not None and match.form is not None:
             _check_lock_form(where, levers, match.form, o.params, sections, problems)
             carriers = {person for person, name in levers if name == match.form}
             if d.person is not None and d.person in carriers:
                 problems.append(
                     f"{where}: {d.person} carries the form and would decide an order of their own"
                 )
-        if (
-            o.zone is not None
-            and o.zone not in areas
-            and kinds.get(o.zone) is not EntityKind.LOCATION
-        ):
-            problems.append(f"{where}: unknown area or place {o.zone}")
-        _ref(problems, where, o.force, "feature", sections)
+        zone, force = (o.zone, o.force) if o is not None else (None, None)
+        if zone is not None and zone not in areas and kinds.get(zone) is not EntityKind.LOCATION:
+            problems.append(f"{where}: unknown area or place {zone}")
+        _ref(problems, where, force, "feature", sections)
         for who in (d.person, d.head):
             if who is not None and kinds.get(who) is not EntityKind.PERSON:
                 problems.append(f"{where}: unknown person {who}")
@@ -1847,6 +2337,11 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
                     problems.append(f"{where}: {d.nation} has no chamber {ch}")
         if row.when is not None:
             _check_lock_when(world, where, row.when, levers, areas, kinds, sections, problems)
+
+
+def _no_order(o: LockOrderDecl) -> bool:
+    """Whether a lock row names no order: no form, no effect and nothing else (PEA)."""
+    return o == LockOrderDecl()
 
 
 def _first_error(exc: ValidationError) -> str:
@@ -1920,9 +2415,59 @@ def _check_lock_when(
         )
 
 
+def _check_laws(world: WorldFile, problems: list[str]) -> None:
+    """Each law (LWC): its key once; a nation that is a polity the world declares; a passed
+    quantity the world declares; a ``does`` the rules know, with an amount where it takes
+    one. With the rule off they are checked and left out of the game."""
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    quantities = {q.key for q in world.quantities}
+    seen: set[str] = set()
+    for law in world.laws:
+        where = f"law {law.key}"
+        if law.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(law.key)
+        if law.nation not in polities:
+            problems.append(f"{where}: unknown nation {law.nation}")
+        if law.passed not in quantities:
+            problems.append(f"{where}: unknown quantity {law.passed}")
+        if law.does is None:
+            continue
+        if law.does.kind not in set(Does):
+            problems.append(f"{where}: does {law.does.kind!r} is not an effect the rules know")
+            continue
+        try:
+            LawEffect(kind=Does(law.does.kind), amount=law.does.amount)
+        except ValidationError as exc:
+            problems.append(f"{where}: {_first_error(exc)}")
+
+
+def _laws(world: WorldFile, ids: Mapping[str, str]) -> ev.LawsDeclared:
+    """The world's laws in its own order, keys bound to ids (LWC)."""
+    return ev.LawsDeclared(
+        laws=tuple(
+            Law(
+                key=law.key,
+                title=law.title,
+                nation=EntityId(ids[law.nation]),
+                clauses=law.clauses,
+                passed=QuantityId(ids[law.passed]),
+                does=None
+                if law.does is None
+                else LawEffect(kind=Does(law.does.kind), amount=law.does.amount),
+                daily_life=law.daily_life,
+            )
+            for law in world.laws
+        )
+    )
+
+
 def _law_clauses(world: WorldFile) -> set[str]:
-    """The clause subjects of every law whose passed flag the world declares: the laws
-    ``votes.in_force`` can find in force (rules lane, read only)."""
+    """The clause subjects of every law a lock's condition may name: with ``laws`` on, the
+    laws the world declares; with it off, those whose passed flag the world declares among
+    the laws ``votes.in_force`` can find in force (rules lane, read only)."""
+    if Rule.LAWS in world.rules:
+        return {c.subject for law in world.laws for c in law.clauses}
     from revisionist.core.realism.resolvers.votes import HISTORICAL
 
     flags = {q.key for q in world.quantities}
@@ -1940,9 +2485,23 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
     def entity(key: str | None) -> EntityId | None:
         return None if key is None else EntityId(ids[key])
 
+    deciders = Rule.DECIDERS in world.rules
     rows: list[LockRow] = []
     for r in world.locks:
-        o, d, w = r.order, r.decider, r.when
+        d, w = r.decider, r.when
+        o = None if _no_order(r.order) else r.order
+        if o is None and not deciders:
+            continue  # a row of the kind peace decides nothing with deciders off
+        council: Council | None = None
+        person = entity(d.person)
+        if d.council is not None and deciders:
+            council = Council(
+                members=tuple(EntityId(ids[m]) for m in d.council.members),
+                needed=d.council.needed,
+                head=EntityId(ids[d.council.head]),
+            )
+        elif d.council is not None:
+            person = entity(d.council.head)  # with deciders off the head decides alone
         when: LawNotInForce | PostureNotSet | None = None
         if w is not None and w.check == "law_not_in_force":
             when = LawNotInForce(clause=w.clause or "")
@@ -1953,7 +2512,9 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
         rows.append(
             LockRow(
                 key=r.key,
-                order=OrderMatch(
+                order=None
+                if o is None
+                else OrderMatch(
                     form=o.form,
                     params=o.params,
                     effect=o.effect,
@@ -1962,11 +2523,13 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
                 ),
                 when=when,
                 decider=Decider(
-                    person=entity(d.person),
+                    person=person,
                     nation=entity(d.nation),
                     chambers=d.chambers,
                     head=entity(d.head),
+                    council=council,
                 ),
+                question=Question(r.question) if deciders and r.question else None,
             )
         )
     return ev.LocksDeclared(rows=tuple(rows))
@@ -2014,32 +2577,24 @@ def _polity_key(world: WorldFile, key: str) -> str | None:
     return None
 
 
-def _exposure(world: WorldFile, person: str, leaf: Leaf) -> Exposure:
-    """Whether the seat holding ``person`` may see the fact ``leaf`` reads (AIM rule 5):
-    the board's holders, wars and war-economy figures are public; a group's support,
-    an agreement and regard are its own nation's when its nation is in them, and a
-    quantity or a contest by its declared scope; anything else is hidden."""
+def _sees(world: WorldFile, person: str, condition: WinCondition) -> tuple[Exposure, ...]:
+    """Whether the seat holding ``person`` may see the fact each leaf of ``condition``
+    reads (AIM rule 5), by the rule state uses too (``aim_patterns.exposure``)."""
+    quantities = {d.key: d for d in world.quantities}
+    contests = {d.key: d for d in world.contests}
+
+    def quantity(key: str) -> tuple[bool, str | None] | None:
+        q = quantities.get(key)
+        if q is None:
+            return None
+        return q.public, None if q.owner is None else _polity_key(world, q.owner)
+
+    def contest_public(key: str) -> bool:
+        k = contests.get(key)
+        return k is not None and k.scope == "public"
+
     own = _polity_key(world, person)
-    match leaf:
-        case HoldsArea() | IncomeAt() | AtWar() | EntityIs():
-            return Exposure.PUBLIC
-        case SupportAt():
-            return Exposure.OWN if leaf.nation == own else Exposure.HIDDEN
-        case AgreementInForce():
-            return Exposure.OWN if own in leaf.between else Exposure.HIDDEN
-        case RegardAt():
-            return Exposure.OWN if person in (leaf.a, leaf.b) else Exposure.HIDDEN
-        case QuantityAt():
-            q = next((d for d in world.quantities if d.key == leaf.quantity), None)
-            if q is not None and q.public:
-                return Exposure.PUBLIC
-            owner = None if q is None or q.owner is None else _polity_key(world, q.owner)
-            return Exposure.OWN if owner is not None and owner == own else Exposure.HIDDEN
-        case ContestWon():
-            k = next((d for d in world.contests if d.key == leaf.contest), None)
-            return Exposure.PUBLIC if k is not None and k.scope == "public" else Exposure.HIDDEN
-        case _:
-            return Exposure.HIDDEN
+    return tuple(exposure(x, person, own, quantity, contest_public) for x in leaves(condition))
 
 
 def _aim_rules(world: WorldFile, c: CardDecl, ids: Mapping[str, str]) -> tuple[AimRule | None, ...]:
@@ -2061,11 +2616,132 @@ def _aim_rules(world: WorldFile, c: CardDecl, ids: Mapping[str, str]) -> tuple[A
                 rule=r.rule,
                 opens=r.opens,
                 deadline=r.deadline,
-                sees=tuple(_exposure(world, c.person, x) for x in leaves(r.condition)),
+                sees=_sees(world, c.person, r.condition),
                 replaceable=r.replaceable,
             )
         )
     return tuple(out)
+
+
+def _check_aim_patterns(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each aim pattern (OWC): its key once; every blank the condition or the sentence
+    names declared, and every declared blank in both; a blank standing in one kind of
+    field, a kind only where it may stand, a closed list of what that field names; the
+    condition, filled, one the rules check, naming what the world declares. With the rule
+    off they are checked and left out of the game."""
+    group_keys = {g.key for d in world.groups for g in d.groups}
+    seen: set[str] = set()
+    for p in world.aim_patterns:
+        where = f"aim pattern {p.key}"
+        if p.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(p.key)
+        used = slots(p.condition)
+        said = sentence_blanks(p.sentence)
+        declared = {b.name for b in p.blanks}
+        if len(declared) < len(p.blanks):
+            problems.append(f"{where}: a blank is named twice")
+        for name in sorted(set(used) - declared - set(BUILT_IN)):
+            problems.append(f"{where}: blank ${name} is not declared")
+        for name in sorted(said - declared - set(BUILT_IN)):
+            problems.append(f"{where}: the sentence names {{{name}}}, which is no blank")
+        samples: dict[str, JsonValue] = dict.fromkeys(BUILT_IN, "x")
+        for b in p.blanks:
+            at = f"{where}: blank {b.name}"
+            fields = used.get(b.name, set())
+            if not fields:
+                problems.append(f"{where}: blank {b.name} is not in the condition")
+            if b.name not in said:
+                problems.append(f"{where}: blank {b.name} is not in the sentence")
+            kinds = {BLANK_SECTIONS.get(f) for f in fields}
+            if None in kinds:
+                problems.append(f"{at} stands where no blank may")
+            elif len(kinds) > 1:
+                problems.append(f"{at} stands for two kinds of thing")
+            section = next(iter(kinds)) if len(kinds) == 1 else None
+            samples[b.name] = 0 if section == "number" else "x"
+            if b.kind is not None:
+                for f in sorted(fields - KIND_FIELDS[b.kind]):
+                    problems.append(f"{at}: a {b.kind.value} cannot stand for {f}")
+                continue
+            for v in b.values:
+                if section == "number":
+                    if not isinstance(v, int):
+                        problems.append(f"{at}: {v} is not a number")
+                elif isinstance(v, int):
+                    problems.append(f"{at}: {v} is not a key")
+                elif section == "group":
+                    if v not in group_keys:
+                        problems.append(f"{at}: no nation has a group {v}")
+                elif section is not None:
+                    _ref(problems, where, v, section, sections)
+            samples[b.name] = b.values[0]
+        _check_pattern_keys(p.condition, where, sections, problems)
+        try:
+            TypeAdapter(WinCondition).validate_python(substitute(p.condition, samples))
+        except ValidationError as exc:
+            problems.append(f"{where}: not a condition the rules check: {_first_error(exc)}")
+
+
+def _check_pattern_keys(
+    node: JsonValue, where: str, sections: Mapping[str, str], problems: list[str]
+) -> None:
+    """Every world key a pattern's condition names outside its blanks, declared."""
+    if isinstance(node, list):
+        for x in node:
+            _check_pattern_keys(x, where, sections, problems)
+        return
+    if not isinstance(node, dict):
+        return
+    for field, value in node.items():
+        section = _CONDITION_REFS.get(field, "entity" if field == "between" else None)
+        items = value if isinstance(value, list) else [value]
+        for x in items:
+            if section is not None and isinstance(x, str) and not x.startswith("$"):
+                _ref(problems, where, x, section, sections)
+            elif isinstance(x, dict | list):
+                _check_pattern_keys(x, where, sections, problems)
+
+
+def _bind_pattern(node: JsonValue, ids: Mapping[str, str], field: str | None = None) -> JsonValue:
+    """A pattern's condition with every world key outside its blanks replaced by its id."""
+    if isinstance(node, dict):
+        return {k: _bind_pattern(v, ids, k) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_bind_pattern(v, ids, field) for v in node]
+    refs = field in _CONDITION_REFS or field == "between"
+    if isinstance(node, str) and refs and not node.startswith("$"):
+        return ids[node]
+    return node
+
+
+def _aim_patterns(world: WorldFile, ids: Mapping[str, str]) -> ev.AimPatternsDeclared:
+    """The world's aim patterns in its own order, keys bound to ids, with each card's kind
+    of post by person (OWC)."""
+    out: list[AimPattern] = []
+    for p in world.aim_patterns:
+        used = slots(p.condition)
+        blanks: list[AimBlank] = []
+        for b in p.blanks:
+            sections = {BLANK_SECTIONS.get(f) for f in used.get(b.name, set())}
+            bound = not sections & {"group", "number", None}
+            values = tuple(ids[v] if bound and isinstance(v, str) else v for v in b.values)
+            blanks.append(AimBlank(name=b.name, values=values, kind=b.kind))
+        bound_condition = _bind_pattern(p.condition, ids)
+        assert isinstance(bound_condition, dict)
+        out.append(
+            AimPattern(
+                key=p.key,
+                posts=p.posts,
+                sentence=p.sentence,
+                condition=bound_condition,
+                blanks=tuple(blanks),
+                government=p.government,
+                deadline=p.deadline,
+            )
+        )
+    posts = {EntityId(ids[c.person]): c.post_kind for c in world.cards if c.post_kind}
+    return ev.AimPatternsDeclared(patterns=AimPatterns(patterns=tuple(out), posts=posts))
 
 
 def _check_goals(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -2465,7 +3141,12 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         )
         for pl in world.pipelines
     )
-    cards = tuple(_card(c, ids, _aim_rules(world, c, ids)) for c in world.cards)
+    posts = Rule.POSTS in world.rules
+    flagged = _flagged(world)
+    cards = tuple(
+        _card(c, ids, _aim_rules(world, c, ids), posts=posts, playable=c.person in flagged)
+        for c in world.cards
+    )
     templates = tuple(_template(m, ids) for m in world.mandates)
     outlets = tuple(
         Outlet(
@@ -2512,6 +3193,15 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.GROUPS in world.rules and world.groups:
         # Engine only: true support. A seat reads its own nation's groups from its view.
         out.append((_groups(world, ids), _engine_only(ids, "groups")))
+    if Rule.POSTS in world.rules and (ladders := _ladders(world, ids)) is not None:
+        # Public: who may move a post, and where its holder falls, are rules of the world.
+        out.append((ladders, PUBLIC))
+    if Rule.LAWS in world.rules and world.laws:
+        # Public: the laws a world declares are rules of the world.
+        out.append((_laws(world, ids), PUBLIC))
+    if Rule.OWN_AIM in world.rules and world.aim_patterns:
+        # Public: the patterns a player may fill are rules of the world.
+        out.append((_aim_patterns(world, ids), PUBLIC))
     if Rule.LOCKS in world.rules and world.locks:
         # Public: which orders need whose decision is a rule of the world.
         out.append((_locks(world, ids), PUBLIC))
@@ -2545,6 +3235,18 @@ def _piece_kind(k: PieceKindDecl) -> PieceKind:
         detect=k.detect,
         conceal=k.conceal,
         carries=k.carries,
+        attack=k.attack,
+        defence=k.defence,
+        on_terrain=dict(k.on_terrain),
+        against=k.against,
+        strike_steps=k.strike_steps,
+        covers=k.covers,
+        may_attack=k.may_attack,
+        holds_ground=k.holds_ground,
+        picture=Picture(k.picture) if k.picture is not None else None,
+        cost=k.cost,
+        lead_days=k.lead_days,
+        raised_at=k.raised_at,
     )
 
 
@@ -2621,6 +3323,7 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
             if e.capital is not None
         },
         production=_production(world, ids),
+        weather=_weather(world),
     )
 
 
@@ -2789,13 +3492,21 @@ def compile_figure(
 
 
 def _card(
-    c: CardDecl, ids: Mapping[str, str], aim_rules: tuple[AimRule | None, ...] = ()
+    c: CardDecl,
+    ids: Mapping[str, str],
+    aim_rules: tuple[AimRule | None, ...] = (),
+    *,
+    posts: bool = False,
+    playable: bool | None = None,
 ) -> SeatCard:
+    """The card, naming its post only with ``posts`` on (PPP); playable as ``playable``
+    says, or by its hand flag."""
     return SeatCard(
         person=EntityId(ids[c.person]),
         office=c.office,
-        playable=c.playable,
+        playable=c.playable if playable is None else playable,
         path=c.path,
+        post=_maybe(ids, c.post, AssetId) if posts else None,
         powers=c.powers,
         inner_circle=tuple(
             Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.inner_circle
@@ -2810,6 +3521,9 @@ def _card(
                 label=lv.label,
                 summary=lv.summary,
                 needs_war=lv.needs_war,
+                escort_levels={
+                    c: v for marks in lv.escort_level.values() for c, v in marks.items()
+                },
             )
             for lv in c.levers
         ),

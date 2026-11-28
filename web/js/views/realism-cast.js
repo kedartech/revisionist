@@ -1,7 +1,9 @@
 // A realism game choosing its people: the cast as cards that open a dossier, everyone else
 // who held power as a searchable table, and the host's invite and Begin. Begin plays the
-// opening crawl while the server sets the game up. Units: realism-castcard.js,
-// realism-castlist.js, realism-castdossier.js, realism-crawl.js, realism-intro.js.
+// opening crawl while the server sets the game up. A ready-made game opens on a nation, a
+// path and a person, with the cards behind "Show everyone". Units: realism-castcard.js,
+// realism-castlist.js, realism-castdossier.js, realism-crawl.js, realism-intro.js,
+// realism-opening.js.
 
 import { api } from '../api.js';
 import { h, reply } from '../dom.js';
@@ -13,6 +15,7 @@ import { castDossier } from './realism-castdossier.js';
 import { alreadyPlayed, castList, figureGroups, searchState } from './realism-castlist.js';
 import { beginStatus, crawlParagraphs, introCrawl, markReady } from './realism-crawl.js';
 import { markIntro } from './realism-intro.js';
+import { openingInto } from './realism-opening.js';
 
 export { alreadyPlayed, figureGroups, searchState };
 
@@ -249,14 +252,37 @@ export function realismCast(ctx) {
   const screen = h('div', { class: 'screen' });
   const open = (person, canPlay) => openDossier(screen, person, { canPlay, out, refresh });
   const cards = view.roster.map((c) => castCard(c, { mine, onOpen: () => open(c, !c.taken && !mine) }));
-  const others = !mine && game.date
-    ? castList({
-      cast: castNames,
-      load: (query) => api.newGame('figures', query ? { date: game.date, search: query } : { date: game.date }),
-      onOpen: (row) => open(row, true),
-      onDraw: (name) => pick(out, name, refresh),
-    })
-    : null;
+  const lead = h('p', {}, mine
+    ? 'Waiting for the host to begin. You can close this tab; your place is kept.'
+    : 'Open a card to read who they are, then play them.');
+  const others = h('div', { class: 'rl-cast-others' });
+  const steps = h('div', { class: 'rl-op-holder' });
+  const flat = h('div', { class: 'rl-cast-flat', hidden: !mine },
+    h('section', { class: 'rl-cast', 'aria-labelledby': 'rl-cast-title' },
+      h('h2', { id: 'rl-cast-title' }, 'The cast'),
+      h('div', { class: 'rl-cast-cards' }, cards)),
+    mine ? null : others);
+  if (!mine) {
+    steps.append(h('p', { class: 'muted' }, 'Reading who can be played…'));
+    openingInto(steps, flat, {
+      roster: view.roster,
+      lead,
+      onTake: (name) => pick(out, name, refresh),
+      onRead: (name) => {
+        const c = view.roster.find((x) => x.name === name);
+        if (c) open(c, !c.taken);
+      },
+      onPitched: () => {
+        if (!game.date) return;
+        others.replaceChildren(castList({
+          cast: castNames,
+          load: (query) => api.newGame('figures', query ? { date: game.date, search: query } : { date: game.date }),
+          onOpen: (row) => open(row, true),
+          onDraw: (name) => pick(out, name, refresh),
+        }));
+      },
+    });
+  }
   screen.append(
     header({ ...ctx, game, role: 'Choosing the cast' }),
     h('div', { class: 'sz sz-solo' },
@@ -264,16 +290,13 @@ export function realismCast(ctx) {
         h('div', { class: 'sz-inner' },
           h('div', { class: 'step-head' },
             h('h1', {}, mine ? `You are ${mine}` : 'Choose who you will play'),
-            h('p', {}, mine
-              ? 'Waiting for the host to begin. You can close this tab; your place is kept.'
-              : 'Open a card to read who they are, then play them.')),
+            lead),
           h('div', { class: 'split' },
             h('div', {},
               out,
-              h('section', { class: 'rl-cast', 'aria-labelledby': 'rl-cast-title' },
-                h('h2', { id: 'rl-cast-title' }, 'The cast'),
-                h('div', { class: 'rl-cast-cards' }, cards)),
-              mine ? playStyle() : others,
+              steps,
+              flat,
+              mine ? playStyle() : null,
               mine ? releaseControl({ name: mine, onRelease: () => release(out, refresh) }) : null),
             game.host ? hostPanel(game, refresh) : null)))));
   return screen;

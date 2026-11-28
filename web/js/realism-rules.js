@@ -2,6 +2,11 @@
 // lines. No DOM here, and no figure that reads as a chance of anything.
 
 import { worldDate } from './rules.js';
+import { boxOf, frameRect, projection, territoryProjection } from './map/projection.js';
+import { ZOOMS, pinchZoom, unitsPerPx, viewWindow } from './map/view.js';
+import { inArea } from './map/hit.js';
+
+export { boxOf, frameRect, projection, territoryProjection, ZOOMS, pinchZoom, unitsPerPx, viewWindow, inArea };
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -363,15 +368,6 @@ export function mapBox(map, scope = 'reports') {
   return { west: Math.max(west, -180), east: Math.min(east, 180), south: Math.max(south, -85), north: Math.min(north, 85) };
 }
 
-/** An equirectangular projection for ``box``, squeezed by the cosine of its middle
- *  latitude so the high north is not drawn twice as wide as it is. */
-export function projection(box) {
-  const k = Math.cos(((box.north + box.south) / 2) * (Math.PI / 180));
-  const x = (lon) => (lon - box.west) * k;
-  const y = (lat) => box.north - lat;
-  return { x, y, width: (box.east - box.west) * k, height: box.north - box.south };
-}
-
 const r1 = (n) => Math.round(n * 10) / 10;
 
 /** One SVG path for the land rings that touch ``box`` (draw it even-odd: inner rings are lakes). */
@@ -390,25 +386,11 @@ export function landPath(rings, box, proj) {
 
 // --- the territory map ------------------------------------------------------------
 
-/** The zoom steps within a frame. [proposed] */
-export const ZOOMS = Object.freeze([1, 2, 4]);
 /** The smallest a mark is drawn, and the smallest tap target, in CSS pixels. [proposed] */
 export const MIN_MARK_PX = 24;
 export const MIN_TAP_PX = 44;
 /** An area's name, in CSS pixels. */
 export const LABEL_PX = 12;
-
-/** A `[west, south, east, north]` list as a box object. */
-export const boxOf = ([west, south, east, north]) => ({ west, south, east, north });
-
-/**
- * The projection a territory map is drawn in, from its `coords` and its own box: today's for
- * `lonlat`, a plain scale for `flat` (x right, y up, as the map file has them).
- */
-export function territoryProjection(coords, box) {
-  if (coords === 'lonlat') return projection(box);
-  return { x: (x) => x - box.west, y: (y) => box.north - y, width: box.east - box.west, height: box.north - box.south };
-}
 
 /** The box around every vertex of the rings given (vertex indices into `vertices`). */
 function ringsBox(vertices, rings) {
@@ -459,34 +441,6 @@ export function regionTrail(regions, key) {
 
 /** The regions directly under `key` (`''` or null: the top regions), in the world's order. */
 export const regionChildren = (regions, key) => (regions ?? []).filter((r) => (r.parent ?? '') === (key ?? ''));
-
-/** A frame (a box in map coordinates) as a rectangle in the projection's units. */
-export function frameRect(frame, proj) {
-  const x0 = proj.x(frame.west); const x1 = proj.x(frame.east);
-  const y0 = proj.y(frame.north); const y1 = proj.y(frame.south);
-  return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
-}
-
-/**
- * What is shown of `rect` at `zoom` (one of ZOOMS), around `centre` ([x, y] in the
- * projection's units; the frame's middle when null), never outside the frame.
- */
-export function viewWindow(rect, zoom = 1, centre = null) {
-  const z = ZOOMS.includes(zoom) ? zoom : 1;
-  const w = rect.w / z; const h = rect.h / z;
-  const [cx, cy] = centre ?? [rect.x + rect.w / 2, rect.y + rect.h / 2];
-  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
-  return { x: clamp(cx - w / 2, rect.x, rect.x + rect.w - w), y: clamp(cy - h / 2, rect.y, rect.y + rect.h - h), w, h };
-}
-
-/** Units of the drawing per CSS pixel, for a window drawn into `px` ({ width, height }) to fit. */
-export const unitsPerPx = (win, px) => Math.max(win.w / Math.max(px.width, 1), win.h / Math.max(px.height, 1));
-
-/** The zoom step nearest `zoom * ratio` (a pinch's spread over its start), by halvings. */
-export function pinchZoom(zoom, ratio) {
-  const want = Math.log2(Math.max(zoom * ratio, 1e-6));
-  return ZOOMS.reduce((best, z) => (Math.abs(Math.log2(z) - want) < Math.abs(Math.log2(best) - want) ? z : best), ZOOMS[0]);
-}
 
 /**
  * The labels to hide: `labels` ([{ key, x, y, text }], at their label points in the drawing's
@@ -684,21 +638,6 @@ export function formDestinations(lever, force) {
     else out.set(area, { value: c.value, place: area === c.value ? null : c.label, count: 1 });
   }
   return out;
-}
-
-/** Whether point `xy` (map file units) lies in area `key` of `shapes`: inside an odd number of its rings. */
-export function inArea(shapes, key, [x, y]) {
-  const rings = shapes?.areas?.[key]?.rings ?? [];
-  let inside = false;
-  for (const ring of rings) {
-    const pts = ring.map((i) => shapes.vertices[i]);
-    for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
-      const [xi, yi] = pts[i];
-      const [xj, yj] = pts[j];
-      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-    }
-  }
-  return inside;
 }
 
 /**

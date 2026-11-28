@@ -6,10 +6,18 @@
 # Lune Isles stand in the sound. The Salt Strait joins the outer sea to the sound.
 #
 # The world names its own terrain, resources and piece kinds. Two leaders are playable
-# (Varda, Ostrel); Kesh and the Lune Isles are run by code from their cards. Every rule the
-# 1941 world has is on (SSG), with yields, a trade line, groups at home, intelligence, a
-# pact, a conference, a contest and aims of its own; the three rules read by a live model
-# (`writing`, `clause_reader`, `written_orders`) stay off, as in every shipped world.
+# (Varda, Ostrel), and Varda's commodore under its First Minister; Kesh and the Lune Isles
+# are run by code from their cards. Every rule the 1941 world has is on (SSG), with yields,
+# a trade line, groups at home, intelligence, a pact, a conference, a contest and aims of
+# its own; and the commander's seat, locks, laws, deciders by kind of question, answers to
+# asks and the player's own aim (SSO); and prices on the Salt Assembly's blocs, classes for
+# happenings with one secret, the size of losses, and one weighted place a nation (SSH);
+# and an office for each head that says what it rests on and how its holder is removed, a
+# ladder and the acts each military post may attempt, and the Lune Moot's election (SSF);
+# and kinds of piece with figures of their own, weather by season, bases a nation's pieces
+# work from and a form to raise a new piece at them, with the three piece rules on (KSC).
+# The three rules read by a live model (`writing`,
+# `clause_reader`, `written_orders`) stay off, as in every shipped world.
 # `worlds/salt-strait.yaml` and `worlds/salt-strait-duo.yaml` are separate worlds and are
 # not read here. Every name and number is invented. [proposed]
 
@@ -19,7 +27,7 @@ ruleset: realism
 start: "The Salt Strait, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance, kinds_in_battle, weather, raising]
 
 entities:
   # polities
@@ -31,21 +39,26 @@ entities:
   # people: a leader and the aide every order and report passes through
   - {key: oren_vale, kind: person, name: Oren Vale, parent: varda}
   - {key: mira, kind: person, name: Mira Toll, parent: varda, tags: [chief_of_staff]}
+  - {key: brask, kind: person, name: Commodore Brask, parent: varda}
+  - {key: warden_pell, kind: person, name: Warden Pell, parent: varda}
   - {key: general_aske, kind: person, name: General Aske, parent: ostrel}
   - {key: sefa, kind: person, name: Sefa Marr, parent: ostrel, tags: [chief_of_staff]}
   - {key: abbess_ren, kind: person, name: Abbess Ren, parent: kesh}
   - {key: tam_orrin, kind: person, name: Tam Orrin, parent: kesh}
   - {key: admiral_quell, kind: person, name: Admiral Quell, parent: lune}
   - {key: ines_corr, kind: person, name: Ines Corr, parent: lune}
-  # places, `at` as [y, x] on the map's plane
-  - {key: kael, kind: location, name: Kael, at: [330, 80], within: ostrel_heartland, port_on: the_outer_sea}
-  - {key: harrow_fort, kind: location, name: The Harrow Fort, at: [340, 240], within: harrow_pass}
-  - {key: saltworks, kind: location, name: Varda Saltworks, at: [280, 340], within: varda_saltworks, port_on: the_strait}
-  - {key: esk_harbour, kind: location, name: Esk Harbour, at: [260, 470], within: varda_downs, port_on: the_lune_sound}
-  - {key: high_temple, kind: location, name: The High Temple, at: [60, 100], within: kesh_lowlands}
+  # places, `at` as [y, x] on the map's plane. A base serves its nation's pieces of the
+  # domains named, and a piece is raised at one (KSC). Each nation has a base within two
+  # steps of every area its pieces stood in before it had any, so none is left out of
+  # reach. [proposed]
+  - {key: kael, kind: location, name: Kael, at: [330, 80], within: ostrel_heartland, port_on: the_outer_sea, base: {sides: [ostrel], domains: [land, sea, air]}}
+  - {key: harrow_fort, kind: location, name: The Harrow Fort, at: [340, 240], within: harrow_pass, base: {sides: [ostrel], domains: [land]}}
+  - {key: saltworks, kind: location, name: Varda Saltworks, at: [280, 340], within: varda_saltworks, port_on: the_strait, base: {sides: [varda], domains: [land, sea, air]}}
+  - {key: esk_harbour, kind: location, name: Esk Harbour, at: [260, 470], within: varda_downs, port_on: the_lune_sound, base: {sides: [varda], domains: [land, sea, air]}}
+  - {key: high_temple, kind: location, name: The High Temple, at: [60, 100], within: kesh_lowlands, base: {sides: [kesh], domains: [land]}}
   - {key: kesh_quay, kind: location, name: Kesh Quay, at: [140, 320], within: kesh_shore, port_on: the_strait}
-  - {key: free_port, kind: location, name: The Free Port, at: [100, 520], within: free_harbours, port_on: the_lune_sound}
-  - {key: lune_haven, kind: location, name: Lune Haven, at: [186, 488], within: lune_isles, port_on: the_lune_sound}
+  - {key: free_port, kind: location, name: The Free Port, at: [100, 520], within: free_harbours, port_on: the_lune_sound, base: {sides: [lune], domains: [land, sea]}}
+  - {key: lune_haven, kind: location, name: Lune Haven, at: [186, 488], within: lune_isles, port_on: the_lune_sound, base: {sides: [lune], domains: [land, sea]}}
 
 # The board: a flat plane 600 by 400. A band of water runs west to east across the middle.
 map: {coords: flat, file: salt-strait-realism.json, sha256: ad79d2d8bb805dc87236875d31ed1c2537d8733296f11056d526ffe836645a33, box: [0, 0, 600, 400]}
@@ -110,11 +123,91 @@ resources:
 # observation balloon that searches the areas a step from it, so a reconnaissance flight has
 # a piece to fly. A galley on patrol searches its zone and those beside it. Search and
 # concealment figures are invented. [proposed]
+#
+# Each kind that fights has figures of its own, read with `kinds_in_battle` on (KSC): the
+# levy holds the crags, the lancers ride fast and strike hard but hold badly, a galley hits
+# harder than it holds, and a balloon corps never opens a fight. Lancers stand nowhere at
+# the start; a nation raises them. Each kind but the rider is raised at a base of its
+# domain, for salt and levies, in days. The pictures are from the fixed list; none is a
+# balloon, so the balloon corps is drawn by its domain. Every figure is invented. [proposed]
 piece_kinds:
-  - {key: levy, name: Levy, domain: land, days_per_step: {lowland: 4, heath: 5, crags: 9}}
-  - {key: galley, name: Galley, domain: sea, days_per_step: {narrows: 2, open_water: 3}, max_strength: 3, detect: 50}
-  - {key: balloon_corps, name: Balloon corps, domain: air, days_per_step: {lowland: 2, heath: 2, crags: 3, narrows: 2, open_water: 2}, range_steps: 1, detect: 50, max_strength: 2}
-  - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}}
+  - key: levy
+    name: Levy
+    domain: land
+    days_per_step: {lowland: 4, heath: 5, crags: 9}
+    on_terrain: {crags: {defence: 1}}
+    picture: infantry
+    cost: {output: 4, manpower: 3}
+    lead_days: 28
+    raised_at: land
+  - key: lancers
+    name: Lancers
+    domain: land
+    days_per_step: {lowland: 2, heath: 3, crags: 7}
+    detect: 30
+    attack: 4
+    defence: 2
+    against:
+      - {facing: levy, attack: 1, when: enemy_out_of_supply}
+    picture: cavalry
+    cost: {output: 3, manpower: 2}
+    lead_days: 14
+    raised_at: land
+  - key: galley
+    name: Galley
+    domain: sea
+    days_per_step: {narrows: 2, open_water: 3}
+    max_strength: 3
+    detect: 50
+    attack: 4
+    defence: 2
+    picture: battle_fleet
+    cost: {output: 5, manpower: 2}
+    lead_days: 28
+    raised_at: sea
+  - key: balloon_corps
+    name: Balloon corps
+    domain: air
+    days_per_step: {lowland: 2, heath: 2, crags: 3, narrows: 2, open_water: 2}
+    range_steps: 1
+    detect: 50
+    max_strength: 2
+    attack: 1
+    may_attack: false
+    cost: {output: 3, manpower: 1}
+    lead_days: 14
+    raised_at: air
+  - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}, picture: envoy}
+
+# The weather by region and month, read with `weather` on: the calendar's, never a draw, and
+# public (KSC). Fog lies on the waters in high summer, inside the season; gales close the
+# open water to galleys and ground the balloons in winter, and snow fills the crags.
+# Invented. [proposed]
+weather:
+  kinds:
+    - {key: fair, name: Fair}
+    - key: strait_fog
+      name: The Strait Fog
+      slows:
+        - {days: 1, pieces: [sea]}
+      figures:
+        - {pieces: [galley], attack: -1}
+    - key: winter_gales
+      name: Winter Gales
+      slows:
+        - {days: 2, pieces: [sea]}
+      grounds_air: true
+      closes:
+        - {pieces: [galley], terrain: [open_water]}
+    - key: hill_snow
+      name: Snow in the Hills
+      slows:
+        - {days: 3, terrain: [crags], pieces: [land]}
+      figures:
+        - {pieces: [lancers], attack: -1}
+  regions:
+    the_shores: {jan: hill_snow, feb: hill_snow, mar: fair, apr: fair, may: fair, jun: fair, jul: fair, aug: fair, sep: fair, oct: fair, nov: fair, dec: hill_snow}
+    the_waters: {jan: winter_gales, feb: winter_gales, mar: fair, apr: fair, may: fair, jun: strait_fog, jul: strait_fog, aug: fair, sep: fair, oct: fair, nov: winter_gales, dec: winter_gales}
 
 features:
   - {key: varda_levy, kind: piece, piece: levy, name: The Varda Levy, side: varda, tier: 2, places: [saltworks], source: salt_strait}
@@ -130,11 +223,58 @@ features:
   - {key: lune_galleys, kind: piece, piece: galley, name: The Lune Galleys, side: lune, tier: 2, places: [lune_haven], source: salt_strait}
   - {key: lune_levy, kind: piece, piece: levy, name: The Harbour Levy, side: lune, tier: 2, places: [free_port], source: salt_strait}
 
-# The playable leaders' offices: a person of the roster controls one (the character rule,
-# with contests on).
+# The offices: a person of the roster controls one (the character rule, with contests on).
+# Each head's office is his post (SSF), read with `posts` on: what it rests on and how its
+# holder is removed (`office`), one way a nation: Varda's First Minister by a vote of the
+# Salt Assembly, the Abbess by Tam Orrin, the Keeper of the Temple orders, the Lune Admiral
+# at the end of his term, on the day the Moot is elected, and Ostrel's Marshal never. A
+# military post names the lesser post its holder falls to, who may move him, and the acts
+# he may attempt without leave (`defiance`); nobody moves a head by order. [proposed]
 assets:
-  - {key: varda_first_ministry, kind: office, name: First Minister of Varda, tier: 3, controller: oren_vale}
-  - {key: ostrel_marshalcy, kind: office, name: Marshal of Ostrel, tier: 3, controller: general_aske}
+  - key: varda_first_ministry
+    kind: office
+    name: First Minister of Varda
+    tier: 3
+    controller: oren_vale
+    rests_on: [free_traders, salt_guilds]
+    removed_by: {by: vote, chamber: salt_assembly}
+  - key: ostrel_marshalcy
+    kind: office
+    name: Marshal of Ostrel
+    tier: 3
+    controller: general_aske
+    rests_on: [marshals_staff]
+    removed_by: {by: never}
+    ladder: [kael_garrison]
+    without_leave: [border, fire_first]
+  - key: kesh_high_pulpit
+    kind: office
+    name: Abbess of the High Pulpit
+    tier: 3
+    controller: abbess_ren
+    rests_on: [temple_orders]
+    removed_by: {by: person, person: tam_orrin}
+  - key: lune_admiralty
+    kind: office
+    name: Admiral of the Lune Isles
+    tier: 3
+    controller: admiral_quell
+    rests_on: [isle_captains, harbour_factors]
+    removed_by: {by: term, ends: 1900-06-25}
+    ladder: [free_port_watch]
+    without_leave: [fire_first]
+  - key: varda_galley_command
+    kind: office
+    name: Commodore of the Varda Galleys
+    tier: 2
+    controller: brask
+    ladder: [varda_harbour_watch]
+    moved_by: [varda_first_ministry]
+    without_leave: [fire_first]
+  # The lesser posts a dismissed commander falls to: nobody holds them at the start.
+  - {key: varda_harbour_watch, kind: office, name: Captain of the Esk Harbour Watch, tier: 1, controller: varda, location: esk_harbour}
+  - {key: kael_garrison, kind: office, name: Commander of the Kael Garrison, tier: 1, controller: ostrel, location: kael}
+  - {key: free_port_watch, kind: office, name: Captain of the Free Port Watch, tier: 1, controller: lune, location: free_port}
 
 # One trade line (SSG): Kesh sells fodder to Ostrel across the Outer Sea, a month. [proposed]
 trade_lines:
@@ -193,7 +333,43 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, territory_lost: -3, capital_threatened: -3}
+        moved_by: {battle_won: 2, battle_lost: -2, territory_lost: -3, capital_threatened: -3, battle_losses: -1}
+      # The Salt Assembly's two blocs, which pass Varda's laws (SSO). [proposed]
+      - key: free_traders
+        name: The Free Traders
+        kind: party
+        start: 60
+        baseline: 55
+        chamber: salt_assembly
+        seats: 60
+        feeds: {votes: 1}
+        vote_default: {salt_assembly: {voting: 50, yeas: 25}}
+        stances: {power: 1, money: -1}
+        # What the bloc asks for its votes, read with `offers` on (SSH): each met by an act
+        # of the First Minister's within the days after the measure passes. [proposed]
+        prices:
+          - key: open_strait_word
+            sentence: "The First Minister speaks for the open strait within fourteen days of the act."
+            condition: {check: ordered, person: oren_vale, effect: statement}
+            days: 14
+            points: 3
+            loss: 4
+      - key: old_families
+        name: The Old Families
+        kind: party
+        start: 30
+        baseline: 30
+        chamber: salt_assembly
+        seats: 40
+        feeds: {votes: 1}
+        stances: {limit: 2}
+        prices:
+          - key: galleys_home
+            sentence: "The First Minister sends the Varda Galleys to a port within ten days of the act."
+            condition: {check: ordered, person: oren_vale, effect: move_force}
+            days: 10
+            points: 2
+            loss: 5
     themes:
       - {key: the_open_strait, name: The open strait, moves: {salt_guilds: 2, downs_yeomanry: 1}}
       - {key: the_pass_held, name: Harrow Pass held, moves: {downs_yeomanry: 2, salt_guilds: -1}}
@@ -205,14 +381,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 2}
-        moved_by: {battle_won: 3, battle_lost: -3, territory_taken: 2, territory_lost: -2}
+        moved_by: {battle_won: 3, battle_lost: -3, territory_taken: 2, territory_lost: -2, battle_losses: -1}
       - key: kael_burghers
         name: The Kael burghers
         kind: townsmen
         start: 45
         baseline: 45
         feeds: {output: 1}
-        moved_by: {losses_at_sea: -2, war_declared: -2, agreement_broken: -1}
+        moved_by: {losses_at_sea: -2, war_declared: -2, agreement_broken: -1, battle_losses: -1}
     themes:
       - {key: the_march_south, name: The march south, moves: {marshals_staff: 2, kael_burghers: -1}}
       - {key: fodder_and_bread, name: Fodder and bread, moves: {kael_burghers: 2}}
@@ -231,7 +407,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, output: 1}
-        moved_by: {territory_lost: -2, battle_lost: -1}
+        moved_by: {territory_lost: -2, battle_lost: -1, battle_losses: -1}
     themes:
       - {key: the_pulpit_speaks, name: The pulpit speaks, moves: {temple_orders: 2, lowland_tithers: 1}}
   - nation: lune
@@ -242,7 +418,10 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2, battle_losses: -1}
+        # The Isle Moot's two blocs (SSF), redrawn by support at its election. [proposed]
+        chamber: isle_moot
+        seats: 30
       - key: harbour_factors
         name: The harbour factors
         kind: traders
@@ -250,8 +429,110 @@ groups:
         baseline: 50
         feeds: {output: 1}
         moved_by: {losses_at_sea: -3, agreement_broken: -2}
+        chamber: isle_moot
+        seats: 20
     themes:
       - {key: free_waters, name: Free waters, moves: {isle_captains: 1, harbour_factors: 2}}
+
+# How each kind of happening reaches the groups, read with `classes` on (SSH): felt,
+# reported or secret; a kind not listed is reported. A broken agreement between courts is
+# kept from the street, so it moves no group. [proposed]
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: war_declared, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: battle_losses, reach: reported, felt: 0.5}
+  - {kind: agreement_broken, reach: secret}
+
+# The Lune Isles elect their Moot inside the season (SSF), read with `elections` on: each
+# bloc's seats redrawn by its support, and the Admiral's term ends that day. Put to the
+# office question when the season opens, the post sits on the day; the Admiral is removed
+# while what it rests on stands under 50. [proposed]
+elections:
+  - {nation: lune, chambers: [isle_moot], day: 1900-06-25, post: lune_admiralty}
+
+# One place per nation with political weight, read with `places` on (SSH): the territory,
+# the nation it matters to, and the points each of that nation's groups moves when it is
+# lost after a fight. Abandoning it costs twice that; retaking it moves them back. [proposed]
+places:
+  - {territory: varda_saltworks, nation: varda, moves: {salt_guilds: -4, free_traders: -2}}
+  - {territory: harrow_pass, nation: ostrel, moves: {marshals_staff: -4, kael_burghers: -1}}
+  - {territory: kesh_lowlands, nation: kesh, moves: {temple_orders: -5, lowland_tithers: -2}}
+  - {territory: lune_isles, nation: lune, moves: {isle_captains: -4, harbour_factors: -3}}
+
+# The figures the rules write or read (SSO): the Salt Convoy Act's vote and its passing,
+# and Ostrel's war chest, a figure of Ostrel's own. [proposed]
+quantities:
+  - {key: salt_convoy_act_passed, owner: varda, name: Salt Convoy Act passed, unit: flag, computed: true, public: true}
+  - {key: salt_convoy_act_salt_assembly_yeas, owner: varda, name: Salt Assembly ayes on the Salt Convoy Act, unit: votes, computed: true, public: true}
+  - {key: salt_convoy_act_salt_assembly_nays, owner: varda, name: Salt Assembly noes on the Salt Convoy Act, unit: votes, computed: true, public: true}
+  - {key: ostrel_war_chest, owner: ostrel, name: Ostrel's war chest, value: 400, unit: loads, source: salt_strait}
+
+# Varda's own law (SSO), read with `laws` on: no code table knows its key, its clause or its
+# flag. Passed by the Salt Assembly, it arms the salt convoys. [proposed]
+laws:
+  - key: salt_convoy_act
+    title: The Salt Convoy Act
+    nation: varda
+    clauses:
+      - {kind: power, subject: arm the salt convoys}
+    passed: salt_convoy_act_passed
+    does: {kind: arms_merchant_ships}
+
+# Who allows what (SSO), each shape of decider once. The commodore's guard on the strait is
+# held until the First Minister sets it by his own watch order; his escort in the sound is
+# held while the Salt Convoy Act is not law, and the Salt Assembly decides. Sailing out to
+# the Outer Sea is a question of war for the Strait Council, two of three to agree; putting
+# in at Kesh Quay is a question of permission for the Abbess of Kesh. [proposed]
+locks:
+  - key: strait_guard
+    order: {form: galley_watch, params: {order: guard, zone: strait}}
+    when: {check: posture_not_set, form: set_watch, where: {zone: strait}, posture: {order: guard}}
+    decider: {person: oren_vale}
+  - key: sound_convoy_escort
+    order: {form: galley_watch, params: {order: escort, zone: sound}}
+    when: {check: law_not_in_force, clause: arm the salt convoys}
+    decider: {nation: varda, chambers: [salt_assembly], head: oren_vale}
+  - key: outer_sea_sortie
+    question: war
+    order: {form: sail, params: {to: the_outer_sea}}
+    decider: {council: {members: [oren_vale, mira, warden_pell], needed: 2, head: oren_vale}}
+  - key: kesh_quay_call
+    question: permission
+    order: {form: sail, params: {to: kesh_quay}}
+    decider: {person: abbess_ren}
+
+# The player's own aim (SSO), read with `own_aim` on: patterns a player may fill to replace
+# his card's replaceable aim, by kind of post. `$name` in a condition is a blank the
+# sentence names as `{name}`; `$nation` stands for the person's own nation. [proposed]
+aim_patterns:
+  - key: strait_hold_ground
+    posts: [head_of_government, military]
+    sentence: Hold {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_held}
+  - key: strait_take_ground
+    posts: [head_of_government, military]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+  - key: strait_keep_support
+    posts: [head_of_government]
+    sentence: Keep {group} at {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [55, 65, 75]}
+    government: false
+  - key: strait_keep_peace
+    posts: [head_of_government]
+    sentence: Stay at peace with {foe}.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
 
 sources:
   - key: salt_strait
@@ -278,6 +559,25 @@ pipelines:
     source: salt_strait
     steps:
       - {person: sefa, kind: clerical, days: 1}
+  # Varda's naval watch order crosses Mira Toll's desk, then the commodore's; the galleys'
+  # own orders pass his staff; a bill goes before the Salt Assembly (SSO). [proposed]
+  - key: strait_watch_order
+    name: A watch order for the strait
+    source: salt_strait
+    steps:
+      - {person: mira, kind: decision, days: 2, allowed: [pass, expedite, stall, amend, refuse]}
+      - {person: brask, kind: decision, days: 2, allowed: [pass, expedite, stall, refuse]}
+  - key: galley_staff
+    name: Through the galleys' staff
+    source: salt_strait
+    steps:
+      - {person: brask, kind: clerical, days: 1}
+  - key: assembly_bill
+    name: A bill before the Salt Assembly
+    source: salt_strait
+    steps:
+      - {person: mira, kind: decision, days: 3, allowed: [pass, expedite, stall, amend, refuse]}
+      - {person: oren_vale, kind: decision, days: 2, allowed: [pass, refuse]}
   - key: kesh_order
     name: An order through the Temple chancery
     source: salt_strait
@@ -292,6 +592,7 @@ pipelines:
 cards:
   - person: oren_vale
     office: First Minister of Varda
+    post: varda_first_ministry
     playable: true
     principals: [varda]
     authority:
@@ -303,6 +604,9 @@ cards:
       - name: public_word
         effects: [statement, measure]
         summary: "Speak to the nation and the strait."
+      - name: appointments  # [proposed]
+        effects: [appointment]
+        summary: "Appoint and relieve the commodore of the galleys."
     levers:
       - name: move_force
         pipeline: varda_order
@@ -318,6 +622,17 @@ cards:
         summary: "Send a herald with a declaration of war."
         params:
           - {name: target, kind: enum, choices: [ostrel], label: "On whom"}
+      # Read with `raising` on (KSC): a new piece of the kind at the base named. Only the
+      # land kinds: the rules find a galley or a balloon corps raised at a base out of
+      # supply, so the form offers neither. [proposed]
+      - name: raise_piece
+        pipeline: varda_order
+        resolver: economy
+        label: "Raise a piece"
+        summary: "Raise a new levy or lancers at one of Varda's bases, paid from salt and levies."
+        params:
+          - {name: kind, kind: enum, choices: [levy, lancers], label: "Kind", choice_labels: ["Levy", "Lancers"]}
+          - {name: place, kind: enum, choices: [saltworks, esk_harbour], label: "Where", choice_labels: ["Varda Saltworks", "Esk Harbour"]}
       - name: fly_balloon
         pipeline: varda_order
         resolver: intel
@@ -359,11 +674,42 @@ cards:
           - {name: intel, kind: enum, choices: [conceal]}
           - {name: piece, kind: enum, choices: [varda_levy, varda_galleys], label: "Which force"}
           - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden"}
+      # The First Minister's watch order: the galleys patrol their waters. It crosses Mira
+      # Toll's desk, then the commodore's; setting the guard on the strait opens the
+      # commodore's own (SSO).
+      - name: set_watch
+        pipeline: strait_watch_order
+        resolver: intel
+        label: "Set the galleys' watch"
+        summary: "Send the galleys to keep watch on the strait or over the salt convoys in the sound."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [varda_galleys], label: "Which galleys", choice_labels: ["The Varda Galleys"]}
+          - {name: order, kind: enum, choices: [guard, escort], label: "The watch", choice_labels: ["Guard the waters", "Watch over the salt convoys"]}
+          - {name: zone, kind: enum, choices: [strait, sound], label: "Where", choice_labels: ["The Salt Strait", "The Lune Sound"]}
+      - name: send_bill
+        pipeline: assembly_bill
+        resolver: votes
+        label: "Send a bill to the Salt Assembly"
+        summary: "Put a bill before the Salt Assembly."
+        params:
+          - {name: bill, kind: enum, choices: [salt_convoy_act], label: "Which bill", choice_labels: ["The Salt Convoy Act"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How soon"}
+      - name: move_galleys
+        pipeline: galley_staff
+        resolver: movement
+        label: "Send the galleys to a port"
+        summary: "Send the Varda Galleys to a port. The commodore's staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [varda_galleys], label: "Which galleys", choice_labels: ["The Varda Galleys"]}
+          - {name: to, kind: enum, choices: [esk_harbour, saltworks, free_port], label: "To", choice_labels: ["Esk Harbour", "Varda Saltworks", "The Free Port"]}
     inner_circle:
       - {person: mira, channel: in_person}
+      - {person: brask, channel: letter}
     feeds: [varda_muster]
-    pipelines: [varda_order]
+    pipelines: [varda_order, strait_watch_order, galley_staff, assembly_bill]
     horizon_days: 14
+    post_kind: head_of_government
     aims:
       - "Keep the Saltworks Coast and the Varda Downs in Varda's hands."
       - "Keep Varda's war economy at 50 or more."
@@ -376,6 +722,7 @@ cards:
       - {aim: 3, deadline: 1900-07-31, replaceable: true, rule: "Varda is not at war with Ostrel, and the Salt Guilds' support is 50 or more.", condition: {check: all_of, conditions: [{check: at_war, a: varda, b: ostrel, war: false}, {check: support_at, nation: varda, group: salt_guilds, op: ge, value: 50}]}}
   - person: general_aske
     office: Marshal of Ostrel
+    post: ostrel_marshalcy
     playable: true
     principals: [ostrel]
     authority:
@@ -448,6 +795,7 @@ cards:
     feeds: [ostrel_muster]
     pipelines: [ostrel_order]
     horizon_days: 14
+    post_kind: head_of_government
     aims:
       - "Take the Saltworks Coast and keep Harrow Pass."
       - "Win the mastery of the Salt Strait."
@@ -458,8 +806,70 @@ cards:
       - {aim: 1, deadline: 1900-07-31, rule: "Ostrel holds Harrow Pass and the Saltworks Coast.", condition: {check: all_of, conditions: [{check: holds_area, area: harrow_pass, holder: ostrel}, {check: holds_area, area: varda_saltworks, holder: ostrel}]}}
       - {aim: 2, deadline: 1900-07-31, rule: "Ostrel wins the contest for the mastery of the Salt Strait.", condition: {check: contest_won, contest: strait_mastery, side: ostrel}}
       - {aim: 3, deadline: 1900-07-31, replaceable: true, rule: "The Marshal's staff's support is 50 or more and Ostrel's war-economy figure is 40 or more.", condition: {check: all_of, conditions: [{check: support_at, nation: ostrel, group: marshals_staff, op: ge, value: 50}, {check: income_at, nation: ostrel, op: ge, value: 40}]}}
+  # Varda's second playable card (SSO): a military card under Mira Toll and so under the
+  # First Minister. His forms go through his own staff; the First Minister's watch order
+  # crosses his desk. Every line [proposed].
+  - person: brask
+    office: Commodore of the Varda Galleys
+    post: varda_galley_command
+    playable: true
+    path: military
+    principals: [mira]
+    inner_circle:
+      - {person: mira, channel: letter}
+      - {person: oren_vale, channel: letter}
+    pipelines: [strait_watch_order, galley_staff]
+    levers:
+      - name: galley_watch
+        pipeline: galley_staff
+        resolver: intel
+        label: "Give the galleys their watch"
+        summary: "Send the galleys to keep watch on the strait or over the salt convoys in the sound."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [varda_galleys], label: "Which galleys", choice_labels: ["The Varda Galleys"]}
+          - {name: order, kind: enum, choices: [guard, escort], label: "The watch", choice_labels: ["Guard the waters", "Watch over the salt convoys"]}
+          - {name: zone, kind: enum, choices: [strait, sound], label: "Where", choice_labels: ["The Salt Strait", "The Lune Sound"]}
+      - name: sail
+        pipeline: galley_staff
+        resolver: movement
+        label: "Sail the galleys"
+        summary: "Take the Varda Galleys to a port or out to sea."
+        params:
+          - {name: force, kind: enum, choices: [varda_galleys], label: "Which galleys", choice_labels: ["The Varda Galleys"]}
+          - {name: to, kind: enum, choices: [esk_harbour, saltworks, free_port, kesh_quay, the_outer_sea], label: "To", choice_labels: ["Esk Harbour", "Varda Saltworks", "The Free Port", "Kesh Quay", "The Outer Sea"]}
+    authority:
+      - name: the_galleys
+        effects: [move_force, engagement, investigate]
+        forces: [varda_galleys]
+        summary: "Command of the Varda Galleys: where they sail and how they keep the waters."
+    loyalty: 0
+    competence: 3
+    horizon_days: 7
+    aims:
+      - "Keep the Saltworks Coast in Varda's hands."
+      - "Win the galleys leave to escort the salt convoys."
+    aim_rules:
+      - {aim: 1, deadline: 1900-07-31, rule: "Varda holds the Saltworks Coast.", condition: {check: holds_area, area: varda_saltworks, holder: varda}}
+      - {aim: 2, deadline: 1900-07-31, replaceable: true, rule: "The Salt Convoy Act becomes law.", condition: {check: quantity_at, quantity: salt_convoy_act_passed, op: ge, value: 1}}
+  # Mira Toll and Warden Pell sit with the First Minister on the Strait Council (SSO); both
+  # are run by code from their cards. [proposed]
+  - person: mira
+    office: Chief of Staff to the First Minister
+    principals: [oren_vale]
+    inner_circle:
+      - {person: oren_vale, channel: in_person}
+    loyalty: 1
+    horizon_days: 14
+  - person: warden_pell
+    office: Warden of the Saltworks
+    principals: [varda]
+    inner_circle:
+      - {person: oren_vale, channel: letter}
+    horizon_days: 14
   - person: abbess_ren
     office: Abbess of the High Pulpit
+    post: kesh_high_pulpit
     principals: [kesh]
     levers:
       - name: move_force
@@ -476,6 +886,7 @@ cards:
     horizon_days: 14
   - person: admiral_quell
     office: Admiral of the Lune Isles
+    post: lune_admiralty
     principals: [lune]
     levers:
       - name: move_force
@@ -497,6 +908,9 @@ seats: []
 roster:
   - {entity: oren_vale, pitch: The First Minister who keeps the strait open and Varda's., reach: The Saltworks and the Varda galleys., composite: true}
   - {entity: general_aske, pitch: The Marshal who means to march through Harrow Pass., reach: The Ostrel levy and its galleys., composite: true}
+  - {entity: brask, pitch: The commodore who keeps the Varda galleys and wants leave to escort., reach: The Varda Galleys., composite: true}
+# The roster holds two to four people, not the drafted 8 to 12. [proposed]
+roster_limit: [2, 4]
 
 # The contest of the season (SSG): Varda and Ostrel over the strait, decided 120 days after
 # the start, on 31 July 1900. Each move is a step toward one side. [proposed]

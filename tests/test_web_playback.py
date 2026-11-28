@@ -10,7 +10,7 @@ like an ordered one. There is no new endpoint: the steps ride the ``catchup`` re
 The server cases play the territory toy (``tests/worlds/territory-toy.yaml``) with
 ``territories`` on, a field order on each card, a harbour count for Ilse every 13 days,
 and a scripted leg for the Norra Herald and one for the Sudland Levy. The fog case plays
-``autumn-1941`` with all nine playable leaders seated.
+``autumn-1941`` with every playable leader seated, up to the game's human seats.
 """
 
 import json
@@ -50,7 +50,7 @@ from tests.test_web_wake import begin, log_of, seat_of, state_of
 FIXTURES = Path(__file__).parents[1] / "web" / "test" / "fixtures"
 CLOSED = ("wake_committed", "wake_closed", "seat_handover", "by_aide", "timed_out", "aide")
 CAUSES = ("scripted", "ordered", "forced", "cause")
-KINDS = ("order", "move", "halt", "paper", "holder", "stake", "held")
+KINDS = ("order", "move", "halt", "paper", "holder", "stake", "held", "group", "count")
 World = dict[str, Any]
 
 
@@ -337,7 +337,7 @@ def test_steps_ride_the_catchup_page_and_no_playback_endpoint_answers(
     assert status != 200
 
 
-# --- The fog, over a whole game and all nine seats ----------------------------------------
+# --- The fog, over a whole game and every playable seat ----------------------------------
 
 AUTUMN = "autumn-1941"
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAW")
@@ -369,10 +369,21 @@ def held(state: State, events: list[ev.Event], seat: SeatId) -> dict[str, set[st
         "stake": {c.name for c in view.contests.values()}
         | {m.text for m in view.mandates.values()}
         | {g.text for g in view.goals.values()},
+        # HFR: only its own nation's groups, and the votes on its own orders.
+        "group": {g.key for own in view.groups.declared.values() for g in own},
+        "count": {str(o) for o in view.orders},
     }
 
 
-POINTS = {"paper": "paper", "order": "order", "move": "piece", "halt": "piece", "stake": "name"}
+POINTS = {
+    "paper": "paper",
+    "order": "order",
+    "move": "piece",
+    "halt": "piece",
+    "stake": "name",
+    "group": "group",
+    "count": "order_id",
+}
 
 
 def assert_fogged(state: State, events: list[ev.Event], seat: SeatId, last: int) -> int:
@@ -389,13 +400,14 @@ def assert_fogged(state: State, events: list[ev.Event], seat: SeatId, last: int)
     return n
 
 
-def test_no_seat_of_nine_gets_a_step_its_view_does_not_hold() -> None:
+def test_no_playable_seat_gets_a_step_its_view_does_not_hold() -> None:
     store = MemoryStore()
     decl = cmp.load_world(cmp.world_path(AUTUMN))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     state = load_state(store, CAMPAIGN)
     people = sorted(p for p, c in state.cards.items() if c.playable)
-    assert len(people) == 9
+    people = people[: state.settings.max_human_seats]
+    assert len(people) >= 2
     for person in people:
         name = state.entities[person].name
         session_zero.claim(store, CAMPAIGN, SeatId(derived_id(CAMPAIGN, "seat", person)), name)
@@ -403,7 +415,7 @@ def test_no_seat_of_nine_gets_a_step_its_view_does_not_hold() -> None:
     for _ in range(6):
         realism_tick.run_realism_tick(store, CAMPAIGN, prose=Templates())
     state, events = load_state(store, CAMPAIGN), list(store.read(CAMPAIGN))
-    assert len(state.seats) == 9
+    assert {s.embodies for s in state.seats.values()} >= set(people)
     counts = {seat: assert_fogged(state, events, seat, 99) for seat in state.seats}
     assert all(counts.values()), counts
     everything = [catchup.SeatEvent(wake=0, event=e) for e in events]
@@ -413,7 +425,9 @@ def test_no_seat_of_nine_gets_a_step_its_view_does_not_hold() -> None:
         for step in playback_steps(everything, state, seat).get(0, [])
         if step["kind"] == "paper" and step["paper"] not in held(state, events, seat)["paper"]
     ]
-    assert len(set(leaks)) == 9, "the check bites: the whole log would leak to every seat"
+    assert len(set(leaks)) == len(state.seats), (
+        "the check bites: the whole log would leak to every seat"
+    )
 
 
 def test_no_seat_of_the_toy_gets_a_step_its_view_does_not_hold(
@@ -548,7 +562,9 @@ def everything(store: MemoryStore) -> int:
     return state.wake.number
 
 
-FAILED = "Your held order failed: The Norra Levy is not in service until 1 January 1901."
+FAILED = (
+    "Your held order failed: The Norra Levy is not in service until 1 January 1901: as written."
+)
 
 
 def test_a_held_order_whose_re_check_fails_is_told_to_its_seat_with_the_reason(

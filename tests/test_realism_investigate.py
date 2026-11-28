@@ -10,6 +10,7 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism.apply import apply_due, reporter
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import DocumentKind
+from revisionist.core.state import Rule
 from revisionist.core.visibility import private_to
 from revisionist.core.world import ContactDecl, WorldFile
 from revisionist.core.world_compile import WorldError, compile_world
@@ -109,9 +110,14 @@ def _world_with(key: str, **changes: object) -> WorldFile:
 
 def test_a_world_refuses_a_leader_with_no_one_to_sign_his_inquiries() -> None:
     world = _world_with("stalin", inner_circle=())
+    by_hand = world.model_copy(
+        update={"rules": tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)}
+    )
     with pytest.raises(
         WorldError, match="card stalin: has authority but no inner circle to sign its reports"
     ):
+        compile_world(by_hand, CAMPAIGN, cmp.versions())
+    with pytest.raises(WorldError, match=r"stalin: on the roster, .* no one in its inner circle"):
         compile_world(world, CAMPAIGN, cmp.versions())
 
 
@@ -119,9 +125,14 @@ def test_a_world_refuses_a_leader_who_is_his_own_aide() -> None:
     world = _world_with(
         "stalin", inner_circle=(ContactDecl(person="stalin", channel=ChannelKind.IN_PERSON),)
     )
+    by_hand = world.model_copy(
+        update={"rules": tuple(r for r in world.rules if r != Rule.PLAYABLE_RULE)}
+    )
     with pytest.raises(
         WorldError, match="card stalin: has authority but no inner circle to sign its reports"
     ):
+        compile_world(by_hand, CAMPAIGN, cmp.versions())
+    with pytest.raises(WorldError, match=r"stalin: on the roster, .* no one in its inner circle"):
         compile_world(world, CAMPAIGN, cmp.versions())
 
 

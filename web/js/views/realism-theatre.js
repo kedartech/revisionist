@@ -15,10 +15,13 @@ import { daysLabel, liftLabel, liftNote, standardForm, tierLabel } from './reali
 import { mapDrawing, mapView } from './realism-map.js';
 import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './realism-battle.js';
 import { oddsAsker } from './realism-odds.js';
+import { figuresThere } from './realism-piece.js';
+import { raiseEntries, raiseSheet } from './realism-raise.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
 import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
 import { diplomacyKey } from './realism-diplomacy.js';
+import { capitalAt, ownCapital } from './realism-capital.js';
 
 const LAND_URL = '/assets/land-110m.json';
 let coast = null;
@@ -44,11 +47,25 @@ const asking = new Map();
 export const shapesFor = (file) => shapesBy.get(file?.sha256) ?? null;
 
 /**
- * Fetch the shapes for `file` once: a promise while one is out, null once they are here or
- * when there is no file. A refusal or a reply for another hash keeps none (the next draw asks
- * again); a reply that fails to arrive is asked for again on the next draw too.
+ * The map object for `hash`, fetched by its hash so the service worker can keep it, as a `map`
+ * reply; null when the server does not give it.
  */
-export function loadShapes(file, ask = api.map) {
+async function byHash(hash) {
+  if (!/^[0-9a-f]{64}$/.test(hash)) return null;
+  const res = await fetch(`/maps/${hash}.json`, { credentials: 'same-origin' });
+  const map = res.ok ? await res.json() : null;
+  return map?.areas && typeof map.areas === 'object' ? { refused: false, file: { sha256: hash }, map } : null;
+}
+
+const byHashOrAction = async (hash) => (await byHash(hash).catch(() => null)) ?? api.map();
+
+/**
+ * Fetch the shapes for `file` once: a promise while one is out, null once they are here or
+ * when there is no file. They are asked for by their hash, and of the `map` action when the
+ * server does not give them so. A refusal or a reply for another hash keeps none (the next draw
+ * asks again); a reply that fails to arrive is asked for again on the next draw too.
+ */
+export function loadShapes(file, ask = () => byHashOrAction(file.sha256)) {
   const hash = file?.sha256;
   if (!hash || shapesBy.has(hash)) return null;
   if (asking.has(hash)) return asking.get(hash);
@@ -63,6 +80,12 @@ export function loadShapes(file, ask = api.map) {
 
 /** Forget every fetched shape (tests). */
 export function forgetShapes() { shapesBy.clear(); asking.clear(); }
+
+// the hooks each drawn theatre was handed by its room
+const hooksOf = new WeakMap();
+
+/** The room's hooks a drawn theatre view was given (`overlay`, `onFull`), or null for any other element. */
+export const hooksFor = (view) => (view ? hooksOf.get(view) ?? null : null);
 
 /**
  * What a pick on capital `c` opens: its leader's figure card from the People roster's line,
@@ -99,7 +122,7 @@ function movingForms(rv, piece, act, onPlaces) {
   const items = forms.map(({ lever, force }, n) => {
     const item = standardForm(lever, {
       force, onSubmit: (v) => act?.('Sending it…', 'lever', v), entities: [], onPlaces: (s) => onPlaces(n, s),
-      check: formCheck(rv), onAsk: (v) => act?.(ASKING, 'lever-ask', v),
+      check: formCheck(rv), onAsk: (v) => act?.(ASKING, 'lever-ask', v), onAnyway: (v) => act?.(ANYWAY_BUSY, 'lever-anyway', v),
     });
     item.querySelector('.rl-instrument-head [aria-expanded="false"]')?.click();
     return item;
@@ -136,6 +159,7 @@ function litPlaces(map, s, from) {
 
 /** The busy line while a locked order is filed and asked for. */
 const ASKING = 'Filing it and asking…';
+const ANYWAY_BUSY = 'Sending it anyway…';
 
 /** The order a picked piece's move files: the form, the force and the move's destination. */
 export const moveOrder = (p, mv) => ({ lever: p.lever.name, params: { force: p.force, to: mv.to.value } });
@@ -208,9 +232,11 @@ function thereBlock(p, enemies) {
 /**
  * The confirm chip for picked piece `p` sent to `mv`: the days, the arrival day, the first
  * carrier and their load, the lift; a reported enemy there beside the seat's own piece. Send it
- * files the order; Odds opens the odds panel, which files nothing; Back (or Escape) closes it.
+ * files the order; a move the check locks offers file it to be held (`send`), ask (`ask`) and,
+ * where the check prices it, send it anyway (`anyway`); Odds opens the odds panel, which files
+ * nothing; Back (or Escape) closes it.
  */
-function confirmChip(rv, p, mv, shapes, { send, ask, back }) {
+function confirmChip(rv, p, mv, shapes, { send, ask, anyway = null, back }) {
   const path = rv.court?.paths?.find((c) => c.id === p.lever.pipeline) ?? null;
   const due = arrival(rv.clock.world_date, path?.steps ?? null, mv.days);
   const esc = { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } } };
@@ -222,12 +248,13 @@ function confirmChip(rv, p, mv, shapes, { send, ask, back }) {
     h('h3', { class: 'rl-pup-h' }, `Send ${p.mark.name} to ${mv.area.name}`),
     h('p', { class: 'rl-pup-days' }, `${daysLabel(mv.days)} on the move: ${mv.path.map((a, i) => `${a.name}, ${daysLabel(mv.step_days[i])}`).join('; ')}`),
     h('p', { class: 'rl-pup-arrives' }, `Arrives ${shortDate(due.on)}${due.earliest ? ' at the earliest' : ''}`),
+    figuresThere(p.mark, mv),
     placeLine(mv),
     carrierLines(path, rv.court).map((line) => h('p', { class: 'rl-pup-carrier' }, line)),
     h('p', { class: 'rl-pup-lift' }, mv.lift ? liftWords(mv.lift) : 'No lift needed'),
     thereBlock(p, reportedEnemies(rv.map, shapes, mv.area.key, standings(rv))),
     // a move the server's check locks: file it to be held, or ask, in place of Send it (LKM)
-    locked ? lockedChoice(locked, { file: send, ask, esc }) : null,
+    locked ? lockedChoice(locked, { file: send, ask, send: anyway, esc }) : null,
     h('div', { class: 'rl-pup-acts' },
       locked ? null : h('button', { type: 'button', class: 'primary', onclick: send, ...esc }, 'Send it'),
       odds.button,
@@ -272,18 +299,54 @@ function ghostList(waits, act) {
       }, 'Withdraw')))));
 }
 
+/** What the seat's own capital is called on its pin `[proposed]`. */
+export const OWN_CAPITAL_WORD = 'Your capital';
+
 /**
- * `theatreBoard(rv, ui, { pick, act, open })`: the map for the board's main area. A mark picked on
+ * The map with the seat's own capital among the leaders' capitals, where the server places it,
+ * so the seat can pick it; the map as it came when the server places none or the map holds no
+ * leader's capital.
+ */
+export function withOwnCapital(rv, map) {
+  const own = ownCapital(rv);
+  // it joins the leaders' capitals on the Diplomatic layer; with none of theirs there is no such layer to join
+  if (!own?.place || !(map.capitals ?? []).length || map.capitals.some((c) => c.place.name === own.place.name)) return map;
+  return { ...map, capitals: [...(map.capitals ?? []), { place: own.place, name: own.nation.name, stance: { word: OWN_CAPITAL_WORD }, at_war: false }] };
+}
+
+/**
+ * What picking a capital does: the nation the server names at that place opens, through
+ * `onCapital(line)` (the seat's own its Capital board, another nation's its public lines); a
+ * capital the server names no nation for opens its leader's card.
+ */
+function capitalPick(rv, onCapital) {
+  const card = capitalOpener(rv.people);
+  return (c) => {
+    const line = onCapital ? capitalAt(rv, c.place) : null;
+    return line ? () => onCapital(line) : card(c);
+  };
+}
+
+/** Whether the next drawing puts focus on the raising sheet: set when "Raise a piece here" opens it. */
+let raiseFocus = false;
+
+/**
+ * `theatreBoard(rv, ui, { pick, act, open, onCapital })`: the map for the board's main area. A mark picked on
  * the map or found from the list is `pick({ piece: { kind: 'force', name } })`; the Map or
  * List, the scope and the layer switches are `pick({ theatre })`, and so are a picked report
  * (`theatre.report`), the threats switch (`theatre.threats`) and an intelligence token picked up
  * and put down (`theatre.token`, `theatre.tokenAt`), an open battle (`theatre.battle`) and a fall-back
  * area being picked for a battle or a standing order (`theatre.battlePick`). A report's paper, and a
- * battle known only from the press, opens with `open({ id })`.
+ * battle known only from the press, opens with `open({ id })`. Given `onCapital`, the
+ * seat's own capital joins the leaders' and a capital picked is `onCapital(line)` with the
+ * server's line for its nation.
  * The piece's details are in the board's side panel, so the map view's own detail block is left out.
+ * `hooks` are the room's for the map, handed to the map's own options as they are: `overlay`
+ * (true in the map-first room: the map draws its controls over itself) and `onFull(on)` (the map
+ * asks the room for the whole viewport). `hooksFor(view)` reads them back from the drawn view.
  */
-export function theatreBoard(rv, ui, { pick, act, open } = {}) {
-  const map = rv.map;
+export function theatreBoard(rv, ui, { pick, act, open, onCapital, hooks = {} } = {}) {
+  const map = rv.map && onCapital ? withOwnCapital(rv, rv.map) : rv.map;
   if (!map) {
     return h('section', { class: 'rl-map rl-theatre' },
       h('h2', {}, 'Map'), h('p', { class: 'muted' }, 'No page has placed anything yet.'));
@@ -304,9 +367,10 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
   const forms = theatre.layer === 'diplomatic' ? null : movingForms(rv, ui.piece, act, onPlaces);
   const opts = {
     ...theatre,
+    ...hooks,
     theatres: true,
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
-    openCapital: capitalOpener(rv.people),
+    openCapital: capitalPick(rv, onCapital),
     standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
     diplomacy: () => diplomacyKey(rv), // the Diplomatic layer's key, drawn under the map on that layer
     held: locksOn(rv) ? (m) => heldOn(rv, m) : null, // the seat's held orders on each of its pieces, as the server names them (LKM)
@@ -318,6 +382,11 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     today: rv.clock?.world_date ?? null,
     onReport: (report, mode) => pick?.({ theatre: { ...theatre, report, ...(mode ? { mode } : {}) } }),
     onThreats: (threats) => pick?.({ theatre: { ...theatre, threats } }),
+    raisings: rv.economy?.own?.raising ?? [], // the nation's pieces being raised, each drawn at its place
+    onWeather: (weatherAt) => pick?.({ theatre: { ...theatre, weatherAt } }),
+    onRaising: (raiseAt) => pick?.({ theatre: { ...theatre, raiseAt } }),
+    // a place of the seat's own in an area that can raise: "Raise a piece here" in the area's sheet
+    areaMore: (key) => raiseEntries(rv, key, (p) => { raiseFocus = true; pick?.({ theatre: { ...theatre, area: null, raisePlace: { place: p.place } } }); }),
     onOpen: (p) => open?.(p),
     battles: battleMarksOf(rv),
     battle: theatre.battle ?? null,
@@ -374,6 +443,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     chipBox.replaceChildren(mv && shapes ? confirmChip(rv, piece, mv, shapes, {
       send: () => act?.('Sending it…', 'lever', moveOrder(piece, mv), sent),
       ask: () => act?.(ASKING, 'lever-ask', moveOrder(piece, mv), sent),
+      anyway: () => act?.(ANYWAY_BUSY, 'lever-anyway', moveOrder(piece, mv), sent),
       back: () => setGoal(null, mv.area.key),
     }) : '');
   };
@@ -414,19 +484,28 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     });
   }
   const drawing = territorial
-    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
+    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
     : () => mapDrawing(map, coast, { ...opts, scope: theatre.scope ?? 'reports', targets: lit() });
   const view = territorial
-    ? territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() })
+    ? territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() })
     : mapView(map, coast, { ...opts, targets: lit() });
   view.classList.add('rl-theatre');
+  hooksOf.set(view, hooks);
   view.querySelector('.rl-map-detail')?.remove();
   const ghosts = ghostList(waits, act);
   const bar = tokenBar(tokens, token?.id ?? null, (id) => pick?.({ theatre: { ...theatre, token: id, tokenAt: null } }));
   const battle = territorial && theatre.battle ? battleSheet(rv, theatre.battle, {
     act, pick, theatre, onClose: () => pick?.({ theatre: { ...theatre, battle: null, battlePick: null } }),
   }) : null;
-  const below = [forms, bar, chipBox, battle, ghosts].filter(Boolean);
+  // the kinds a place can raise, as tiles, with the confirm for the one chosen
+  const raise = territorial && theatre.raisePlace ? raiseSheet(rv, theatre.raisePlace, {
+    act, onClose: () => pick?.({ theatre: { ...theatre, raisePlace: null } }),
+  }) : null;
+  if (raise && raiseFocus) {
+    raiseFocus = false;
+    queueMicrotask(() => raise.querySelector('h3')?.focus?.());
+  }
+  const below = [forms, bar, chipBox, battle, raise, ghosts].filter(Boolean);
   const fig0 = view.querySelector('figure.rl-map-figure');
   if (fig0) fig0.after(...below);
   else view.append(...below);
@@ -449,13 +528,20 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     }
   };
   if (territorial) {
+    // land not in play: the coastline is fetched only for a map that has a backdrop to draw it under
+    const landless = (shapes) => shapes?.coords === 'lonlat' && (shapes.backdrop ?? []).length > 0 && !coast;
+    const landAfter = () => landless(shapesFor(map.file)) && loadLand()?.then(() => {
+      if (coast && view.isConnected) redraw();
+    });
+    landAfter();
     if (!shapesFor(map.file) && theatre.mode !== 'list') {
       loadShapes(map.file)?.then(() => {
         if (!shapesFor(map.file) || !view.isConnected) return;
-        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() });
+        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() });
         view.replaceChildren(...fresh.childNodes);
         view.querySelector('figure.rl-map-figure')?.after(...below);
         showChip();
+        landAfter();
       });
     }
     return view;

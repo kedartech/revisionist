@@ -1,10 +1,16 @@
 """1941 pacts, capitals, envoys and the two conferences (PCW).
 
-Autumn 1941 switches on ``agreements`` and ``conference``. It carries three pacts in force on
-the start date, each cited; a capital for each nation; two envoys with scripted missions as
-``legs``, each cited; and two scheduled conferences whose sourced last day is the voting day,
-called ``CONF_DAYS`` earlier. A source line is a comment, ``# source: <key>``, on the line it
+Autumn 1941 switches on ``agreements`` and ``conference``. It carries four pacts in force on
+the start date, each cited (the fourth, Mongolia's with the Soviet Union, came with the new
+lands); a capital for each nation; two envoys with scripted missions as ``legs``, each cited;
+and two scheduled conferences whose sourced last day is the voting day, called ``CONF_DAYS``
+earlier. A source line is a comment, ``# source: <key>``, on the line it
 cites where the declaration has no citation field of its own (a leg).
+
+With ``peace`` on (PED), each of the eight nations with a seat has one row of the kind peace
+naming who allows it to accept a peace, someone with a card, and the Anglo-Soviet agreement
+bars each party a separate peace with Germany. With ``peace`` out of a copy's rules the
+scripted run's digest is the third run's baseline.
 """
 
 import re
@@ -18,15 +24,18 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import FeatureId, derived_id
-from revisionist.core.realism import territory
+from revisionist.core.realism import locks, territory
 from revisionist.core.realism.conference import CONF_DAYS
 from revisionist.core.realism.effect import ClauseType
+from revisionist.core.realism.locks import Question
 from revisionist.core.state import Rule
-from revisionist.core.world import ConferenceDecl, PactDecl
+from revisionist.core.world import ConferenceDecl, LockDeciderDecl, LockDecl, PactDecl, WorldFile
 from revisionist.core.world_compile import WorldError, compile_world, object_id
 from revisionist.engine import campaign as cmp
+from tests import test_world_locks_1941 as locks_1941
 from tests.test_adjacency_moves import entity
 from tests.test_conference import Game
+from tests.test_rule_names import SHIPPED_1941
 from tests.test_territory_model import CAMPAIGN
 
 WORLD = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
@@ -59,12 +68,13 @@ def test_the_world_switches_on_agreements_and_conference() -> None:
 # --- pacts ------------------------------------------------------------------------------
 
 
-def test_three_pacts_each_between_named_nations_with_a_source() -> None:
+def test_four_pacts_each_between_named_nations_with_a_source() -> None:
     found = pacts()
     assert {k: (tuple(p["parties"]), p["public"]) for k, p in found.items()} == {
         "tripartite_pact": (("japan", "germany", "italy"), True),
         "anglo_soviet_agreement": (("uk", "ussr"), True),
         "soviet_japanese_neutrality": (("ussr", "japan"), True),
+        "soviet_mongolian_protocol": (("ussr", "mongolia_state"), True),
     }
     for key, p in found.items():
         assert p["source"] in sources(), key
@@ -82,12 +92,12 @@ def test_the_tripartite_pact_defends_each_party_against_a_new_attacker() -> None
     assert all(c["days"] > 0 for c in clauses)
 
 
-def test_the_anglo_soviet_agreement_is_wording_the_rules_do_not_judge() -> None:
+def test_the_anglo_soviet_agreement_bars_each_a_separate_peace_with_germany() -> None:
     clauses = pacts()["anglo_soviet_agreement"]["clauses"]
-    assert {c["binds"] for c in clauses} == {"uk", "ussr"}
-    for c in clauses:
-        assert c["type"] == "unchecked"
-        assert "peace" in c["text"]
+    assert {(c["type"], c["binds"], c["nation"]) for c in clauses} == {
+        ("no_separate_peace", "uk", "germany"),
+        ("no_separate_peace", "ussr", "germany"),
+    }
 
 
 def test_the_soviet_japanese_pact_forbids_an_attack_either_way() -> None:
@@ -110,6 +120,70 @@ def test_the_pacts_are_agreements_in_force_on_the_first_day() -> None:
             c["type"] == "unchecked" for c in p["clauses"]
         ]
     assert state.agreements.offers == {}
+
+
+# --- peace: who may accept one, and the pact it breaks ----------------------------------
+
+
+def test_the_world_switches_on_peace() -> None:
+    assert Rule.PEACE in cmp.load_world(WORLD).rules
+
+
+def peace_rows(world: WorldFile) -> list[LockDecl]:
+    return [r for r in world.locks if r.question == Question.PEACE.value]
+
+
+def uncarded(world: WorldFile) -> list[str]:
+    """The peace rows whose decider, or a member or head of whose council, has no card."""
+    carded = {c.person for c in world.cards}
+    out = []
+    for row in peace_rows(world):
+        d = row.decider
+        who = {
+            d.person,
+            d.head,
+            *(d.council.members if d.council else ()),
+            *((d.council.head,) if d.council else ()),
+        } - {None}
+        if not who or not who <= carded:
+            out.append(row.key)
+    return out
+
+
+def test_each_nation_with_a_seat_has_one_peace_row_decided_by_someone_with_a_card() -> None:
+    w = cmp.load_world(WORLD)
+    state = replay(compile_world(w, CAMPAIGN, cmp.versions()))
+    seated = {territory.nation(state, entity(c.person)) for c in w.cards if c.playable}
+    assert seated == {entity(k) for k in (*SEVEN, "finland_state")}
+    for nation in seated:
+        assert nation is not None
+        rows = locks.rows_on(state, nation, Question.PEACE)
+        assert len(rows) == 1, nation
+        assert rows[0].order is None and rows[0].when is None, nation
+    assert len(peace_rows(w)) == len(seated)
+    assert uncarded(w) == []
+
+
+def test_a_peace_row_whose_decider_has_no_card_is_caught() -> None:
+    w = cmp.load_world(WORLD)
+    carded = {c.person for c in w.cards}
+    nobody = next(e.key for e in w.entities if e.kind == "person" and e.key not in carded)
+    rows = tuple(
+        r.model_copy(update={"decider": LockDeciderDecl(person=nobody)})
+        if r.key == "italy_peace"
+        else r
+        for r in w.locks
+    )
+    assert uncarded(w.model_copy(update={"locks": rows})) == ["italy_peace"]
+
+
+def test_with_peace_out_of_a_copys_rules_the_scripted_digest_is_the_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    w = locks_1941._world()
+    off = w.model_copy(update={"rules": tuple(r for r in w.rules if r != Rule.PEACE.value)})
+    assert Rule.PEACE.value not in off.rules
+    assert locks_1941.run_digest(off, monkeypatch) == SHIPPED_1941
 
 
 # --- capitals ---------------------------------------------------------------------------

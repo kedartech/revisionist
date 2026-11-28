@@ -1,0 +1,359 @@
+# The 1941 map, seventh region: Africa and Arabia. Built by scripts/map_build.py together with the
+# earlier regions (see worlds/maps/README.md); the provinces are Natural Earth 1:10m admin-1 codes
+# (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and names, which
+# provinces make each territory, the cut line and every terrain. The list is the regions draft's
+# (seventeen core territories at its grain and five small pieces the holders of 1 September 1941 set
+# apart: Spanish Sahara with the Canaries, Liberia, Portuguese Guinea with Cape Verde, Spanish Guinea,
+# and the Azores with Madeira).
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml worlds/maps/src/autumn-1941-globe/pacific.yaml \
+#     worlds/maps/src/autumn-1941-globe/americas.yaml worlds/maps/src/autumn-1941-globe/africa.yaml \
+#     --slug autumn-1941-globe
+#
+# What it claims. Africa south of the Mediterranean region's French North Africa, Libya and Egypt;
+# Arabia south of Iraq and the Levant, with Aden, the Gulf sheikhdoms and Oman; the islands of the
+# Gulf of Guinea, Cape Verde, the Canaries, the Azores and Madeira; Madagascar with the Comoros,
+# Reunion and Mayotte; the Seychelles and Mauritius with British East Africa. The Mediterranean
+# region's territories are not touched; each border this region shares with one of them is that
+# territory's own line. Saint Helena, Ascension, Tristan da Cunha, Gibraltar, Ceuta, Melilla and the
+# French southern islands (Kerguelen, Crozet, Saint-Paul, the Iles Eparses) stay unclaimed: the regions
+# draft lists none of them as a territory; they are left for the sea-zone and whole-globe items.
+#
+# Cut lines. One: the Gondar pocket, cut from Ethiopia's Amhara unit (below). The line between French
+# West and French Equatorial Africa (the French State against Free France) is the present Niger-Chad
+# line and needs no cut. Yemen's units are split between Arabia and Aden along their own lines, which
+# approximate the 1934 Anglo-Yemeni line; Al Bayda' and Al Dali' straddle it, a gap.
+#
+# One area, several holders. French Equatorial Africa takes French Cameroon and the British
+# Cameroons; British West Africa three British colonies and a mandate; Arabia takes the Kingdom of
+# Yemen with Saudi Arabia; Aden takes the Aden protectorates, Muscat and Oman, the Trucial States,
+# Qatar, Bahrain and Kuwait; British East Africa takes Kenya, Uganda and Tanganyika with the
+# Seychelles and Mauritius. Each has one holder in start.yaml, a gap, as the draft gives it.
+#
+# What is listed and not drawn. Kufra, taken by the Free French on 1 March 1941, lies in the existing
+# Cyrenaica (Italy's); Ifni lies in the existing French North Africa (Morocco's Guelmim unit); the
+# Spanish zone of Morocco and Tangier lie in French North Africa too. None is changed here.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: africa, name: Africa and Arabia}
+territories:
+  - key: french_west_africa
+    name: French West Africa
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Sahel, the Sahara's southern edge and the Guinea coast; no source cited"
+    sites: [dakar, bamako]
+    provinces: [
+      BEN-2169, BEN-2170, BEN-2171, BEN-2174, BEN-2175, BEN-2176, BEN-2177, BEN-2178, BEN-2179,
+      BEN-2180, BEN-2181, BEN-2182, BFA-2183, BFA-2184, BFA-2799, BFA-2800, BFA-2801, BFA-2802,
+      BFA-2803, BFA-2804, BFA-2805, BFA-2806, BFA-2807, BFA-2808, BFA-2811, BFA-2812, BFA-2813,
+      BFA-2814, BFA-2815, BFA-2816, BFA-2817, BFA-2818, BFA-2819, BFA-2820, BFA-2821, BFA-2822,
+      BFA-2823, BFA-2824, BFA-2825, BFA-2826, BFA-2827, BFA-2828, BFA-2829, BFA-2830, BFA-2831,
+      BFA-2832, BFA-2833, BFA-2834, BFA-2835, BFA-2836, BFA-2837, BFA-2874, BFA-2875, BFA-2876,
+      BFA-2877, BFA-2878, BFA-5989, CIV-3431, CIV-3437, CIV-3440, CIV-3441, CIV-3443, CIV-3444,
+      CIV-3445, CIV-3446, CIV-3447, CIV-3448, CIV-3449, CIV-3450, CIV-3451, CIV-3452, CIV-3458,
+      CIV-3459, CIV-3460, CIV-3461, CIV-3462, GIN-5627, GIN-5628, GIN-5629, GIN-5630, GIN-5631,
+      GIN-5632, GIN-5633, GIN-5634, GIN-5635, GIN-5636, GIN-5637, GIN-5638, GIN-5639, GIN-5640,
+      GIN-5641, GIN-5642, GIN-5643, GIN-5644, GIN-5645, GIN-5646, GIN-5647, GIN-5648, GIN-5649,
+      GIN-5650, GIN-5651, GIN-5652, GIN-5653, GIN-5654, GIN-5655, GIN-5656, GIN-5657, GIN-5658,
+      GIN-5659, GIN-5660, MLI-2688, MLI-2689, MLI-2690, MLI-2792, MLI-2793, MLI-2794, MLI-2809,
+      MLI-2810, MLI-4860, MRT-2783, MRT-2784, MRT-2785, MRT-2786, MRT-2787, MRT-2788, MRT-2789,
+      MRT-2790, MRT-2791, MRT-2795, MRT-2796, MRT-2797, MRT-2798, NER-4859, NER-796, NER-800,
+      NER-91, NER-92, NER-93, NER-94, NER-95, SEN-5514, SEN-5515, SEN-5516, SEN-5517, SEN-759,
+      SEN-763, SEN-764, SEN-765, SEN-766, SEN-767, SEN-768, SEN-774, SEN-775, SEN-779, TGO-86,
+      TGO-87, TGO-88, TGO-89, TGO-90
+    ]
+  - key: british_west_africa
+    name: British West Africa
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Guinea coast's forest and the savanna of the north; no source cited"
+    sites: [freetown, lagos, takoradi]
+    provinces: [
+      GHA-2155, GHA-2156, GHA-2157, GHA-2158, GHA-2159, GHA-2160, GHA-2161, GHA-2162, GHA-2172,
+      GHA-2173, GMB-2151, GMB-2152, GMB-2153, GMB-2154, GMB-5512, GMB-5513, NGA-2839, NGA-2841,
+      NGA-2842, NGA-2843, NGA-2844, NGA-2845, NGA-2846, NGA-2847, NGA-2848, NGA-2849, NGA-2850,
+      NGA-2851, NGA-2852, NGA-2853, NGA-2854, NGA-2855, NGA-2856, NGA-2857, NGA-2858, NGA-2859,
+      NGA-2860, NGA-2861, NGA-2862, NGA-2863, NGA-2864, NGA-2865, NGA-2866, NGA-2867, NGA-2868,
+      NGA-2869, NGA-2870, NGA-2871, NGA-2872, NGA-2873, NGA-2879, NGA-2881, NGA-3470, SLE-760,
+      SLE-761, SLE-762, SLE-790, SHN-4863
+    ]
+  - key: french_equatorial_africa
+    name: French Equatorial Africa and the Cameroons
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Chad basin, the savanna and the Congo forest; no source cited"
+    sites: [brazzaville, fort_lamy]
+    provinces: [
+      CAF-1460, CAF-4856, CAF-794, CAF-795, CAF-801, CAF-802, CAF-804, CAF-805, CAF-806, CAF-807,
+      CAF-808, CAF-809, CAF-810, CAF-812, CAF-866, CAF-867, CAF-868, CMR-1462, CMR-1476, CMR-1477,
+      CMR-1480, CMR-1481, CMR-1482, CMR-1483, CMR-798, CMR-799, CMR-803, COG-2185, COG-2626,
+      COG-2838, COG-2880, COG-3341, COG-3342, COG-3343, COG-3344, COG-3345, COG-3346, COG-4855,
+      COG-5855, GAB-2168, GAB-2186, GAB-2187, GAB-2621, GAB-2622, GAB-2623, GAB-2624, GAB-2627,
+      GAB-2628, TCD-1464, TCD-1465, TCD-1466, TCD-1472, TCD-1473, TCD-1474, TCD-1475, TCD-1484,
+      TCD-1485, TCD-1486, TCD-1487, TCD-1488, TCD-1489, TCD-4857, TCD-4858, TCD-5577, TCD-5578,
+      TCD-5579, TCD-5580, TCD-5581, TCD-5582, TCD-5583
+    ]
+  - key: belgian_congo
+    name: The Belgian Congo
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Congo basin's forest and the Katanga plateau; no source cited"
+    sites: [leopoldville, elisabethville]
+    provinces: [
+      BDI-2632, BDI-2633, BDI-2634, BDI-2635, BDI-2636, BDI-2637, BDI-2638, BDI-2639, BDI-2640,
+      BDI-2641, BDI-2642, BDI-2643, BDI-2644, BDI-3364, BDI-3365, BDI-4854, BDI-5588, COD-1461,
+      COD-1559, COD-1871, COD-1872, COD-1883, COD-1884, COD-1894, COD-1895, COD-1896, COD-1897,
+      COD-1898, RWA-3491, RWA-3492, RWA-3493, RWA-3494, RWA-3495
+    ]
+  - key: sudan
+    name: The Sudan
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Nile valley, the desert and the southern swamps; no source cited"
+    sites: [khartoum, port_sudan]
+    provinces: [
+      SDN-148, SDN-149, SDN-5856, SDN-5857, SDN-5858, SDN-5859, SDN-874, SDN-875, SDN-876, SDN-877,
+      SDN-878, SDN-879, SDN-880, SDN-881, SDN-882, SDN-883, SDN-884, SDS-147, SDS-863, SDS-864,
+      SDS-865, SDS-869, SDS-870, SDS-871, SDS-872, SDS-873, SDS-892
+    ]
+  - key: ethiopia
+    name: Ethiopia
+    region: africa
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Ethiopian highlands and the Ogaden; no source cited"
+    sites: [addis_ababa, dessie]
+    provinces: [
+      ETH-3110, ETH-3111, ETH-3129, ETH-3130, ETH-3131, ETH-3132, ETH-3133, ETH-3134, ETH-3135,
+      ETH-3136
+    ]
+  - key: gondar
+    name: Gondar
+    region: africa
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the highlands north of Lake Tana and the Wolchefit pass; no source cited"
+    sites: [gondar_town]
+  - key: horn_of_africa
+    name: Eritrea and the Somalilands
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Red Sea coast, the Eritrean plateau and the Somali bush; no source cited"
+    sites: [massawa, mogadishu, berbera]
+    provinces: [
+      ERI-1560, ERI-1561, ERI-1562, ERI-1563, ERI-1564, ERI-1565, "SOL+00?", SOM-1, SOM-2312,
+      SOM-2313, SOM-2314, SOM-2315, SOM-2316, SOM-2407, SOM-2408, SOM-2409, SOM-2410, SOM-2412,
+      SOM-2413, SOM-2645
+    ]
+  - key: french_somaliland
+    name: French Somaliland
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the desert round the Gulf of Tadjoura; no source cited"
+    sites: [djibouti]
+    provinces: [
+      DJI-1566, DJI-1567, DJI-1568, DJI-1569, DJI-1570, DJI-1571
+    ]
+  - key: british_east_africa
+    name: British East Africa
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the East African plateau, the lakes and the coast; no source cited"
+    sites: [mombasa, dar_es_salaam]
+    provinces: [
+      KEN-1193, KEN-1195, KEN-1196, KEN-1197, KEN-889, KEN-890, KEN-891, KEN-893, MUS-5180,
+      MUS-5181, MUS-5183, MUS-5184, MUS-5185, MUS-5186, MUS-5187, MUS-5188, MUS-5189, MUS-5190,
+      MUS-5191, MUS-5192, MUS-5193, MUS-5194, MUS-5195, MUS-5196, SYC-5197, SYC-5198, SYC-5199,
+      SYC-5200, SYC-5201, SYC-5202, SYC-5203, SYC-5204, SYC-5205, SYC-5206, SYC-5207, SYC-5208,
+      SYC-5209, SYC-5210, SYC-5211, SYC-5212, SYC-5213, SYC-5214, SYC-5215, SYC-5216, SYC-5217,
+      SYC-5218, SYC-5219, SYC-5220, SYC-5221, SYC-5222, TZA-3335, TZA-3336, TZA-3337, TZA-3357,
+      TZA-3358, TZA-3359, TZA-3360, TZA-3363, TZA-3378, TZA-3379, TZA-3380, TZA-3381, TZA-3382,
+      TZA-3383, TZA-3384, TZA-3385, TZA-3386, TZA-3387, TZA-3388, TZA-3389, TZA-3390, TZA-3391,
+      TZA-3392, TZA-3393, TZA-3394, TZA-3395, TZA-5584, TZA-5585, TZA-5586, TZA-5587, UGA-2631,
+      UGA-3064, UGA-3065, UGA-3066, UGA-3067, UGA-3068, UGA-3069, UGA-3070, UGA-3071, UGA-3073,
+      UGA-3074, UGA-3075, UGA-3076, UGA-3077, UGA-3078, UGA-3079, UGA-3080, UGA-3081, UGA-3082,
+      UGA-3084, UGA-3085, UGA-3086, UGA-3087, UGA-3088, UGA-3089, UGA-3090, UGA-3091, UGA-3092,
+      UGA-3093, UGA-3094, UGA-3095, UGA-3096, UGA-3098, UGA-3099, UGA-3100, UGA-3101, UGA-3102,
+      UGA-3103, UGA-3104, UGA-3105, UGA-3106, UGA-3107, UGA-3108, UGA-3112, UGA-3113, UGA-3114,
+      UGA-3115, UGA-3116, UGA-3117, UGA-3118, UGA-3119, UGA-3120, UGA-3121, UGA-3122, UGA-3123,
+      UGA-3124, UGA-3125, UGA-3126, UGA-3127, UGA-3128, UGA-3361, UGA-3362, UGA-3366, UGA-3367,
+      UGA-3368, UGA-3369, UGA-3370, UGA-3371, UGA-3372, UGA-3373, UGA-3374, UGA-3375, UGA-3376,
+      UGA-3377, UGA-5589, UGA-5590, UGA-5591, UGA-5592, UGA-5593, UGA-5594, UGA-5595, UGA-5596,
+      UGA-5597, UGA-5598, UGA-5599, UGA-5600, UGA-5601, UGA-5602, UGA-5603, UGA-5604, UGA-5605,
+      UGA-5606, UGA-5607, UGA-5608, UGA-5609, UGA-5610, UGA-5611, UGA-5612, UGA-5613, UGA-5614,
+      UGA-5615, UGA-5616, UGA-5617, UGA-5618, UGA-5619, UGA-5620, UGA-5621, UGA-5622, UGA-5623,
+      UGA-5624, UGA-5625, UGA-5626, "HMD+00?"
+    ]
+  - key: angola
+    name: Angola
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the coastal plain and the central plateau; no source cited"
+    sites: [luanda, lobito]
+    provinces: [
+      AGO-1874, AGO-1875, AGO-1876, AGO-1877, AGO-1878, AGO-1879, AGO-1880, AGO-1881, AGO-1882,
+      AGO-1885, AGO-1886, AGO-1887, AGO-1888, AGO-1889, AGO-1890, AGO-1891, AGO-1892, AGO-1893,
+      STP-4861, STP-4862
+    ]
+  - key: mozambique
+    name: Mozambique
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the coastal lowlands and the Zambezi valley; no source cited"
+    sites: [lourenco_marques, beira]
+    provinces: [
+      MOZ-1190, MOZ-1192, MOZ-1198, MOZ-1199, MOZ-1200, MOZ-1207, MOZ-1905, MOZ-1906, MOZ-1925,
+      MOZ-1927, MOZ-5854
+    ]
+  - key: rhodesias
+    name: The Rhodesias and Nyasaland
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the high veld, the Zambezi and the copper belt; no source cited"
+    sites: [salisbury, broken_hill]
+    provinces: [
+      MWI-1194, MWI-1873, MWI-1899, MWI-1900, MWI-1901, MWI-1902, MWI-1903, MWI-1904, MWI-1907,
+      MWI-1908, MWI-1909, MWI-1910, MWI-1911, MWI-1912, MWI-1913, MWI-1914, MWI-1915, MWI-1916,
+      MWI-1917, MWI-1918, MWI-1919, MWI-1920, MWI-1921, MWI-1922, MWI-1923, MWI-1924, MWI-5509,
+      MWI-5510, ZMB-514, ZMB-515, ZMB-516, ZMB-517, ZMB-518, ZMB-520, ZMB-521, ZMB-522, ZMB-523,
+      ZMB-5511, ZWE-524, ZWE-525, ZWE-526, ZWE-527, ZWE-528, ZWE-529, ZWE-530, ZWE-531, ZWE-532,
+      ZWE-533
+    ]
+  - key: south_africa
+    name: South Africa
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the veld, the Karoo and the Kalahari; no source cited"
+    sites: [cape_town, durban]
+    provinces: [
+      BWA-1191, BWA-2625, BWA-2629, BWA-2630, BWA-2646, BWA-2647, BWA-2648, BWA-2649, BWA-4853,
+      BWA-5501, BWA-5502, BWA-5503, BWA-5504, BWA-5505, BWA-5506, LSO-1202, LSO-1203, LSO-1204,
+      LSO-1205, LSO-1211, LSO-1212, LSO-1213, LSO-1214, LSO-1215, LSO-3453, NAM-3338, NAM-3339,
+      NAM-3340, NAM-3347, NAM-3348, NAM-3349, NAM-3350, NAM-3351, NAM-3352, NAM-3353, NAM-3354,
+      NAM-3355, NAM-3356, SWZ-534, SWZ-535, SWZ-536, SWZ-537, ZAF-1188, ZAF-1189, ZAF-1201,
+      ZAF-1206, ZAF-1208, ZAF-1209, ZAF-1210, ZAF-1216, ZAF-1926, "BVT+00?", SHN-4864
+    ]
+  - key: madagascar
+    name: Madagascar
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the central highlands and the eastern forest; the Comoros, Mayotte and Reunion; no source cited"
+    sites: [diego_suarez, tananarive]
+    provinces: [
+      COM-4934, COM-4935, COM-4936, FRA-4601, FRA-4602,
+      MDG-5860, MDG-5861, MDG-5862, MDG-5863, MDG-5864, MDG-5865, MDG-5866, MDG-5867, MDG-5868,
+      MDG-5869, MDG-5870, MDG-5871, MDG-5872, MDG-5873, MDG-5874, MDG-5875, MDG-5876, MDG-5878,
+      MDG-5879, MDG-5880, MDG-5881, MDG-5882, ATF-5916, ATF-5917, ATF-5918, ATF-5919
+    ]
+  - key: arabia
+    name: Arabia
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Nejd, the Hejaz and the Yemen highlands; no source cited"
+    sites: [riyadh, jeddah, dhahran]
+    provinces: [
+      SAU-1096, SAU-1097, SAU-1098, SAU-845, SAU-846, SAU-847, SAU-848, SAU-861, SAU-862, SAU-885,
+      SAU-886, SAU-887, SAU-888, YEM-150, YEM-151, YEM-152, YEM-153, YEM-154, YEM-155, YEM-156,
+      YEM-158, YEM-333, YEM-335, YEM-337, YEM-3496, YEM-3498, YEM-3499
+    ]
+  - key: aden_gulf
+    name: Aden and the Gulf coast
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Hadramawt, the Oman mountains and the Gulf shore; no source cited"
+    sites: [aden, manama, kuwait_town]
+    provinces: [
+      ARE-338, ARE-339, ARE-341, ARE-344, ARE-346, ARE-347, ARE-348, ARE-349, ARE-350, BHR-4926,
+      BHR-4927, BHR-4928, BHR-4929, BHR-4930, KWT-1663, KWT-1664, KWT-1665, KWT-1666, KWT-1667,
+      KWT-3506, OMN-2404, OMN-2405, OMN-2406, OMN-2411, OMN-2414, OMN-2424, OMN-2425, OMN-2426,
+      OMN-4836, OMN-5496, OMN-5497, QAT-1099, QAT-1100, QAT-1101, QAT-1105, QAT-1106, QAT-1107,
+      QAT-5487, YEM-157, YEM-332, YEM-334, YEM-336, YEM-3497, YEM-3510, YEM-3511
+    ]
+  - key: spanish_sahara
+    name: Spanish Sahara and the Canaries
+    region: africa
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Rio de Oro desert and the volcanic islands; no source cited"
+    sites: [las_palmas]
+    provinces: [
+      ESP-5829, ESP-5842, "SAH+00?"
+    ]
+  - key: liberia
+    name: Liberia
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the rain forest behind the coast; no source cited"
+    sites: [monrovia]
+    provinces: [
+      LBR-1458, LBR-1459, LBR-780, LBR-781, LBR-782, LBR-783, LBR-784, LBR-785, LBR-786, LBR-787,
+      LBR-788, LBR-789, LBR-791, LBR-792, LBR-793
+    ]
+  - key: portuguese_guinea
+    name: Portuguese Guinea and Cape Verde
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the coastal swamps and the Cape Verde islands; no source cited"
+    sites: [bissau, mindelo]
+    provinces: [
+      CPV-5041, CPV-5042, CPV-5043, CPV-5044, CPV-5045, CPV-5046, CPV-5047, CPV-5048, CPV-5049,
+      CPV-5050, CPV-5051, CPV-5052, CPV-5053, CPV-5054, CPV-5055, CPV-5056, CPV-5057, CPV-5058,
+      CPV-5059, CPV-5060, CPV-5061, CPV-5062, GNB-5500, GNB-769, GNB-770, GNB-771, GNB-772, GNB-773,
+      GNB-776, GNB-777, GNB-778
+    ]
+  - key: spanish_guinea
+    name: Spanish Guinea
+    region: africa
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "Rio Muni's forest and Fernando Po; no source cited"
+    sites: [santa_isabel]
+    provinces: [
+      GNQ-1467, GNQ-1468, GNQ-1469, GNQ-1470, GNQ-1471, GNQ-1478, GNQ-1479
+    ]
+  - key: azores_madeira
+    name: The Azores and Madeira
+    region: africa
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the volcanic islands; no source cited"
+    sites: [ponta_delgada, lajes]
+    provinces: [
+      PRT-735, PRT-736
+    ]
+cuts:
+  # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
+  - name: the Gondar pocket of September 1941
+    province: ETH-3109
+    line: [[37.0, 14.3], [36.75, 13.3], [36.85, 12.6], [37.15, 12.05], [37.6, 12.05], [37.95, 12.3],
+           [38.15, 12.8], [38.3, 13.4], [38.5, 14.0]]
+    left: gondar
+    right: ethiopia
+    gap: true
+    named_source: >-
+      the Italian garrison of Gondar, holding the town, Wolchefit (to 28 Sep 1941), Kulkaber and the
+      north shore of Lake Tana until 27 Nov 1941 (https://en.wikipedia.org/wiki/Battle_of_Gondar, the
+      regions draft's source); no map of the perimeter read, points interpreted round those places,
+      no evidence record

@@ -7,6 +7,10 @@ catch-up page for the wake it was due in says so, as does its own payload while 
 wake is open. Each row keeps what the action needs, already checked as far as the wake
 it was given in allows. A new player taking up a seat starts with none of its rows.
 
+A seat is shown its held orders by number, counted over its own rows in the game alone
+(``MINE``), so another seat's orders, or another game's, never move it. A withdrawn
+row stays, marked ``WITHDRAWN``, so no number is given twice.
+
 The table lives in Postgres only, like every web table. Code that reads it treats a
 missing table (before ``db migrate`` has run 0013) as empty and logs once.
 """
@@ -22,7 +26,7 @@ from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.effect import Forecast
 from revisionist.core.realism.pipeline import StepAction
-from revisionist.engine import directive, realism_tick
+from revisionist.engine import directive, orders_reader, realism_tick
 from revisionist.engine.store import EventStore
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import agenda_api, conferences_api
@@ -36,12 +40,20 @@ HELD = "Held for the next wake."
 """The reply to an order that is held [proposed]."""
 TABLE = "web_held_orders"
 CLOSE_CLASS = 0x72767363  # "rvsc": first key of the advisory lock that marks a close
+WITHDRAWN = -1
+"""``filed_in`` of a row its seat withdrew: no wake has this number."""
+MINE = (
+    "(SELECT *, ROW_NUMBER() OVER (ORDER BY held_id) AS n FROM web_held_orders"
+    " WHERE campaign_id = %s AND seat_id = %s) AS mine"
+)
+"""The seat's own rows in the game, each with ``n``, the number the seat knows it by."""
 
 
 class Listed(TypedDict):
     """One held order in its own seat's payload."""
 
     id: int
+    """The seat's own number for it in this game; ``withdraw`` takes it as ``held_id``."""
     label: str
     wake: int
     """The wake it was given in; it is filed when a later one opens."""
@@ -99,12 +111,15 @@ def _rows(store: EventStore, sql: str, args: tuple[Any, ...]) -> list[tuple[Any,
 def closing(store: EventStore, campaign_id: CampaignId) -> bool:
     """A close of the campaign's wake is running: some session holds its mark
     (``marking_close``). A leave, a join or a scheduler pass that closes nothing holds
-    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing."""
+    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing; only
+    this database's marks count, since ``pg_locks`` lists the whole cluster's and a
+    campaign id may recur in another database."""
     conn = _conn(store)
     if conn is None:
         return False
     row = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted"
+        " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"
         " AND classid = %s::oid AND objid = hashtext(%s)::oid AND objsubid = 2)",
         (CLOSE_CLASS, campaign_id),
     ).fetchone()
@@ -142,8 +157,8 @@ def hold(
     args: dict[str, Any],
     label: str,
 ) -> int | None:
-    """Keep ``action`` for the first wake opened after ``wake``; returns its id, or None
-    when it cannot be kept (no table)."""
+    """Keep ``action`` for the first wake opened after ``wake``; returns the seat's number
+    for it, or None when it cannot be kept (no table)."""
     conn = _conn(store)
     if conn is None:
         return None
@@ -158,7 +173,11 @@ def hold(
             return None
         raise
     assert row is not None
-    return int(row[0])
+    counted = conn.execute(
+        f"SELECT n FROM {MINE} WHERE held_id = %s", (campaign_id, seat, row[0])
+    ).fetchone()
+    assert counted is not None
+    return int(counted[0])
 
 
 def listing(
@@ -169,14 +188,13 @@ def listing(
     payload carries them."""
     rows = _rows(
         store,
-        "SELECT held_id, label, wake, dropped FROM web_held_orders WHERE campaign_id = %s"
-        " AND seat_id = %s AND (filed_in IS NULL OR (dropped IS NOT NULL AND filed_in = %s))"
-        " ORDER BY held_id",
+        f"SELECT n, label, wake, dropped FROM {MINE}"
+        " WHERE filed_in IS NULL OR (dropped IS NOT NULL AND filed_in = %s) ORDER BY held_id",
         (campaign_id, seat, open_wake),
     )
     out: list[Listed] = []
-    for held_id, label, wake, why in rows:
-        listed = Listed(id=int(held_id), label=label, wake=int(wake))
+    for number, label, wake, why in rows:
+        listed = Listed(id=int(number), label=label, wake=int(wake))
         if why is not None:
             listed["dropped"] = _line(label, why)
         out.append(listed)
@@ -200,17 +218,22 @@ def held_battles(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> se
     return out
 
 
+NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+"""The refusal of a step action the seat was not offered, the same for every action."""
+
+
 def _line(label: str, why: str) -> str:
     return f"{label} was not filed: {why}"
 
 
-def drop(store: EventStore, campaign_id: CampaignId, seat: SeatId, held_id: int) -> bool:
-    """Withdraw the seat's own held order before it is filed; False if there is none."""
+def drop(store: EventStore, campaign_id: CampaignId, seat: SeatId, number: int) -> bool:
+    """Withdraw the seat's own held order ``number`` before it is filed; False if there is
+    none."""
     rows = _rows(
         store,
-        "DELETE FROM web_held_orders WHERE held_id = %s AND campaign_id = %s"
-        " AND seat_id = %s AND filed_in IS NULL RETURNING 1",
-        (held_id, campaign_id, seat),
+        "UPDATE web_held_orders SET filed_in = %s WHERE filed_in IS NULL"
+        f" AND held_id = (SELECT held_id FROM {MINE} WHERE n = %s) RETURNING 1",
+        (WITHDRAWN, campaign_id, seat, number),
     )
     return bool(rows)
 
@@ -268,13 +291,22 @@ def file_one(
             directive.sign(store, campaign_id, seat, proposal)
         elif action == "step":
             taken = StepAction(args["action"])
-            realism_tick.take_step(
-                store, campaign_id, seat, args["order_id"], taken, args["params"]
-            )
+            try:
+                realism_tick.take_step(
+                    store, campaign_id, seat, args["order_id"], taken, args["params"]
+                )
+            except ValueError as exc:  # the step moved on since it was held
+                said = str(exc)
+                return (
+                    said if said in (realism_tick.NOT_YOURS, realism_tick.NO_AMEND) else NOT_OFFERED
+                )
         elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             told = args.get("forecast")
-            if told is None:
+            if args.get("forms"):  # a written order whose asks the seat's forms give
+                forms = [(f[0], dict(f[1])) if f else None for f in args["forms"]]
+                orders_reader.file_written(store, campaign_id, seat, asks, forms)
+            elif told is None:
                 realism_tick.commit_order(store, campaign_id, seat, asks)
             else:  # a picked suggestion keeps its forecast (FCK)
                 forecast = Forecast.model_validate(told)
@@ -283,8 +315,21 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "office-vote":
+            agenda_api.office_vote(store, campaign_id, seat, args)
         elif action == "ask":
             realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "offer":
+            realism_tick.make_offer(
+                store, campaign_id, seat, args["bloc"], args["measure"], args["price"]
+            )
+        elif action == "send-anyway":
+            realism_tick.send_anyway(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "answer" and "verdict" in args:  # an incident (DFR)
+            done = agenda_api.answer_incident(
+                store, campaign_id, seat, args["item"], args["verdict"]
+            )
+            return done["reply"] if done["refused"] else None
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None
@@ -333,6 +378,8 @@ def file_held(
 __all__ = [
     "CLOSE_CLASS",
     "HELD",
+    "MINE",
+    "WITHDRAWN",
     "Filer",
     "Listed",
     "clear",

@@ -22,6 +22,7 @@ and otherwise at risk (``aim_status``).
 
 from __future__ import annotations
 
+import math
 from datetime import date
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
@@ -49,6 +50,7 @@ from revisionist.core.ontology import (
     Controller,
     EntityStatus,
     ScheduleSource,
+    regard_held,
 )
 from revisionist.core.realism.card import ParamValue
 from revisionist.core.realism.effect import EffectKind
@@ -312,9 +314,10 @@ class GoalSource(StrEnum):
     POST = "post"
     """The card's own aim: what the person was set on at the start."""
     PLAYER = "player"
-    """The player's own aim. Declared; no rule makes one yet."""
+    """The player's own aim, filled from a world's pattern (OWC)."""
     REPLACEMENT = "replacement"
-    """An aim given in place of one the person can no longer pursue. Declared; unused."""
+    """One of the two aims a replacement person must both hold (RPL): his card's aims
+    that are not replaceable."""
 
 
 class Exposure(StrEnum):
@@ -520,7 +523,7 @@ def _in_force(world: State | View, c: AgreementInForce) -> bool:
 
 def _regard(world: State | View, a: EntityId, b: EntityId) -> int:
     """The disposition between ``a`` and ``b``, either way round; 0 with none."""
-    found = next((r for r in world.relationships.values() if {r.a, r.b} == {a, b}), None)
+    found = regard_held(world.relationships, a, b, either=True)
     return 0 if found is None else found.disposition
 
 
@@ -585,13 +588,15 @@ def check(state: State) -> list[GoalProgressed | GoalMet | GoalUndone]:
     """What changed for every goal since the last check, in goal order.
 
     Runs at the end of APPLY, so a goal is met when its condition holds at the
-    end of a tick. A Lasting goal stops being checked once met.
+    end of a tick. A Lasting goal stops being checked once met. A replaced person's
+    goals are not checked: they stay as they stood when he was replaced (RPL).
     """
     from revisionist.core.events import GoalMet, GoalProgressed, GoalUndone  # events imports us
 
     out: list[GoalProgressed | GoalMet | GoalUndone] = []
+    gone = set(state.replaced.values())
     for goal in sorted(state.goals.values(), key=lambda g: g.goal_id):
-        if goal.holding and goal.kind is GoalKind.LASTING:
+        if (goal.holding and goal.kind is GoalKind.LASTING) or goal.person in gone:
             continue
         if goal.person is not None and not judged(state, goal):
             continue
@@ -628,14 +633,49 @@ def aims_on(state: State | View) -> bool:
 
 
 def aim_rule(state: State, goal: Goal) -> AimRule | None:
-    """The rule on the card of ``goal``'s person that it was made from; None for a
-    legacy goal or a card that has lost it."""
+    """The rule on the card of ``goal``'s person that it was made from, or for the
+    player's own aim the rule stored for the person (OWC); None for a legacy goal or a
+    card that has lost it."""
     if goal.person is None or goal.aim is None:
         return None
+    if goal.source is GoalSource.PLAYER:
+        own = state.own_aims.get(goal.person)
+        return own.rule if own is not None and own.aim == goal.aim else None
     card = state.cards.get(goal.person)
     if card is None or goal.aim > len(card.aim_rules):
         return None
     return card.aim_rules[goal.aim - 1]
+
+
+def post_sees(condition: WinCondition, sees: tuple[Exposure, ...]) -> tuple[Exposure, ...]:
+    """``sees`` as a commander held to his post reads it (PVW): a leaf on his own nation's
+    facts is hidden from him, unless it is a regard he is party to; public leaves stay
+    public. ``sees`` is returned as given when it does not match ``condition``."""
+    found = leaves(condition)
+    if len(sees) != len(found):
+        return sees
+    return tuple(
+        Exposure.HIDDEN if e is Exposure.OWN and not isinstance(leaf, RegardAt) else e
+        for leaf, e in zip(found, sees, strict=True)
+    )
+
+
+def hidden_at_post(goal: Goal, rule: AimRule | None) -> bool:
+    """Whether a leaf a commander held to his post no longer sees could decide ``goal``
+    (PVW). A goal not made from an aim never is."""
+    if goal.person is None:
+        return False
+    if rule is None or len(rule.sees) != len(leaves(goal.condition)):
+        return True
+    return post_sees(goal.condition, rule.sees) != rule.sees
+
+
+def at_post(goal: Goal, rule: AimRule | None) -> Goal:
+    """``goal`` as a commander held to his post holds it (PVW): where ``hidden_at_post``,
+    whether it holds and the tick it was met are not his to know."""
+    if not hidden_at_post(goal, rule):
+        return goal
+    return goal.model_copy(update={"holding": False, "met_tick": None})
 
 
 def judged(state: State, goal: Goal) -> bool:
@@ -650,7 +690,7 @@ def judged(state: State, goal: Goal) -> bool:
     return rule.deadline is None or today <= rule.deadline
 
 
-def _settled(world: State, c: WinCondition) -> bool:
+def _settled(world: State | View, c: WinCondition) -> bool:
     """Whether ``c``, not holding, can no longer come to hold: a contest decided for
     another side, a person dead or a body dissolved when the check wants otherwise."""
     match c:
@@ -699,6 +739,8 @@ def holder_seat(state: State, goal: Goal) -> SeatId | None:
     legacy goal, its own seat."""
     if goal.person is None:
         return goal.seat_id
+    if goal.person in state.replaced.values():
+        return None
     from revisionist.core.state import seat_of_person  # state imports us
 
     seat = seat_of_person(state, goal.person)
@@ -723,11 +765,27 @@ def aim_goal_id(campaign_id: str, person: EntityId, aim: int) -> GoalId:
     return GoalId(derived_id(campaign_id, "aim-goal", person, aim))
 
 
+REPLACEMENT_AIMS = 2
+"""The aims a replacement person is given, every one required (RPL)."""
+
+
+def replacement_aims(rules: tuple[AimRule | None, ...], aims: int) -> tuple[int, ...]:
+    """The aims, numbered from 1, a replacement person is given: the first two of his
+    card's ``aims`` with a rule that are not replaceable; none when he has fewer."""
+    found = tuple(
+        i
+        for i, rule in enumerate(rules[:aims], start=1)
+        if rule is not None and not rule.replaceable
+    )
+    return found[:REPLACEMENT_AIMS] if len(found) >= REPLACEMENT_AIMS else ()
+
+
 def aim_goals(state: State) -> list[GoalSet]:
     """With ``aims`` on, a ``GoalSet`` for each aim with a rule on the card of each
     person a human seat holds whose aims have no goals yet, in seat order: once per
     person, so a claim and a hand-over make them and a later seat for the same person
-    makes none. A code seat's person gets none."""
+    makes none. A code seat's person gets none. A replacement person gets two, from
+    ``replacement_aims``, with the source ``replacement`` and never his own aim."""
     from revisionist.core.events import GoalSet  # events imports us
     from revisionist.core.visibility import private_to
 
@@ -743,21 +801,32 @@ def aim_goals(state: State) -> list[GoalSet]:
         if card is None:
             continue
         has.add(person)
+        stand_in = person in state.replaced
+        own = None if stand_in else state.own_aims.get(person)
+        given = replacement_aims(card.aim_rules, len(card.aims))
         for i, rule in enumerate(card.aim_rules, start=1):
-            if rule is None or i > len(card.aims):
+            if rule is None or i > len(card.aims) or (stand_in and i not in given):
                 continue
+            mine = own is not None and own.aim == i
+            condition = own.rule.condition if own is not None and mine else rule.condition
             out.append(
                 GoalSet(
                     goal=Goal(
                         goal_id=aim_goal_id(state.campaign_id, person, i),
                         seat_id=seat.seat_id,
-                        text=card.aims[i - 1],
-                        condition=rule.condition,
-                        kind=goal_kind(rule.condition),
+                        text=own.text if own is not None and mine else card.aims[i - 1],
+                        condition=condition,
+                        kind=goal_kind(condition),
                         clock_id=None,
                         scope=private_to(seat.seat_id),
                         person=person,
-                        source=GoalSource.POST,
+                        source=(
+                            GoalSource.REPLACEMENT
+                            if stand_in
+                            else GoalSource.PLAYER
+                            if mine
+                            else GoalSource.POST
+                        ),
                         aim=i,
                     )
                 )
@@ -768,7 +837,8 @@ def aim_goals(state: State) -> list[GoalSet]:
 def season_winners(state: State) -> frozenset[SeatId]:
     """Every seat that wins at season end (decision 36). With ``aims`` on, the human
     seats holding a person with two of his aims holding, or all of them when his card
-    has fewer than two; any number win, or none. Otherwise any seat whose goal holds."""
+    has fewer than two (a replacement person has two goals, so both); any number win, or
+    none. A replaced person's goals count for no seat. Otherwise any seat whose goal holds."""
     if not aims_on(state):
         return frozenset(g.seat_id for g in state.goals.values() if g.holding)
     holding: dict[EntityId, int] = {}
@@ -870,12 +940,25 @@ def power(state: State, seat: SeatId) -> int:
     return tiers + ties
 
 
-def _rival_held(state: State, seat: SeatId, holder: EntityId) -> bool:
+def _rival_held(state: State | View, seat: SeatId, holder: EntityId) -> bool:
     return any(s.embodies == holder and s.seat_id != seat for s in state.seats.values())
 
 
-def difficulty(state: State, seat: SeatId, c: WinCondition) -> int:
-    """How far the goal is from holding now, from the same state for everyone."""
+TAKE = 4
+"""The difficulty of a territory check not yet holding that turns on the board or another
+nation: a holder to change, an agreement to make, a contest to win, a war to start or end.
+``[proposed]``"""
+
+
+def _gap(now: float | None, line: int) -> int:
+    """2, plus one for every 10 points (or part) between ``now`` and the line. ``[proposed]``"""
+    gap = 0 if now is None else math.ceil(abs(now - line))
+    return 2 + -(-gap // 10)
+
+
+def difficulty(state: State | View, seat: SeatId, c: WinCondition) -> int:
+    """How far the goal is from holding now, from the world given (the truth for everyone
+    at Session Zero, a seat's view for its own aim's ladder)."""
     match c:
         case AllOf():
             return sum(difficulty(state, seat, x) for x in c.conditions)
@@ -900,10 +983,18 @@ def difficulty(state: State, seat: SeatId, c: WinCondition) -> int:
             return 2 + (abs(rel.disposition - c.value) if rel is not None else 0)
         case CommitmentInForce() | ActOf() | Ordered() | QuantityAt():
             return 2
-        case HoldsArea() | IncomeAt() | SupportAt() | AgreementInForce():
-            return 2
-        case ContestWon() | AtWar() | RegardAt():
-            return 2
+        case HoldsArea() | AgreementInForce() | ContestWon() | AtWar():
+            return TAKE
+        case IncomeAt():
+            from revisionist.core.realism import economy
+
+            return _gap(economy.figure(state, c.nation), c.value)
+        case SupportAt():
+            from revisionist.core.realism import groups
+
+            return _gap(groups.support(state, c.nation, c.group), c.value)
+        case RegardAt():
+            return 2 + abs(_regard(state, c.a, c.b) - c.value)
 
 
 def balance(state: State, seat: SeatId, c: WinCondition) -> Balance:

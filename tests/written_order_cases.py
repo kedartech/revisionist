@@ -34,7 +34,9 @@ class Case:
     params: dict[str, str]
     sentence: str
     reading: tuple[Effect, ...]
-    """Each ask's effect, or ``{"target": key}`` for an approach with no typed effect."""
+    """Each ask's effect, or ``{"target": key}`` for an approach with no typed effect, or
+    ``{"war": key}`` for a declaration of war. An effect's ``detail`` names the values of
+    its form's parameters the effect cannot hold."""
     ruling: tuple[Effect, ...] = ()
     """The estimator's effects for an approach, as its reply carries them."""
     variant: str = ""
@@ -111,8 +113,30 @@ def bill(key: str) -> Effect:
     return HISTORICAL[key].model_dump(mode="json")
 
 
+NATIONAL_SERVICE: Effect = {
+    "kind": "measure",
+    "title": "National Service",
+    "clauses": [
+        {"kind": "power", "subject": "call up unmarried women and men to fifty-one", "amount": None}
+    ],
+}
+"""Britain's law as a written bill: the code table has no row for it, so the Commons' blocs count it
+by the key its title's words make."""
+
+
 def approach(target: str) -> Effect:
     return {"target": target}
+
+
+def detail(effect: Effect, **params: str) -> Effect:
+    """``effect`` with the values of the form's parameters it cannot hold (a strength, a
+    route), as the reader names them beside it."""
+    return effect | {"detail": params}
+
+
+def war(target: str) -> Effect:
+    """A written declaration of war on ``target``, as the reader gives it beside the asks."""
+    return {"war": target}
 
 
 # --- Autumn 1941 -------------------------------------------------------------------------
@@ -167,7 +191,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "lend_lease_finding",
         {"recipient": "uk", "share_pct": "50", "route": "hx_route"},
         "Britain is to have half of what Lend-Lease ships, by the HX convoys.",
-        give("uk", "lend_lease", 50, "percent"),
+        detail(give("uk", "lend_lease", 50, "percent"), route="hx_route"),
     ),
     naval("roosevelt", "naval_order", "escort_convoys", "western_atlantic"),
     f41(
@@ -182,7 +206,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "us_atlantic_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons of the Atlantic Fleet to Reykjavik.",
-        move("us_atlantic_fleet", "reykjavik"),
+        detail(move("us_atlantic_fleet", "reykjavik"), strength="2"),
     ),
     f41(
         "roosevelt",
@@ -196,7 +220,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "cable_to_churchill",
         {"message": "We stand with you."},
         "Cable the Prime Minister that we stand with him.",
-        approach("churchill"),
+        {"detail": {"message": "We stand with you."}},
     ),
     f41(
         "roosevelt",
@@ -225,14 +249,14 @@ NINETEEN_41: tuple[Case, ...] = (
         "convoy_orders",
         {"priority": "atlantic", "route": "hx_route"},
         "The escorts are to see the HX convoys across the Atlantic first.",
-        engage("hx_route", "escort"),
+        detail(engage("hx_route", "escort"), priority="atlantic"),
     ),
     f41(
         "churchill",
         "production_priority",
         {"sector": "escorts", "force": "home_fleet"},
         "Escorts first in production, for the Home Fleet.",
-        give("uk", "escorts", 1, "priority"),
+        detail(give("uk", "escorts", 1, "priority"), force="home_fleet"),
     ),
     f41(
         "churchill",
@@ -246,7 +270,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons of the Home Fleet to Reykjavik.",
-        move("home_fleet", "reykjavik"),
+        detail(move("home_fleet", "reykjavik"), strength="2"),
     ),
     f41(
         "churchill",
@@ -260,7 +284,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "broadcast",
         {"audience": "america"},
         "Broadcast to America.",
-        say("broadcast", "usa"),
+        detail(say("broadcast", "usa"), audience="america"),
     ),
     f41(
         "churchill",
@@ -290,20 +314,27 @@ NINETEEN_41: tuple[Case, ...] = (
         "Fund Bletchley Park.",
         codes("uk"),
     ),
+    f41(
+        "churchill",
+        "send_bill",
+        {"bill": "national_service", "urgency": "ordinary"},
+        "Put the National Service bill to the Commons.",
+        NATIONAL_SERVICE,
+    ),
     # Stalin
     f41(
         "stalin",
         "state_defence_order",
         {"sector": "tanks", "force": "soviet_western_front"},
         "Tanks first, for the Western Front.",
-        give("ussr", "tanks", 1, "priority"),
+        detail(give("ussr", "tanks", 1, "priority"), force="soviet_western_front"),
     ),
     f41(
         "stalin",
         "aid_request",
         {"item": "tanks"},
         "Ask the Americans for tanks.",
-        approach("roosevelt"),
+        {"detail": {"item": "tanks"}},
     ),
     f41(
         "stalin",
@@ -332,14 +363,18 @@ NINETEEN_41: tuple[Case, ...] = (
         "uboat_directive",
         {"posture": "unrestricted_atlantic", "theatre": "north_atlantic"},
         "The U-boats are to wage unrestricted war in the North Atlantic.",
-        engage("north_atlantic", "shoot_on_sight", "uboat_arm"),
+        detail(engage("north_atlantic", "shoot_on_sight"), posture="unrestricted_atlantic"),
     ),
     f41(
         "hitler",
         "production_priority",
         {"sector": "uboats", "force": "uboat_arm", "adds_to": "uboats_operational"},
         "U-boats first in production.",
-        give("germany", "uboats", 1, "priority"),
+        detail(
+            give("germany", "uboats", 1, "priority"),
+            force="uboat_arm",
+            adds_to="uboats_operational",
+        ),
     ),
     f41(
         "hitler",
@@ -353,7 +388,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "declare_war",
         {"target": "usa"},
         "Declare war on the United States.",
-        approach("usa"),
+        war("usa"),
     ),
     f41(
         "hitler",
@@ -375,7 +410,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "requisition_shipping",
         {"tonnage_class": "army"},
         "Requisition merchant shipping for the army.",
-        give("japan", "shipping", 1, "requisition"),
+        detail(give("japan", "shipping", 1, "requisition"), tonnage_class="army"),
     ),
     f41(
         "konoe",
@@ -404,7 +439,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "requisition_shipping",
         {"tonnage_class": "army"},
         "Requisition merchant shipping for the army.",
-        give("japan", "shipping", 1, "requisition"),
+        detail(give("japan", "shipping", 1, "requisition"), tonnage_class="army"),
     ),
     f41(
         "tojo",
@@ -446,16 +481,16 @@ NINETEEN_41: tuple[Case, ...] = (
     f41(
         "mussolini",
         "libya_convoys",
-        {"route": "tripoli"},
+        {"route": "tripoli_route"},
         "Run the Libya convoys to Tripoli.",
-        engage("tripoli", "escort"),
+        engage("tripoli_route", "escort"),
     ),
     f41(
         "mussolini",
         "production_priority",
         {"sector": "tanks", "force": "italian_army_libya"},
         "Tanks first, for the army in Libya.",
-        give("italy", "tanks", 1, "priority"),
+        detail(give("italy", "tanks", 1, "priority"), force="italian_army_libya"),
     ),
     f41(
         "mussolini",
@@ -484,14 +519,14 @@ NINETEEN_41: tuple[Case, ...] = (
         "arsenal_output",
         {"sector": "ammunition", "force": "ninth_war_area"},
         "The arsenals are to make ammunition for the Ninth War Area.",
-        give("china", "ammunition", 1, "priority"),
+        detail(give("china", "ammunition", 1, "priority"), force="ninth_war_area"),
     ),
     f41(
         "chiang",
         "appeal_abroad",
         {"audience": "america"},
         "Appeal to America for help.",
-        say("appeal_abroad", "usa"),
+        detail(say("appeal_abroad", "usa"), audience="america"),
     ),
     f41(
         "chiang",
@@ -520,15 +555,188 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "us_atlantic_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons to Reykjavik.",
-        move("us_atlantic_fleet", "reykjavik"),
+        detail(move("us_atlantic_fleet", "reykjavik"), strength="2"),
     ),
     *(
         naval("king", "fleet_naval_order", "escort_convoys", zone, "us_atlantic_fleet")
         for zone in ("western_atlantic", "iceland_route", "war_zone")
     ),
+    # Admiral Tovey: the moves no lock holds
+    f41(
+        "tovey",
+        "home_fleet_move",
+        {"force": "home_fleet", "to": "liverpool"},
+        "Take the Home Fleet to Liverpool.",
+        move("home_fleet", "liverpool"),
+    ),
+    f41(
+        "tovey",
+        "home_fleet_detach",
+        {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
+        "Send two of the fleet's squadrons on to Reykjavik.",
+        detail(move("home_fleet", "reykjavik"), strength="2"),
+    ),
+    # Admiral Dönitz: the moves no lock holds
+    f41(
+        "doenitz",
+        "uboat_move",
+        {"force": "uboat_arm", "to": "lorient"},
+        "Bring the U-boats in to Lorient.",
+        move("uboat_arm", "lorient"),
+    ),
+    f41(
+        "doenitz",
+        "uboat_detach",
+        {"force": "uboat_arm", "to": "lorient", "strength": "2"},
+        "Send two of the U-boat flotillas in to Lorient.",
+        detail(move("uboat_arm", "lorient"), strength="2"),
+    ),
+    # Admiral Yamamoto: the moves no lock holds
+    f41(
+        "yamamoto",
+        "combined_fleet_move",
+        {"force": "combined_fleet", "to": "kure"},
+        "Bring the Combined Fleet in to Kure.",
+        move("combined_fleet", "kure"),
+    ),
+    f41(
+        "yamamoto",
+        "combined_fleet_detach",
+        {"force": "combined_fleet", "to": "kure", "strength": "1"},
+        "Send one of the fleet's divisions in to Kure.",
+        detail(move("combined_fleet", "kure"), strength="1"),
+    ),
+    # Admiral Iachino: the moves no lock holds
+    f41(
+        "iachino",
+        "battle_fleet_move",
+        {"force": "italian_fleet", "to": "tripoli"},
+        "Take the battle fleet to Tripoli.",
+        move("italian_fleet", "tripoli"),
+    ),
+    f41(
+        "iachino",
+        "battle_fleet_detach",
+        {"force": "italian_fleet", "to": "tripoli", "strength": "2"},
+        "Send two of the fleet's divisions on to Tripoli.",
+        detail(move("italian_fleet", "tripoli"), strength="2"),
+    ),
+    # Marshal Timoshenko: the move no lock holds, and the concealment
+    f41(
+        "timoshenko",
+        "western_front_move",
+        {"force": "soviet_western_front", "to": "vyazma"},
+        "Move the Western Front up to Vyazma.",
+        move("soviet_western_front", "vyazma"),
+    ),
+    f41(
+        "timoshenko",
+        "western_front_conceal",
+        {"intel": "conceal", "piece": "soviet_western_front", "concealed": "yes"},
+        "Hide the Western Front.",
+        hide("soviet_western_front"),
+    ),
+    # General Xue: the move no lock holds, and the concealment
+    f41(
+        "xue_yue",
+        "ninth_war_area_move",
+        {"force": "ninth_war_area", "to": "wuhan"},
+        "Move the Ninth War Area's armies up to Wuhan.",
+        move("ninth_war_area", "wuhan"),
+    ),
+    f41(
+        "xue_yue",
+        "ninth_war_area_conceal",
+        {"intel": "conceal", "piece": "ninth_war_area", "concealed": "yes"},
+        "Hide the Ninth War Area's armies.",
+        hide("ninth_war_area"),
+    ),
+    # President Ryti: the army order and the agent, both through the Commander-in-Chief
+    f41(
+        "ryti",
+        "finnish_army_order",
+        {"force": "finnish_army", "to": "helsinki"},
+        "The Finnish Army is to stand at Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "ryti",
+        "finnish_agent",
+        {"intel": "agent", "area": "leningrad_area"},
+        "Put an agent behind the lines at Leningrad.",
+        agent("leningrad_area"),
+    ),
+    # Marshal Mannerheim: the move no lock holds, and the concealment
+    f41(
+        "mannerheim",
+        "finnish_army_move",
+        {"force": "finnish_army", "to": "helsinki"},
+        "Move the Finnish Army to Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "mannerheim",
+        "finnish_army_conceal",
+        {"intel": "conceal", "piece": "finnish_army", "concealed": "yes"},
+        "Hide the Finnish Army.",
+        hide("finnish_army"),
+    ),
+    # The raising forms (KDA): read as the Salt Strait one is, an ask with no effect whose
+    # detail names each of its parameters.
+    f41(
+        "churchill",
+        "raise_piece",
+        {"kind": "infantry", "place": "london"},
+        "Raise new infantry in London.",
+        {"detail": {"kind": "infantry", "place": "london"}},
+    ),
+    f41(
+        "stalin",
+        "raise_piece",
+        {"kind": "infantry", "place": "moscow"},
+        "Raise new infantry in Moscow.",
+        {"detail": {"kind": "infantry", "place": "moscow"}},
+    ),
+    f41(
+        "hitler",
+        "raise_piece",
+        {"kind": "armour", "place": "berlin"},
+        "Raise new armour in Berlin.",
+        {"detail": {"kind": "armour", "place": "berlin"}},
+    ),
+    f41(
+        "konoe",
+        "raise_piece",
+        {"kind": "infantry", "place": "tokyo"},
+        "Raise new infantry in Tokyo.",
+        {"detail": {"kind": "infantry", "place": "tokyo"}},
+    ),
+    f41(
+        "tojo",
+        "raise_piece",
+        {"kind": "garrison", "place": "kure"},
+        "Raise a new garrison at Kure.",
+        {"detail": {"kind": "garrison", "place": "kure"}},
+    ),
+    f41(
+        "mussolini",
+        "raise_piece",
+        {"kind": "infantry", "place": "rome"},
+        "Raise new infantry in Rome.",
+        {"detail": {"kind": "infantry", "place": "rome"}},
+    ),
+    f41(
+        "chiang",
+        "raise_piece",
+        {"kind": "infantry", "place": "chungking"},
+        "Raise new infantry at Chungking.",
+        {"detail": {"kind": "infantry", "place": "chungking"}},
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
-each zone it names, the war zone included."""
+each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
+Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two, General Xue's two and
+Marshal Mannerheim's two where no lock holds them, and President Ryti's two."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -547,7 +755,7 @@ def _salt(
             "March the levy.",
             move(f"{nation}_levy", march),
         ),
-        fsalt("declare_war", {"target": enemy}, "Declare war.", approach(enemy)),
+        fsalt("declare_war", {"target": enemy}, "Declare war.", war(enemy)),
         fsalt(
             "fly_balloon",
             {"intel": "recon", "piece": f"{nation}_balloons", "area": area},
@@ -576,87 +784,121 @@ def _salt(
     )
 
 
+def fsalt(person: str, lever: str, params: dict[str, str], sentence: str, *reading: Effect) -> Case:
+    return Case("salt", person, lever, params, sentence, tuple(reading))
+
+
+SALT_WATCH = {"intel": "patrol", "piece": "varda_galleys", "order": "guard", "zone": "strait"}
+SALT_CONVOY_ACT: Effect = {
+    "kind": "measure",
+    "title": "Salt Convoy Act",
+    "clauses": [{"kind": "power", "subject": "arm the salt convoys", "amount": None}],
+}
+"""Varda's own law as a written bill: its title's words are the key the form's bill names."""
+
 SALT_STRAIT: tuple[Case, ...] = (
     *_salt("oren_vale", "varda", "ostrel", "harrow_pass", "kesh_shore", "varda_saltworks"),
     *_salt("general_aske", "ostrel", "varda", "harrow_pass", "kesh_shore", "harrow_pass"),
+    fsalt(
+        "oren_vale",
+        "set_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        detail(patrol("varda_galleys"), order="guard", zone="strait"),
+    ),
+    fsalt(
+        "oren_vale",
+        "send_bill",
+        {"bill": "salt_convoy_act", "urgency": "ordinary"},
+        "Send the Salt Convoy Act to the Salt Assembly.",
+        SALT_CONVOY_ACT,
+    ),
+    fsalt(
+        "oren_vale",
+        "move_galleys",
+        {"force": "varda_galleys", "to": "saltworks"},
+        "Send the galleys to the Saltworks.",
+        move("varda_galleys", "saltworks"),
+    ),
+    fsalt(
+        "brask",
+        "galley_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        detail(patrol("varda_galleys"), order="guard", zone="strait"),
+    ),
+    fsalt(
+        "brask",
+        "sail",
+        {"force": "varda_galleys", "to": "free_port"},
+        "Sail the galleys to the Free Port.",
+        move("varda_galleys", "free_port"),
+    ),
+    fsalt(
+        "oren_vale",
+        "raise_piece",
+        {"kind": "levy", "place": "esk_harbour"},
+        "Raise a new levy at Esk Harbour.",
+        {"detail": {"kind": "levy", "place": "esk_harbour"}},
+    ),
 )
-"""Every form on every playable card of Salt Strait."""
+"""Every form on every playable card of Salt Strait. A form no effect kind holds (raising a
+piece) is read as an ask with no effect whose detail names each of its parameters."""
 
 # --- the open differences ----------------------------------------------------------------
 
-TIMING = "core lane fix item: a written order lands on the day its form would"
-AUTHORITY = "data lane fix item: a card's authority covers every order its forms give"
-WAR = "core lane fix item: a written declaration of war declares the war"
-DETACH = "core lane fix item: a written detachment moves only the strength it names"
-INERT = "core lane fix item for the forms that change nothing (EFD's list)"
-
-FIXES: dict[str, str] = {
-    "1941.roosevelt.lend_lease_finding": TIMING,
-    "1941.roosevelt.naval_order": INERT,
-    "1941.roosevelt.move_fleet": TIMING,
-    "1941.roosevelt.detach_fleet": DETACH,
-    "1941.roosevelt.public_address": INERT,
-    "1941.roosevelt.fly_recon": AUTHORITY,
-    "1941.roosevelt.send_on_patrol": TIMING,
-    "1941.churchill.convoy_orders": INERT,
-    "1941.churchill.production_priority": AUTHORITY,
-    "1941.churchill.move_fleet": TIMING,
-    "1941.churchill.detach_fleet": DETACH,
-    "1941.churchill.move_army": AUTHORITY,
-    "1941.churchill.broadcast": INERT,
-    "1941.churchill.fly_recon": AUTHORITY,
-    "1941.churchill.send_on_patrol": TIMING,
-    "1941.churchill.send_an_agent": AUTHORITY,
-    "1941.churchill.fund_the_codebreakers": AUTHORITY,
-    "1941.stalin.state_defence_order": INERT,
-    "1941.stalin.move_army": TIMING,
-    "1941.stalin.send_on_patrol": AUTHORITY,
-    "1941.stalin.send_an_agent": AUTHORITY,
-    "1941.hitler.uboat_directive": INERT,
-    "1941.hitler.production_priority": AUTHORITY,
-    "1941.hitler.move_army": TIMING,
-    "1941.hitler.declare_war": WAR,
-    "1941.hitler.fly_recon": AUTHORITY,
-    "1941.hitler.send_on_patrol": TIMING,
-    "1941.konoe.requisition_shipping": INERT,
-    "1941.konoe.mobilisation_plan": INERT,
-    "1941.konoe.send_an_agent": AUTHORITY,
-    "1941.tojo.requisition_shipping": INERT,
-    "1941.tojo.mobilisation_plan": INERT,
-    "1941.tojo.fly_recon": AUTHORITY,
-    "1941.tojo.send_on_patrol": AUTHORITY,
-    "1941.tojo.send_an_agent": AUTHORITY,
-    "1941.tojo.hide_a_force": AUTHORITY,
-    "1941.mussolini.production_priority": INERT,
-    "1941.mussolini.move_fleet": AUTHORITY,
-    "1941.mussolini.move_army": AUTHORITY,
-    "1941.mussolini.send_on_patrol": AUTHORITY,
-    "1941.chiang.arsenal_output": INERT,
-    "1941.chiang.appeal_abroad": INERT,
-    "1941.chiang.move_army": AUTHORITY,
-    "1941.chiang.send_an_agent": AUTHORITY,
-    "1941.king.detach_fleet": DETACH,
-    "1941.king.fleet_naval_order.western_atlantic": INERT,
-    "1941.king.fleet_naval_order.iceland_route": INERT,
-    "1941.king.fleet_naval_order.war_zone": INERT,
-    "salt.oren_vale.move_force": TIMING,
-    "salt.oren_vale.declare_war": WAR,
-    "salt.oren_vale.fly_balloon": TIMING,
-    "salt.oren_vale.galley_patrol": TIMING,
-    "salt.oren_vale.place_a_spy": TIMING,
-    "salt.oren_vale.pay_the_cipher_clerks": INERT,
-    "salt.oren_vale.hide_a_force": TIMING,
-    "salt.general_aske.move_force": TIMING,
-    "salt.general_aske.declare_war": WAR,
-    "salt.general_aske.fly_balloon": TIMING,
-    "salt.general_aske.galley_patrol": TIMING,
-    "salt.general_aske.place_a_spy": TIMING,
-    "salt.general_aske.pay_the_cipher_clerks": INERT,
-    "salt.general_aske.hide_a_force": TIMING,
-}
+FIXES: dict[str, str] = {}
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""
 
 CASES: tuple[Case, ...] = tuple(
     replace(c, fix=FIXES.get(c.name)) for c in NINETEEN_41 + SALT_STRAIT
 )
+
+
+# --- canned rulings: written orders no form covers ---------------------------------------
+
+RULED_BY = "cable_to_churchill"
+RULED_READING: tuple[Effect, ...] = (approach("churchill"),)
+"""The case whose sentence, read as a plain approach to the Prime Minister that names no
+message, the estimator rules on: an approach no form of the President's gives. Read with
+its message, the same sentence is the cable form."""
+
+PLANTED_FACT = "planted_fact"
+PLANTED_FIGURE = "planted_figure"
+"""A fact and a figure no resolver computes, planted by the test: neither shipped world has
+one at its open, and a disclosure and a figure's move need one to name."""
+
+RULINGS: dict[str, Effect] = {
+    "move_force": patrol("us_pacific_fleet"),
+    "engagement": engage("atlantic", "escort", "us_atlantic_fleet"),
+    "allocate": give("uk", "lend_lease", 10, "percent"),
+    "appointment": {"kind": "appointment", "person": "hopkins", "office": "envoy"},
+    "measure": {
+        "kind": "measure",
+        "title": "Aid to Britain",
+        "clauses": [{"kind": "power", "subject": "aid to britain"}],
+    },
+    "statement": say("aid_to_allies"),
+    "investigate": {"kind": "investigate", "target": "germany", "question": "intent"},
+    "deal": {"kind": "deal", "counterparty": "uk", "offer": ["destroyers"], "ask": ["bases"]},
+    "disposition": {"kind": "disposition", "of": "uk", "toward": "usa", "change": 2},
+    "disclosure": {"kind": "disclosure", "fact": PLANTED_FACT},
+    "figure": {"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 5},
+}
+"""One canned ruling per effect kind the estimator may return, each the estimator's whole
+reply on the approach ``RULED_BY`` stands for, as world keys. Each lands as ruled."""
+
+PAST_THE_CAP: dict[str, tuple[tuple[Effect, ...], tuple[Effect, ...]]] = {
+    "disposition": (
+        (RULINGS["disposition"], RULINGS["disposition"]),
+        (RULINGS["disposition"],),
+    ),
+    "figure": (
+        ({"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 25},),
+        ({"kind": "figure", "quantity": PLANTED_FIGURE, "percent": 10},),
+    ),
+    "effects": ((RULINGS["statement"],) * 9, (RULINGS["statement"],) * 8),
+}
+"""Rulings past a cap, and what lands: a disposition moves at most 2 in one order, a figure
+at most 10 percent in one order, and a ruling holds at most 8 effects."""

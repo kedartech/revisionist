@@ -184,6 +184,13 @@ def horizon(people: tuple[str, ...], days: int) -> Change:
     return change
 
 
+def without_rule(rule: str) -> Change:
+    def change(w: World) -> None:
+        w["rules"] = [r for r in w["rules"] if r != rule]
+
+    return change
+
+
 def placed(piece: str, place: str) -> Change:
     def change(w: World) -> None:
         for f in w["features"]:
@@ -240,6 +247,7 @@ NINETEEN_41 = Cast(
         tiers({"afrika_korps": 5, "western_desert_force": 3}),
         placed("afrika_korps", "tripoli"),
         horizon(("hitler",), 1),
+        without_rule("kinds_in_battle"),
     ),
     defender="churchill",
     attacker="hitler",
@@ -266,9 +274,141 @@ Desert Force. The test's copy gives each leader command of his desert army, sets
 armies' strengths, starts the Afrika Korps at Tripoli (the seeded battle then runs the
 script's course: an even first round, a lull while Hitler holds, and the Western Desert
 Force leaving by its standing order when he presses), and gives Hitler a one-day horizon
-so every wake is one world day, which the patrol does on Salt Strait."""
+so every wake is one world day, which the patrol does on Salt Strait. Kinds do not count
+in the copy's battles: armour against infantry in the open breaks it on the first day, and
+the script's course is the strengths' even fight; the kinds have tests of their own."""
 
-CASTS = (SALT_STRAIT, NINETEEN_41)
+BALLOONS = "union_balloon_corps"
+GAZELLE = "confederate_balloon"
+
+
+def balloons(w: World) -> None:
+    """A balloon for each side: the Union's corps flying from Washington, sent up by the
+    President's form and reported through Halleck, and the Confederate balloon flying from
+    Richmond. The shipped world has no piece and no source that searches from the air,
+    which the Salt Strait script's reconnaissance and air cover need."""
+    w["piece_kinds"].append(
+        {
+            "key": "balloon",
+            "name": "Balloon",
+            "domain": "air",
+            "days_per_step": {
+                "plain": 2,
+                "forest": 2,
+                "marsh": 3,
+                "mountain": 3,
+                "river": 2,
+                "sea": 3,
+            },
+            "range_steps": 1,
+            "detect": 50,
+            "max_strength": 2,
+        }
+    )
+    for key, name, side, place in (
+        (BALLOONS, "The Balloon Corps", "usa", "washington"),
+        (GAZELLE, "The Gazelle", "csa", "richmond"),
+    ):
+        w["features"].append(
+            {
+                "key": key,
+                "kind": "piece",
+                "piece": "balloon",
+                "name": name,
+                "side": side,
+                "tier": 1,
+                "places": [place],
+                "gap": True,
+            }
+        )
+    for d in w["intelligence"]:
+        if d["nation"] == "usa":
+            d["sources"].append({"source": "air", "person": "halleck", "channel": "letter"})
+    for card in w["cards"]:
+        if card["person"] == "davis":
+            card["authority"][0]["forces"].append(GAZELLE)
+            (move,) = [lever for lever in card["levers"] if lever["name"] == "move_force"]
+            move["params"][0]["choices"].append(GAZELLE)
+        if card["person"] == "lincoln":
+            card["authority"][0]["forces"].append(BALLOONS)
+            card["levers"].append(
+                {
+                    "name": "fly_balloon",
+                    "pipeline": "union_order",
+                    "resolver": "intel",
+                    "label": "Send up a balloon",
+                    "params": [
+                        {"name": "intel", "kind": "enum", "choices": ["recon"]},
+                        {"name": "piece", "kind": "enum", "choices": [BALLOONS]},
+                        {"name": "area", "kind": "enum", "choices": ["virginia"]},
+                    ],
+                }
+            )
+
+
+def capitals_as_bases(w: World) -> None:
+    """Washington a Union base and Richmond a Confederate base, each for armies and
+    balloons. The shipped world names no Confederate base and no air base, so no
+    Confederate army could move and no balloon could fly."""
+    bases = {
+        "richmond": {"sides": ["csa"], "domains": ["land", "air"]},
+        "washington": {"sides": ["usa"], "domains": ["land", "air"]},
+    }
+    for e in w["entities"]:
+        if e.get("key") in bases:
+            e["base"] = bases[e["key"]]
+
+
+def loyal(person: str) -> Change:
+    """The person carries out each command as given, whatever the day's friction
+    (loyalty 2). The shipped Civil War cards give no one a loyalty, so a command may land
+    late, or a battle decision be carried out loosely and dropped, and the script's
+    hold-then-press would rest on the draw."""
+
+    def change(w: World) -> None:
+        for card in w["cards"]:
+            if card["person"] == person:
+                card["loyalty"] = 2
+
+    return change
+
+
+CIVIL_WAR = Cast(
+    name="civil-war-1862",
+    world="civil-war-1862",
+    changes=(
+        model_rules,
+        balloons,
+        capitals_as_bases,
+        loyal("randolph"),
+        tiers({"army_of_northern_virginia": 5, "army_of_the_potomac": 3}),
+        horizon(("davis",), 1),
+    ),
+    defender="lincoln",
+    attacker="davis",
+    defender_nation="usa",
+    attacker_nation="csa",
+    defender_force="army_of_the_potomac",
+    attacker_force="army_of_northern_virginia",
+    front="maryland",
+    war=None,
+    march=("move_force", {"force": "army_of_northern_virginia", "to": "washington"}),
+    cover=("move_force", {"force": GAZELLE, "to": "washington"}),
+    recall=("move_force", {"force": GAZELLE, "to": "richmond"}),
+    recon=("fly_balloon", {"intel": "recon", "piece": BALLOONS, "area": "virginia"}),
+    aide="Henry W. Halleck",
+    agent={"kind": "investigate", "target": "virginia", "question": "agent", "intel": "agent"},
+    theme="the_union",
+    group="republicans",
+    offer_area="north_carolina",
+    patrol=None,
+)
+"""The Civil War cast for the Salt Strait script: Davis sends the Army of Northern Virginia
+into Maryland, held by Lincoln's Army of the Potomac. The test's copy sets the two armies'
+strengths, gives the Union a balloon corps for the reconnaissance, and gives Davis a
+one-day horizon so every wake is one world day."""
+
+CASTS = (SALT_STRAIT, NINETEEN_41, CIVIL_WAR)
 
 
 # --- no model -------------------------------------------------------------------------
@@ -561,6 +701,8 @@ def games(tmp_path_factory: pytest.TempPathFactory) -> Iterator[dict[str, Game]]
     """Each cast's full game, played once for the module."""
     out: dict[str, Game] = {}
     with pytest.MonkeyPatch.context() as m:
+        # conftest's secret is per test; the odds mark the reports they show with it
+        m.setenv("REVISIONIST_MARK_SECRET", "12" * 32)
         for cast in CASTS:
             out[cast.name] = Game(cast, tmp_path_factory.mktemp(cast.name), m).play()
         yield out

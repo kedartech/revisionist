@@ -37,6 +37,7 @@ from tests.test_territory_model import CAMPAIGN
 WORLD = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
 START, LAST = date(1941, 9, 1), date(1941, 12, 7)
 SEVEN = ("usa", "uk", "ussr", "germany", "japan", "italy", "china")
+HOLDERS = (*SEVEN, "finland_state")
 LEADERS = ("roosevelt", "churchill", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang")
 CITED = re.compile(r"#\s*(?:source:\s*(?P<key>[a-z0-9_]+)|gap:\s*true)")
 
@@ -85,11 +86,11 @@ def test_the_world_switches_on_battles_and_reports() -> None:
     assert {Rule.BATTLES, Rule.REPORTS} <= set(w.rules)
 
 
-def test_each_of_the_seven_nations_names_a_person_for_each_source() -> None:
+def test_each_nation_with_intelligence_names_a_person_for_each_source() -> None:
     doc = raw()
     kinds = {e["key"]: e["kind"] for e in doc["entities"]}
     intel = {d["nation"]: d for d in doc["intelligence"]}
-    assert sorted(intel) == sorted(SEVEN)
+    assert sorted(intel) == sorted(HOLDERS)
     for nation, d in intel.items():
         assert d["sources"], nation
         assert d["sources"][0]["source"] == "contact", nation
@@ -101,7 +102,7 @@ def test_each_of_the_seven_nations_names_a_person_for_each_source() -> None:
 def test_a_nation_searches_by_air_and_by_patrol_only_with_pieces_that_can() -> None:
     doc = raw()
     domain = {k["key"]: k["domain"] for k in doc["piece_kinds"]}
-    has: dict[str, set[str]] = {n: set() for n in SEVEN}
+    has: dict[str, set[str]] = {n: set() for n in HOLDERS}
     for f in doc["features"]:
         if f.get("kind") == "piece" and f.get("side") in has:
             has[f["side"]].add(domain[f["piece"]])
@@ -149,15 +150,17 @@ def test_every_piece_kind_names_its_detect_and_conceal() -> None:
 
 
 def test_the_strike_forces_leg_of_22_november_is_concealed() -> None:
-    (fleet,) = [f for f in raw()["features"] if f["key"] == "combined_fleet"]
+    # the strike force is the First Air Fleet, split from the Combined Fleet (KDA)
+    (fleet,) = [f for f in raw()["features"] if f["key"] == "first_air_fleet"]
     (leg,) = [leg for leg in fleet["legs"] if leg["since"] == date(1941, 11, 22)]
     assert leg.get("concealed") is True
     g = Logged(cmp.load_world(WORLD))
-    assert [leg.concealed for leg in g.state.features[feature("combined_fleet")].legs] == [True]
+    assert [leg.concealed for leg in g.state.features[feature("first_air_fleet")].legs] == [True]
 
 
 def test_army_group_centres_record_takes_kiev_and_then_steps_aside() -> None:
-    (agc,) = [f for f in raw()["features"] if f["key"] == "army_group_centre"]
+    # the Kiev leg is the Second Panzer Group's, split from the army group (KDA)
+    (agc,) = [f for f in raw()["features"] if f["key"] == "second_panzer_group"]
     assert [leg.get("takes", []) for leg in agc["legs"]] == [["kiev_area"], []]
 
 
@@ -178,6 +181,10 @@ def test_the_leaders_who_gave_such_orders_have_the_forms() -> None:
         "tojo": {"recon", "patrol", "agent", "conceal"},
         "mussolini": {"patrol"},
         "chiang": {"agent"},
+        "timoshenko": {"conceal"},
+        "xue_yue": {"conceal"},
+        "mannerheim": {"conceal"},
+        "ryti": {"agent"},
     }
 
 
@@ -200,6 +207,8 @@ def test_a_form_names_only_its_own_nations_pieces_and_areas_of_the_board() -> No
     areas = {a["key"] for a in [*doc["territories"], *doc["sea_zones"]]}
     holds = {"konoe": "japan", "tojo": "japan", "chiang": "china", "mussolini": "italy"}
     holds |= {"roosevelt": "usa", "churchill": "uk", "stalin": "ussr", "hitler": "germany"}
+    holds |= {"timoshenko": "ussr", "xue_yue": "china", "mannerheim": "finland_state"}
+    holds |= {"ryti": "finland_state"}
     for person, lever in intel_forms():
         params = {p["name"]: p for p in lever["params"]}
         (form,) = params["intel"]["choices"]
@@ -244,16 +253,32 @@ def _order(state: State, person: str, lever: str, n: int) -> Order:
     )
 
 
-@pytest.fixture(scope="module")
-def opened() -> State:
-    """The game on 1 September with every leader seated and output to spend."""
-    g = Logged(cmp.load_world(WORLD), *LEADERS)
+def _opened(*commanders: str) -> State:
+    g = Logged(cmp.load_world(WORLD), *LEADERS, *commanders)
     g.add([ev.EconomySet(polity=entity(n), pools=Pools(output=100.0), on=START) for n in SEVEN])
     return g.state
 
 
+@pytest.fixture(scope="module")
+def opened() -> State:
+    """The game on 1 September with every leader and the Western Front's and the Ninth War Area's
+    commanders seated."""
+    return _opened("timoshenko", "xue_yue")
+
+
+@pytest.fixture(scope="module")
+def opened_finland() -> State:
+    """The same game with Finland's President and Commander-in-Chief seated in their place:
+    the ten human seats hold the eight leaders and two more at most."""
+    return _opened("ryti", "mannerheim")
+
+
 @pytest.mark.parametrize(("person", "lever"), FORMS)
-def test_each_intelligence_form_filed_changes_state(opened: State, person: str, lever: str) -> None:
+def test_each_intelligence_form_filed_changes_state(
+    opened: State, opened_finland: State, person: str, lever: str
+) -> None:
+    if person in {"ryti", "mannerheim"}:
+        opened = opened_finland
     order = _order(opened, person, lever, FORMS.index((person, lever)))
     state = fold(
         opened,
@@ -296,7 +321,7 @@ def test_typhoon_opens_a_battle_on_7_october_under_the_battle_rules(
         if isinstance(e.payload, ev.BattleOpened)
     ]
     assert (date(1941, 10, 7), "moscow_area", "germany") in opened
-    assert (date(1941, 9, 27), "hunan", "japan") in opened
+    assert (date(1941, 9, 29), "hunan", "japan") in opened
     assert all(on > START for on, _, _ in opened)
 
 

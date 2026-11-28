@@ -13,7 +13,8 @@ import {
   LABEL_PX, MIN_MARK_PX, MIN_TAP_PX, choiceFor, confidenceWord, intelForm, rangePips, rangeWords, reportAge, reportAgeWord,
   reportAgoWords, reportFade, reportGlyph, reportMarkLine, reportWhat, reportWhere, ringEdges, ringWords, shortDate, sourceWord,
 } from '../realism-rules.js';
-import { forceGlyph, pipGlyph } from './realism-map.js';
+import { forceGlyph, markSwatch, pictureOf, pipGlyph } from './realism-map.js';
+import { reportHead } from './realism-piece.js';
 
 /** How far below its area's label point a report is drawn, and the gap between reports side by side, in pixels. [proposed] */
 const REPORT_DROP = 34;
@@ -45,6 +46,9 @@ function regionAt(map, key, labelAt) {
   return [r2(pts.reduce((s, p) => s + p[0], 0) / pts.length), r2(pts.reduce((s, p) => s + p[1], 0) / pts.length)];
 }
 
+/** A report as a mark: another's, as reported, with its domain's glyph and the picture the report carries. */
+const reportMark = (r, glyph) => ({ side: 'other', kind: glyph === 'unknown' ? null : glyph, certainty: 'reported', picture: r.picture ?? null });
+
 /** One report's marker, centred on (0, 0): the diamond with its glyph, its range as pips, its age badge. */
 function reportBody(r, glyph, age, chosen) {
   const pips = rangePips(r);
@@ -55,8 +59,8 @@ function reportBody(r, glyph, age, chosen) {
   return [
     svg('rect', { x: -MIN_TAP_PX / 2, y: -MIN_TAP_PX / 2, width: MIN_TAP_PX, height: MIN_TAP_PX, class: 'rl-tm-hit' }),
     chosen ? svg('circle', { r: MIN_MARK_PX * 0.95, class: 'rl-mk-ring' }) : null,
-    forceGlyph({ side: 'other', kind: glyph === 'unknown' ? null : glyph, certainty: 'reported' }, MIN_MARK_PX),
-    glyph === 'unknown' ? svg('text', { y: 4, 'text-anchor': 'middle', 'font-size': LABEL_PX, class: 'rl-rp-unknown' }, '?') : null,
+    forceGlyph(reportMark(r, glyph), MIN_MARK_PX),
+    glyph === 'unknown' && !pictureOf(r) ? svg('text', { y: 4, 'text-anchor': 'middle', 'font-size': LABEL_PX, class: 'rl-rp-unknown' }, '?') : null,
     pips ? pipGlyph(pips, pip * 5, below) : null,
     svg('g', { class: 'rl-rp-age', transform: `translate(${r2(MIN_MARK_PX * 0.8)} ${r2(LABEL_PX * 0.3)})` },
       svg('rect', { x: 0, y: -LABEL_PX * 0.8, width: bw, height: LABEL_PX * 1.1, rx: 2, class: 'rl-rp-badge' }),
@@ -161,6 +165,7 @@ export function reportSheet(map, key, { today, onReport, onOpen } = {}) {
   ].filter(Boolean);
   return h('section', { class: 'rl-rp-sheet', 'aria-labelledby': 'rl-rp-sheet-h', 'data-report': r.key },
     h('h3', { id: 'rl-rp-sheet-h' }, `Report: ${reportWhat(r)}`),
+    reportHead(r, today),
     h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
     h('p', { class: 'muted rl-rp-caveat' }, 'A report can be wrong. A wrong one looks exactly like a right one.'),
     r.document ? null : h('p', { class: 'muted' }, 'No paper: seen in contact by your own forces.'),
@@ -183,7 +188,7 @@ export function reportTables(map, { today, onReport } = {}) {
       h('caption', {}, 'Every report on your map'),
       h('thead', {}, h('tr', {}, ['Report', 'Strength', 'Where', 'Seen', 'Source', 'Reported by', 'Confidence', 'Ring', ''].map((c) => h('th', { scope: 'col' }, c)))),
       h('tbody', {}, reports.map((r) => h('tr', { 'data-report': r.key, class: `rl-rp-fade-${reportFade(reportAge(r.seen, today))}` },
-        h('th', { scope: 'row' }, reportWhat(r)),
+        h('th', { scope: 'row' }, markSwatch(reportMark(r, reportGlyph(r, map.marks))), reportWhat(r)),
         h('td', {}, rangeWords(r)),
         h('td', {}, cap(reportWhere(r, regions))),
         h('td', {}, `${shortDate(r.seen)}, ${reportAgoWords(reportAge(r.seen, today))}`),

@@ -24,6 +24,7 @@ from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from tests.test_realism_resolvers import CAMPAIGN, Rig
+from tests.test_world_forces import NEW_FORCES, SPLIT_PARTS
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
@@ -67,6 +68,22 @@ def test_the_world_switches_on_the_territory_rules() -> None:
         "aims",
         "command",
         "locks",
+        "own_aim",
+        "laws",
+        "ask_answers",
+        "deciders",
+        "offers",
+        "classes",
+        "losses",
+        "places",
+        "posts",
+        "office",
+        "defiance",
+        "peace",
+        "playable_rule",
+        "kinds_in_battle",
+        "weather",
+        "raising",
     ]
     assert Rig().state.rules == frozenset(
         {
@@ -85,13 +102,29 @@ def test_the_world_switches_on_the_territory_rules() -> None:
             Rule.AIMS,
             Rule.COMMAND,
             Rule.LOCKS,
+            Rule.OWN_AIM,
+            Rule.LAWS,
+            Rule.ASK_ANSWERS,
+            Rule.DECIDERS,
+            Rule.OFFERS,
+            Rule.CLASSES,
+            Rule.LOSSES,
+            Rule.PLACES,
+            Rule.POSTS,
+            Rule.OFFICE,
+            Rule.DEFIANCE,
+            Rule.PEACE,
+            Rule.PLAYABLE_RULE,
+            Rule.KINDS_IN_BATTLE,
+            Rule.WEATHER,
+            Rule.RAISING,
         }
     )
 
 
 def test_the_world_names_its_map_and_the_bytes_match() -> None:
     w = world()
-    assert w.map is not None and w.map.coords == "lonlat" and w.map.file == "autumn-1941.json"
+    assert w.map is not None and w.map.coords == "lonlat" and w.map.file == "autumn-1941-globe.json"
     assert w.map_data is not None
     assert len(w.territories) > 50 and len(w.sea_zones) > 20
 
@@ -136,7 +169,7 @@ def test_every_force_is_a_piece_standing_in_an_area() -> None:
     assert board is not None
     areas = set(board.areas())
     forces = _forces(r)
-    assert len(forces) == 29
+    assert len(forces) == 30 + len(NEW_FORCES) + len(SPLIT_PARTS)
     assert [key_of(r, f.feature_id) for f in forces if f.kind is not FeatureKind.PIECE] == []
     assert [key_of(r, f.feature_id) for f in forces if f.places[0] not in areas] == []
 
@@ -155,19 +188,27 @@ station across the convoy routes, working from Lorient, so the scripted season s
 the Soviet Western Front opens at Mozhaisk, since with battles on a front at Vyazma, in the
 Smolensk area with Army Group Centre, would open a battle on the first day (ITD)."""
 
-LEGS = {"soviet_western_front": ["moscow_area"]}
+LEGS = {
+    "soviet_western_front": ["moscow_area"],
+    "army_group_centre": ["moscow_area"],
+    "combined_fleet": [],
+}
 """Scripted legs the world changes from the start's: the Western Front's leg to Mozhaisk is its
-start now (ITD)."""
+start now (ITD); Army Group Centre's Kiev leg went to the Second Panzer Group, and the Combined
+Fleet's leg to Hitokappu Bay to the First Air Fleet, each split from it (KDA)."""
 
 
 def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
+    """The forces of the new lands are not in the 1941 start; their places are checked with
+    the world's forces (``tests/test_world_forces.py``)."""
     r = Rig()
     want = _start_areas()
     got = {}
     for f in _forces(r):
         key = key_of(r, f.feature_id)
         assert key is not None
-        got[key] = key_of(r, f.places[0])
+        if key not in NEW_FORCES and key not in SPLIT_PARTS:
+            got[key] = key_of(r, f.places[0])
     assert got == {k: ON_STATION.get(k, area) for k, (area, _) in want.items()}
 
 
@@ -188,10 +229,13 @@ def test_each_scripted_leg_lands_in_the_area_the_start_gives_it() -> None:
     for f in _forces(r):
         key = key_of(r, f.feature_id)
         assert key is not None
+        if key in SPLIT_PARTS:
+            continue  # a part's legs are the forces test's (KDA)
         domain = kinds.domain(r.state, f)
         assert domain is not None
         legs = [key_of(r, territory.area_of(r.state, leg.places[0], domain)) for leg in f.legs]
-        assert legs == LEGS.get(key, want[key][1]), key
+        start_legs = [] if key in NEW_FORCES else want[key][1]
+        assert legs == LEGS.get(key, start_legs), key
 
 
 def test_every_destination_a_form_offers_resolves_to_an_area() -> None:

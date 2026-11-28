@@ -24,6 +24,12 @@ person, dated the day made, carries it. A source no one is named for does not se
 except contact, which then reaches the seats the day it is made with no page. A world with
 no ``intelligence`` has contact only.
 
+With ``kinds_in_battle`` on, a report names the piece's kind only when the sighting is
+good enough (``names_kind``): a searching piece's ``detect`` beats the piece's
+``conceal`` by ``KIND_MARGIN``; with no searching piece (contact, a reconnaissance
+flight alone, an agent), at confidence A; broken codes name it always. Otherwise the
+report names no kind.
+
 A report can be wrong: at ``WRONG_BASE`` less ``WRONG_PER_COMPETENCE`` for each point of
 the person's competence, its strength range is shifted by 2 or it names a bordering area;
 the person's ``skew`` shifts every range one way. Nothing in a report says it is wrong.
@@ -40,7 +46,8 @@ next day's roll at ``RECON_CHANCE`` less each target's ``conceal``; a patrol is 
 posture on a sea piece; placing an agent (``place_agent``) puts one in an area after
 ``AGENT_DAYS``, up to ``AGENTS_MAX``, and a placed agent is exposed and lost at
 ``EXPOSE_CHANCE`` a day, its area's holder told by a paper; funding codebreaking
-(``fund_codebreaking``) spends ``CODE_COST`` output and raises the level by one after
+(``fund_codebreaking``) spends ``CODE_COST`` output, or a month of the nation's output
+income where that is less (``code_cost``), and raises the level by one after
 ``CODE_DAYS``; concealment (``set_concealed``) adds ``CONCEAL_BONUS`` to a piece's
 ``conceal`` and a day to each of its steps until lifted. The aide files a patrol or a
 flight at most (``aide_may``).
@@ -55,7 +62,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, NamedTuple
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import DocumentId, EntityId, FeatureId, derived_id
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.realism.card import ChannelKind
 
 if TYPE_CHECKING:
@@ -78,6 +85,7 @@ CODE_COST = 10  # [proposed] output points funding codebreaking spends
 CODE_DAYS = 30  # [proposed] days from the funding until the level rises
 CONCEAL_BONUS = 30  # [proposed] what concealment adds to a piece's ``conceal``
 RECON_CHANCE = 100  # a reconnaissance flight's search, less the target's ``conceal``
+KIND_MARGIN = 20  # [proposed] what ``detect`` must beat ``conceal`` by to name a kind
 
 
 class Source(StrEnum):
@@ -229,22 +237,63 @@ def made(picture: Picture, report: Report) -> Picture:
 # --- what a seat sees -----------------------------------------------------------
 
 
-def seen_by(state: "State", nation: EntityId | None) -> dict[Label, Report]:
-    """The reports that have reached ``nation``'s seats by the game's date, by key."""
+POST_STEPS = 3
+"""How far from a force he commands a commander held to his post reads reports (PVW,
+proposed): steps by the force's own domain, so a fleet's are the sea zones it reaches."""
+
+
+def _nation_of(state: "State", seat: SeatId) -> EntityId | None:
+    from revisionist.core.realism.war import polity_of
+
+    me = state.seats.get(seat)
+    return polity_of(state, me.embodies) if me is not None else None
+
+
+def post_reach(state: "State", seat: SeatId) -> frozenset[EntityId]:
+    """The areas within ``POST_STEPS`` of a force ``seat`` commands, each by that force's
+    domain; none without a board or a force."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+    from revisionist.core.realism.war_rules import commanders
+
+    board = state.map
+    if board is None:
+        return frozenset()
+    out: set[EntityId] = set()
+    for f in sorted(state.features.values(), key=lambda x: x.feature_id):
+        kind = kinds.of(state, f)
+        if kind is None or not in_play(f):
+            continue
+        if seat not in {s for s, _ in commanders(state, f.feature_id)}:
+            continue
+        steps = territory.steps_from(board, kind.domain.value, [f.places[0]])
+        out.update(a for a, n in steps.items() if n <= POST_STEPS)
+    return frozenset(out)
+
+
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> dict[Label, Report]:
+    """The reports that have reached the seat's nation by the game's date, by key. Held
+    to his post (PVW), only those on an area within his reach (``post_reach``)."""
+    nation = _nation_of(state, seat)
     today = state.in_world_date
     picture = state.reports.get(nation) if nation is not None else None
     if picture is None or today is None:
         return {}
-    return dict(sorted(received(picture, today).delivered.items()))
+    delivered = received(picture, today).delivered
+    if post:
+        reach = post_reach(state, seat)
+        delivered = {k: r for k, r in delivered.items() if r.area in reach}
+    return dict(sorted(delivered.items()))
 
 
-def envoys(state: "State", nation: EntityId | None) -> dict[Label, Report]:
+def envoys(state: "State", seat: SeatId) -> dict[Label, Report]:
     """With ``territories`` on, every other nation's envoy in play, as an exact report of
     today: an envoy is an accredited mission, public to every seat, and no roll is made
     on it (ENV). Made at projection only, never stored."""
     from revisionist.core.realism import kinds, territory
     from revisionist.core.realism.geography import in_play
 
+    nation = _nation_of(state, seat)
     today = state.in_world_date
     if today is None or not territory.on(state) or state.map is None:
         return {}
@@ -303,6 +352,9 @@ class Sighting(NamedTuple):
     region: str | None
     exact: bool
     """True: the true strength; False: within 1; with no area, no strength."""
+    detect: int | None = None
+    """The best ``detect`` of the searching pieces that saw it; None: no searching piece
+    (contact, a reconnaissance flight alone, codebreaking, an agent)."""
 
 
 def _forces(state: "State") -> list["Feature"]:
@@ -330,11 +382,15 @@ def nations(state: "State") -> list[EntityId]:
     return sorted(n for n in found if n is not None)
 
 
-def _chance(state: "State", searcher: "Feature", target: "Feature") -> int:
+def _detect(state: "State", searcher: "Feature") -> int:
     from revisionist.core.realism import kinds
 
     a = kinds.of(state, searcher)
-    return max(0, (a.detect if a else 0) - conceal(state, target))
+    return a.detect if a else 0
+
+
+def _chance(state: "State", searcher: "Feature", target: "Feature") -> int:
+    return max(0, _detect(state, searcher) - conceal(state, target))
 
 
 def concealed(piece: "Feature") -> bool:
@@ -449,10 +505,13 @@ def sightings(state: "State", start: "State", day: date, nation: EntityId) -> li
             if not searchers and e.places[0] not in flown:
                 continue
             chances = [_chance(state, s, e) for s in searchers]
+            searched = max(chances, default=0)
             if e.places[0] in flown:
                 chances.append(max(0, RECON_CHANCE - conceal(state, e)))
-            if roll(state, day, nation, source.value, str(e.feature_id)) < max(chances):
-                out.append(Sighting(source, e, Confidence.B, e.places[0], None, False))
+            hit = roll(state, day, nation, source.value, str(e.feature_id))
+            if hit < max(chances):
+                best = max(_detect(state, s) for s in searchers) if hit < searched else None
+                out.append(Sighting(source, e, Confidence.B, e.places[0], None, False, best))
     intel = state.intelligence.get(nation)
     if intel is not None and _informant(state, nation, Source.CODEBREAKING) is not None:
         chance = CODEBREAKING_CHANCE[level(state, nation, day)]
@@ -503,6 +562,20 @@ def _clamp(lo: int, hi: int, top: int) -> tuple[int, int]:
     return (min(max(lo, 0), top), min(max(hi, 0), top))
 
 
+def names_kind(state: "State", s: Sighting) -> bool:
+    """Whether the sighting's report names the piece's kind. With ``kinds_in_battle`` on,
+    a searching piece names it when its ``detect`` beats the piece's ``conceal`` by
+    ``KIND_MARGIN``; a sighting with no searching piece names it at confidence A only
+    [proposed]; broken codes name it whatever the confidence. Off: always."""
+    from revisionist.core.state import Rule
+
+    if Rule.KINDS_IN_BATTLE not in state.rules or s.source is Source.CODEBREAKING:
+        return True
+    if s.detect is None:
+        return s.confidence is Confidence.A
+    return s.detect - conceal(state, s.force) >= KIND_MARGIN
+
+
 def report(state: "State", day: date, nation: EntityId, s: Sighting) -> tuple[Report, Shift | None]:
     """The report a sighting makes, and how it is wrong, if it is."""
     from revisionist.core.realism import kinds
@@ -546,7 +619,7 @@ def report(state: "State", day: date, nation: EntityId, s: Sighting) -> tuple[Re
     arrives = day + timedelta(days=transit_days(who.channel) if who is not None else 0)
     made_report = Report(
         key=report_key(state, nation, piece.feature_id),
-        kind=None if kind is None else kind.key,
+        kind=None if kind is None or not names_kind(state, s) else kind.key,
         strength=strength,
         area=area,
         region=region if area is None else None,
@@ -729,10 +802,20 @@ def place_agent(
     return (ev.AgentSet(nation=polity, index=index, agent=agent),)
 
 
+def code_cost(state: "State", polity: EntityId, on: date) -> float:
+    """What funding codebreaking costs ``polity`` on ``on``: ``CODE_COST`` output, or a
+    month of its output income where that is less, never under 1 point."""
+    from revisionist.core.realism import economy
+    from revisionist.core.realism.kinds import Role
+
+    month = round(economy.income(state, polity, Role.OUTPUT, on), 6)
+    return float(max(1.0, min(float(CODE_COST), month)))
+
+
 def fund_codebreaking(
     state: "State", polity: EntityId, on: date
 ) -> tuple["ev.EconomySet", "ev.CodebreakingSet"]:
-    """``CODE_COST`` spent from the output pool, and the codebreaking level one higher from
+    """``code_cost`` spent from the output pool, and the codebreaking level one higher from
     ``CODE_DAYS`` after ``on``, to at most ``MAX_LEVEL`` counting rises still to come.
     Raises ``IntelError`` when the rules refuse it."""
     from revisionist.core import events as ev
@@ -747,10 +830,11 @@ def fund_codebreaking(
     reached = intel.codebreaking + len(intel.raised)
     if reached >= MAX_LEVEL:
         raise IntelError(f"Codebreaking is at level {MAX_LEVEL} already, or will be.")
+    cost = code_cost(state, polity, on)
     pools = state.economy.pools.get(polity)
-    if pools is None or pools.output < CODE_COST:
-        raise IntelError(f"Funding codebreaking needs {CODE_COST} points of output.")
-    spent = pools.model_copy(update={"output": round(pools.output - CODE_COST, 6)})
+    if pools is None or pools.output < cost:
+        raise IntelError(f"Funding codebreaking needs {cost:g} points of output.")
+    spent = pools.model_copy(update={"output": round(pools.output - cost, 6)})
     return (
         ev.EconomySet(polity=polity, pools=spent, on=on),
         ev.CodebreakingSet(nation=polity, level=reached + 1, on=on + timedelta(days=CODE_DAYS)),
@@ -785,6 +869,47 @@ def aide_may[E: Model](effect: E) -> E | None:
     if isinstance(effect, SetEngagement) and effect.concealed is not None:
         return effect.model_copy(update={"concealed": None})
     return effect
+
+
+class Barred(StrEnum):
+    """An act the aide never does for an absent seat, whatever a standing order says.
+
+    Most are seat actions the aide has no path to; ``barred`` tells the two an order's
+    typed effect can carry. A breakaway, a plot and a purge are listed by name ahead of
+    any rule that lets a seat do one."""
+
+    SEND_HELD = "send a held order anyway"
+    REFUSE = "refuse an order from above"
+    ASK_HELD = "ask for a held order"
+    ANSWER = "answer an ask or a matter as a decider or a council member"
+    BLOC_OFFER = "make an offer to a bloc"
+    OFFICE_VOTE = "vote at a sitting on an office"
+    ACCEPT = "accept an agreement, a peace among them"
+    APPOINT = "appoint or dismiss anyone not named in a standing order"
+    BREAKAWAY = "break away"
+    PLOT = "launch a plot"
+    PURGE = "order a purge"
+
+
+AIDE_BAR: frozenset[Barred] = frozenset(Barred)
+"""The aide's bar: checked where the aide's orders are chosen and again where each lands."""
+
+BAR_RULES: frozenset[str] = frozenset({"appointment"})
+"""Irreversible effect kinds the bar rules on, ahead of the standing-order rule."""
+
+
+def barred[E: Model](effect: E, standing: frozenset[str]) -> Barred | None:
+    """The act on the bar ``effect`` would do for an absent seat whose standing order
+    names the effect kinds ``standing``, or None. A standing order names kinds, not
+    people, so one naming appointments names every appointment."""
+    from revisionist.core.realism.effect import Appointment, Deal, EffectKind
+
+    act = None
+    if isinstance(effect, Deal) and effect.accept:
+        act = Barred.ACCEPT
+    elif isinstance(effect, Appointment) and EffectKind.APPOINTMENT not in standing:
+        act = Barred.APPOINT
+    return act if act in AIDE_BAR else None
 
 
 _TITLES = {
@@ -872,6 +997,8 @@ __all__ = [
     "AGENTS_MAX",
     "AGENT_CHANCE",
     "AGENT_DAYS",
+    "AIDE_BAR",
+    "BAR_RULES",
     "CODEBREAKING_CHANCE",
     "CODE_COST",
     "CODE_DAYS",
@@ -882,6 +1009,7 @@ __all__ = [
     "WRONG_BASE",
     "WRONG_PER_COMPETENCE",
     "Agent",
+    "Barred",
     "Confidence",
     "Informant",
     "IntelError",
@@ -892,6 +1020,8 @@ __all__ = [
     "Sighting",
     "Source",
     "aide_may",
+    "barred",
+    "code_cost",
     "conceal",
     "concealed",
     "exposed",

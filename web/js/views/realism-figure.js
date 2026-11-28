@@ -144,3 +144,65 @@ export function figureCard(line, tab, { dossier = null, onClose } = {}) {
       h('button', { type: 'button', class: 'ghost', onclick: () => dialog.close() }, 'Close')));
   return dialog;
 }
+
+// --- the seat's own post (view.realism.posts) ---------------------------------------------------
+
+/** The words of the seat's own card [proposed]. */
+export const NO_POST = 'You hold no post';
+export const NO_LADDER = 'No ladder runs below this post.';
+export const ROOM_TITLE = 'What you can still do';
+export const ROOM_WRITE = 'Write an order in your own words: your aide reads it and says who it goes to.';
+
+/**
+ * What a seat with no post may still do, from the server's `posts.room`: its inner circle, its
+ * newest letters, its aims, and those in its circle it may act through. A line on writing an order
+ * is always there, so the room is never empty.
+ */
+export function postRoom(room) {
+  const circle = texts(room?.inner_circle);
+  const letters = (room?.letters ?? []).filter((l) => l && typeof l.title === 'string');
+  const aims = texts(room?.aims);
+  const through = (room?.through ?? []).filter((t) => t && typeof t.name === 'string');
+  return h('section', { class: 'rl-post-room', 'aria-labelledby': 'rl-post-room-h' },
+    h('h3', { id: 'rl-post-room-h' }, ROOM_TITLE),
+    h('ul', { class: 'rl-post-can' },
+      circle.length ? h('li', {}, `Speak to your inner circle: ${circle.join(', ')}`) : null,
+      through.map((t) => h('li', {}, `Act through ${t.name}: ${texts(t.authority).join(', ') || 'what their office commands'}`)),
+      aims.length ? h('li', {}, `Your aims stand: ${aims.join('; ')}`) : null,
+      letters.length ? h('li', {}, 'Your newest letters: ', h('span', { class: 'rl-post-letters' }, letters.map((l) => l.title).join('; '))) : null,
+      h('li', {}, ROOM_WRITE)));
+}
+
+/** The distinct people the server's moves name, in the order it sent them. */
+export function movablePeople(posts) {
+  const seen = new Map();
+  for (const m of posts?.moves ?? []) if (!seen.has(m.person)) seen.set(m.person, { person: m.person, name: m.name });
+  return [...seen.values()];
+}
+
+/**
+ * The seat's own card from `posts` (the server's block, absent with the rule off): its post and,
+ * under it, its ladder with each rung free or held, and who may move it; then the people it may
+ * move, each a button calling `onPick({ person, name })`. A seat with no post opens on its room.
+ */
+export function postCard(posts, { selected = null, onPick } = {}) {
+  if (!posts) return null;
+  const people = movablePeople(posts);
+  const ladder = (posts.ladder ?? []).length
+    ? h('ol', { class: 'rl-post-ladder', 'aria-label': 'The ladder under your post' },
+      posts.ladder.map((r) => h('li', { class: `rl-post-rung${r.free ? ' free' : ''}` }, `${r.name} · ${r.free ? 'free' : 'held'}`)))
+    : h('p', { class: 'rl-post-noladder muted' }, NO_LADDER);
+  return h('section', { class: 'rl-post-card', 'aria-label': 'Your post' },
+    h('h3', { class: 'rl-post-name' }, posts.post ? posts.post.name : NO_POST),
+    posts.post ? ladder : null,
+    texts(posts.moved_by).length ? h('p', { class: 'rl-post-movers' }, `Who may move you: ${texts(posts.moved_by).join(', ')}`) : null,
+    posts.post ? null : postRoom(posts.room),
+    people.length
+      ? h('div', { class: 'rl-post-people-box' },
+        h('h4', {}, 'People you may move'),
+        h('ul', { class: 'rl-post-people', role: 'list' }, people.map((p) => h('li', {}, h('button', {
+          type: 'button', class: 'rl-court-chip', 'aria-pressed': selected === p.person ? 'true' : 'false',
+          onclick: () => onPick?.(p),
+        }, p.name)))))
+      : null);
+}

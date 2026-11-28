@@ -11,21 +11,28 @@ agreement the seat's nation is party to and every public one, with each clause's
 and day, and the open offers its nation is named in. Everything in it is read from the
 seat's ``View``, which holds no other nations' private agreement or offer; the seat's
 own offer shows each answer only once the offer's due day has decided it.
+
+With ``peace`` on (PER), the block also carries the clauses of peace the offer builder
+adds, each with the nations at war with the seat's nation it may name; each armistice in
+force among the agreements the seat sees, with the day its days run out; and, on an offer
+of peace before the seat to answer, what accepting it would do (``accept_check``): it
+stands, it is held for who decides, or no one in his nation may accept a peace. With
+``peace`` off the block is as without it.
 """
 
 from collections.abc import Iterable, Mapping
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Literal
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.ids import EntityId, FeatureId, OrderId, SeatId
-from revisionist.core.project import project
-from revisionist.core.realism import advance, agreement, process
+from revisionist.core.project import at_post, project
+from revisionist.core.realism import advance, agreement, locks, process
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.agreement import Agreement, AgreementOffer, ClauseStatus
 from revisionist.core.realism.effect import AgreementClause, ClauseType, Deal
-from revisionist.core.realism.war import polity_of
+from revisionist.core.realism.war import War, polity_of
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine import orders_reader
@@ -33,12 +40,16 @@ from revisionist.engine.web.realism_api import (
     AgreementClauseLine,
     AgreementLine,
     AgreementsBlock,
+    ArmisticeLine,
+    LockCheck,
     OfferAnswer,
     OfferLine,
     OfferReading,
     OfferTerms,
     OrderProposal,
+    PeaceClause,
     TermClause,
+    WarNation,
 )
 
 MAX_PARTIES = 8
@@ -46,6 +57,8 @@ MAX_PARTIES = 8
 MAX_CLAUSES = 8
 READY = "Your offer is ready to sign. Read the terms, then sign to send it."  # [proposed]
 NOTHING_OFFERED = "An offer needs wording, a clause the rules can check, or both."
+NO_PEACE_ROW = "No one in {nation} may accept a peace."
+"""The check's reason for an acceptance beyond the seat's post, in ``agreement``'s words."""
 CLAUSE_LEFT_OUT = (
     "Clause {n} cannot be offered: it must be one the rules can check, bind a named "
     "nation, and name only what you can see."
@@ -221,11 +234,15 @@ def offer_reading(state: State, seat: SeatId, body: Mapping[str, Any]) -> orders
 def publish_asks(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[list[Ask], str]:
     """The ``agreement-publish`` action: the order that makes the agreement ``body``
     names (its id, from the ``agreements`` block) public, and its label. Raises
-    ``ValueError`` when the seat may not publish it."""
+    ``ValueError`` when the seat may not publish it. A commander held to his post is
+    judged on the agreements his view holds, so he is refused one he cannot see as one
+    that does not exist."""
     key = body.get("agreement")
     if not isinstance(key, str) or not key.strip():
         raise ValueError("agreement is empty.")
     key = key.strip()
+    if at_post(state, seat):
+        state = state.model_copy(update={"agreements": project(state, seat).agreements})
     own = polity_of(state, state.seats[seat].embodies)
     found = state.agreements.made.get(key)
     other = next((p for p in found.parties if p != own), None) if found is not None else None
@@ -320,7 +337,7 @@ def block(
     made = sorted(seen.values(), key=lambda x: (x.made, x.agreement_id))
     offers = sorted(view.agreements.offers.values(), key=lambda o: (o.filed, o.offer_id))
     before = _before(state, seat, view.in_world_date)
-    return AgreementsBlock(
+    out = AgreementsBlock(
         agreements=[
             AgreementLine(
                 id=x.agreement_id,
@@ -334,18 +351,107 @@ def block(
             for x in made
         ],
         offers=[
-            OfferLine(
-                by=agreement.nation_name(view, o.by),
-                terms=offer_terms(state, o),
-                filed=o.filed.isoformat(),
-                expires=o.expires.isoformat(),
-                answers=_answers(view, o),
-                item=before.get(o.offer_id),
+            _accepting(
+                state,
+                seat,
+                view,
+                o,
+                OfferLine(
+                    by=agreement.nation_name(view, o.by),
+                    terms=offer_terms(state, o),
+                    filed=o.filed.isoformat(),
+                    expires=o.expires.isoformat(),
+                    answers=_answers(view, o),
+                    item=before.get(o.offer_id),
+                ),
             )
             for o in offers
             if _open(state, o)
         ],
     )
+    if not agreement.peace_on(state):
+        return out
+    out["peace"] = peace_clauses(view, own)
+    out["armistices"] = armistices(view)
+    return out
+
+
+PEACE_LABELS: tuple[tuple[Literal["armistice", "end_war", "no_separate_peace"], str], ...] = (
+    ("armistice", "Armistice with a nation"),  # [proposed]
+    ("end_war", "End the war with a nation"),  # [proposed]
+    ("no_separate_peace", "No separate peace with a nation"),  # [proposed]
+)
+
+
+def peace_clauses(view: View, own: EntityId | None) -> list[PeaceClause]:
+    """The clauses of peace the offer builder adds, each with the nations the seat may
+    name in it: those its view holds at war with its nation, by name."""
+    foes = sorted({_foe(w, own) for w in view.wars.values() if own in (w.a, w.b)})
+    nations = [WarNation(key=n, name=agreement.nation_name(view, n)) for n in foes]
+    nations.sort(key=lambda n: (n["name"], n["key"]))
+    return [PeaceClause(type=t, label=label, nations=list(nations)) for t, label in PEACE_LABELS]
+
+
+def _foe(war: War, own: EntityId | None) -> EntityId:
+    return war.b if war.a == own else war.a
+
+
+def armistices(view: View) -> list[ArmisticeLine]:
+    """Each armistice in force among the agreements in the seat's view: its nation's, and
+    the published ones. Its last day is the day its days run out and it lapses."""
+    out: list[ArmisticeLine] = []
+    for x in sorted(view.agreements.made.values(), key=lambda x: (x.made, x.agreement_id)):
+        for n, c in enumerate(x.clauses):
+            if c.type is not ClauseType.ARMISTICE or x.statuses[n] is not ClauseStatus.STANDING:
+                continue
+            assert c.days is not None
+            out.append(
+                ArmisticeLine(
+                    agreement=x.agreement_id,
+                    nations=[agreement.nation_name(view, p) for p in (c.binds, c.nation)],
+                    last_day=(x.made + timedelta(days=c.days)).isoformat(),
+                )
+            )
+    return out
+
+
+def _accepting(
+    state: State, seat: SeatId, view: View, offer: AgreementOffer, line: OfferLine
+) -> OfferLine:
+    if line["item"] is not None and agreement.peace_on(state) and agreement.carries_peace(offer):
+        line["accept"] = accept_check(state, seat, view)
+    return line
+
+
+def accept_check(state: State, seat: SeatId, view: View) -> LockCheck:
+    """What the seat's acceptance of an offer of peace would do, as the day walk then
+    decides it (``agreement._held_nations``): with no row of the kind peace for his
+    nation, it is beyond his post and the offer lapses; a row whose decider is his own
+    person lets it stand; any other row holds it for its decider."""
+    from revisionist.engine.web import locks_api
+
+    nation = polity_of(state, view.me.embodies)
+    row = locks.peace_row(state, nation) if nation is not None else None
+    if row is None:
+        name = agreement.nation_name(view, nation)
+        return LockCheck(check="beyond", who=None, reason=NO_PEACE_ROW.format(nation=name))
+    if row.decider.person == view.me.embodies:
+        return LockCheck(check="allowed", who=None, reason="")
+    lock = locks.Lock(row=row, decider=row.decider)
+    return LockCheck(
+        check="locked",
+        who=locks_api.who(view, row.decider),
+        reason=locks.reason(view, lock),
+    )
+
+
+def peace_terms(state: State, view: View, held_id: OrderId) -> OfferTerms | None:
+    """The terms in full of the offer of peace whose held acceptance is ``held_id``, as
+    the seat's view holds the offer; None for any other held order."""
+    for o in view.agreements.offers.values():
+        if any(held_id == agreement.hold_id(view.campaign_id, o.offer_id, n) for n in o.parties):
+            return offer_terms(state, o)
+    return None
 
 
 def offer_of(state: State, order_id: Any, effect: object) -> AgreementOffer | None:
@@ -363,13 +469,19 @@ def offer_of(state: State, order_id: Any, effect: object) -> AgreementOffer | No
 __all__ = [
     "CLAUSE_LEFT_OUT",
     "NOTHING_OFFERED",
+    "NO_PEACE_ROW",
+    "PEACE_LABELS",
     "PUBLISH_ASK",
     "READY",
+    "accept_check",
+    "armistices",
     "block",
     "checked",
     "offer_of",
     "offer_reading",
     "offer_terms",
+    "peace_clauses",
+    "peace_terms",
     "publish_asks",
     "reading_reply",
 ]

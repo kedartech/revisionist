@@ -48,17 +48,20 @@ def fights(w: WorldFile, f: FeatureDecl) -> bool:
     return f.kind in FORCES or (f.kind is FeatureKind.PIECE and f.piece in fighting)
 
 
-def test_each_production_form_offers_the_forces_its_leader_commands_and_no_other() -> None:
+def test_each_production_form_offers_only_forces_its_leader_commands() -> None:
     """Only forces the seat already holds on its card, so the form names no force the
-    seat's paper has not shown it (the fog rule of test_realism_map)."""
+    seat's paper has not shown it (the fog rule of test_realism_map). A leader may command a
+    force his production form does not name: a fleet he sends on patrol, an army he moves."""
     w = world()
     for person, lever in PRODUCTION.items():
         card = next(c for c in w.cards if c.person == person)
         own = {f.key for f in w.features if fights(w, f) and f.side == nation(w, person)}
         held = {k for d in card.authority for k in d.forces}
+        offered = set(param(w, person, lever, "force").choices)
         assert own, f"{person}'s nation fields no force"
         assert held <= own, person
-        assert set(param(w, person, lever, "force").choices) == (held or own), person
+        assert offered, person
+        assert offered <= (held or own), person
 
 
 def test_hitlers_production_form_adds_to_the_german_u_boat_figure() -> None:

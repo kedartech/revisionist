@@ -79,6 +79,15 @@ const strip = (rv, { home: opts } = {}) => home.withHome(statusStrip(rv, {}, { a
 const ownChip = (el) => el.querySelector('button.rl-home-own');
 const groupItem = (sheet, key) => sheet.querySelectorAll('.rl-home-group').find((li) => li.getAttribute('data-group') === key);
 const sheetOf = (root) => root.querySelector('.rl-over');
+/** The World group's tab on the map-first room's bar. */
+const worldTab = (root) => root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world');
+/** The way to the home sheet in the map-first room: At home on the seat's own card, in World's Nations part. */
+const nationsChip = (root) => {
+  fire(worldTab(root), 'click');
+  const own = document.body.firstElementChild.querySelector('button.rl-nb-row.rl-nb-own');
+  fire(own, 'click');
+  return document.body.firstElementChild.querySelector('.rl-nb-card button.rl-nb-home');
+};
 
 // --- Rule 1: the band in the top strip opens the home sheet ---------------------------------
 
@@ -193,21 +202,20 @@ test('another nation\'s groups are never drawn: its band only', () => {
   assert.equal(words(sud), 'Sudland: shaken at home');
 });
 
-test('in the map-first room the band opens the home sheet over the map, the minute poll keeps it, and Escape returns focus to the band', async () => {
+test('in the map-first room At home on the seat\'s own card opens the Home part over the map, the minute poll keeps it, and Escape returns focus to the World tab', async () => {
   const { root, ctx, doc } = await room();
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   const sheet = sheetOf(root());
   assert.ok(sheet, 'a sheet is open');
   assert.equal(sheet.getAttribute('data-sheet'), 'home');
-  assert.equal(words(sheet.querySelector('.rl-over-title')), 'At home');
+  assert.equal(words(sheet.querySelector('.rl-over-title')), 'World');
   assert.equal(doc.activeElement, sheet.querySelector('.rl-over-title'));
-  assert.equal(ownChip(root()).getAttribute('aria-expanded'), 'true');
   await ctx.refresh();
   await settle();
   assert.equal(sheetOf(root())?.getAttribute('data-sheet'), 'home', 'the poll keeps it open');
   sheetOf(root()).dispatchEvent({ type: 'keydown', key: 'Escape', target: null, defaultPrevented: false, preventDefault() {}, stopPropagation() {} });
   assert.equal(sheetOf(root()), null);
-  assert.equal(doc.activeElement, ownChip(root()));
+  assert.equal(doc.activeElement, worldTab(root()), 'focus goes back to the World tab');
 });
 
 test('in today\'s room the band opens the home sheet under the strip, and a second tap closes it', async () => {
@@ -229,7 +237,7 @@ test('each chamber shows its blocs as tokens with their seats, and an open measu
   assert.ok(floor);
   const chamber = floor.querySelector('[data-chamber="assembly"]');
   assert.equal(words(chamber.querySelector('h4')), 'The assembly');
-  assert.deepEqual(chamber.querySelectorAll('.rl-home-blocs .rl-home-token').map(words), ['The Greens 100 seats', 'The Greys 100 seats']);
+  assert.deepEqual(chamber.querySelectorAll('.rl-home-seg').map((r) => r.getAttribute('aria-label')), ['The Greens, 100 seats. Open its card', 'The Greys, 100 seats. Open its card']);
   const measure = chamber.querySelector('.rl-home-measure');
   assert.equal(words(measure.querySelector('h5')), 'Levy act');
   assert.deepEqual(measure.querySelectorAll('.rl-home-vote .rl-home-token').map(words), ['The Greens 71 yea, 29 nay', 'The Greys 20 yea, 80 nay']);
@@ -247,7 +255,7 @@ test('a chamber with no measure of the seat\'s says so, with each bloc\'s seats'
   const h = seat().home;
   h.chambers[0].measures = [];
   const chamber = home.homeSheet(h).querySelector('[data-chamber="assembly"]');
-  assert.deepEqual(chamber.querySelectorAll('.rl-home-blocs .rl-home-token').map(words), ['The Greens 100 seats', 'The Greys 100 seats']);
+  assert.equal(words(chamber.querySelector('.rl-home-seatnote')), 'The Greens 100 · The Greys 100');
   assert.equal(chamber.querySelector('.rl-home-measure'), null);
   assert.equal(words(chamber.querySelector('.rl-home-nomeasure')), 'No measure of yours is before the assembly.');
 });
@@ -256,12 +264,6 @@ test('a nation with no chamber has no floor', () => {
   const h = seat().home;
   h.chambers = [];
   assert.equal(home.homeSheet(h).querySelector('.rl-home-floor'), null);
-});
-
-test('the votes needed are a majority of those voting', () => {
-  assert.equal(home.needed({ yeas: 91, nays: 109 }), 101);
-  assert.equal(home.needed({ yeas: 50, nays: 49 }), 50);
-  assert.equal(home.needed({ yeas: 0, nays: 0 }), 1);
 });
 
 // --- Rule 3: Speak to the nation ------------------------------------------------------------
@@ -287,7 +289,7 @@ test('the speech note lists each theme with the groups it moves, and states the 
 
 test('in the map-first room "Speak to the nation" opens the Forms sheet\'s free-writing form under the themes and the cap, with focus in its words', async () => {
   const { root, doc } = await room();
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   fire(buttons(sheetOf(root()), 'Speak to the nation')[0], 'click');
   const sheet = sheetOf(root());
   assert.equal(sheet.getAttribute('data-sheet'), 'forms');
@@ -373,7 +375,7 @@ test('the room gives the home sheet the days the last close walked', async () =>
   rv.home.day = '1900-04-04';
   rv.record.wake.days_passed = 2;
   const { root } = await room(rv);
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   assert.deepEqual(sheetOf(root()).querySelectorAll('.rl-home-close li').map((li) => li.getAttribute('data-group')), ['public']);
 });
 

@@ -312,21 +312,27 @@ def _pool_by_id(state: State, pool: QuantityId, delta: int, on: date) -> Quantit
 def _piece_order(
     state: State, order: Order, piece: Feature
 ) -> tuple[tuple[Feature, ...], QuantityChange | None]:
-    """An order to a piece with ``territories`` on: re-planned from the area it is in."""
+    """An order to a piece with ``territories`` on: re-planned from the area it is in. One
+    that names a strength sends that much of the piece on the course as a detachment, and
+    the rest stays (``detachments.split``)."""
     cid = state.campaign_id
     to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
-    if piece.side is None or not in_play(piece) or STRENGTH in order.params:
+    if piece.side is None or not in_play(piece):
         return (), None
     if to is None or to.kind is not EntityKind.LOCATION:
         return (), None
     if not _of_side(state, state.seats[order.issuer].embodies, piece.side):
         return (), None
-    course = territory.plan(state, piece, to.entity_id)
+    set_out = max(rs.settled_on(order), piece.as_of)
+    course = territory.plan(state, piece, to.entity_id, set_out)
     if not isinstance(course, territory.Plan):
         return (), None
-    set_out = max(rs.settled_on(order), piece.as_of)
     dest = course.path[-1] if course.path else piece.places[0]
     sent = _set_on(piece, course, dest, set_out)
+    if STRENGTH in order.params:
+        if territory.lifted(state, sent):
+            return (), None
+        return split(state, piece, str(order.params.get(FORCE)), order.params[STRENGTH], sent), None
     if territory.lifted(state, sent) and not territory.lifted(state, piece):
         drawn = _lift_change(state, piece, sent, set_out)
         return ((sent,), drawn) if drawn is not None else ((), None)
@@ -358,10 +364,11 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
     given its course; a leg of the record falling due turned into a course to its area.
     The flag says the move is the record's."""
     if piece.bound_for is not None and not piece.path:
-        course = territory.plan(state, piece, piece.bound_for)
+        set_out = min(piece.as_of, today)
+        course = territory.plan(state, piece, piece.bound_for, set_out)
         if not isinstance(course, territory.Plan):
             return _halted(piece, today), False
-        return _set_on(piece, course, piece.bound_for, min(piece.as_of, today)), False
+        return _set_on(piece, course, piece.bound_for, set_out), False
     if piece.bound_for is None and piece.legs and piece.legs[0].since <= today:
         due = [leg for leg in piece.legs if leg.since <= today]
         domain = kinds.domain(state, piece)
@@ -369,7 +376,7 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
         rest = piece.legs[len(due) :]
         if target is None:
             return piece.model_copy(update={"legs": rest}), True
-        course = territory.plan(state, piece, target)
+        course = territory.plan(state, piece, target, due[-1].since)
         if not isinstance(course, territory.Plan):
             return piece.model_copy(update={"legs": rest}), True
         moved = _set_on(piece, course, target, due[-1].since)
@@ -443,7 +450,7 @@ def _walk_one(
         if moved.path and _enemy_in(state, moved, entered, meeting):
             moved = _halted(moved, on)
         elif moved.path:
-            days = territory.step_days(state, moved, moved.path[0])
+            days = territory.step_days(state, moved, moved.path[0], on)
             if days is None:
                 moved = _halted(moved, on)
             else:

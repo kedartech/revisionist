@@ -29,9 +29,9 @@ from revisionist.core.visibility import private_to
 from revisionist.engine import odds
 from revisionist.engine.odds import BusyError, LimitedError, Service
 from revisionist.engine.store import load_state
+from revisionist.engine.web import map_api, server
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
-from revisionist.engine.web import server
 from tests.test_adjacency_moves import START, Logged, day, entity, levers, piece
 from tests.test_battle_decisions_land import army
 from tests.test_battles import COAST, OPENS, no_ferry, strengths, toy
@@ -51,6 +51,12 @@ DEFAULTS = (odds.ODDS_RUNS, odds.ODDS_DAYS, odds.PER_MINUTE, odds.LOW_CENTILE, o
 def fewer_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(odds, "ODDS_RUNS", RUNS)
     monkeypatch.setattr(odds.spread, "__defaults__", (RUNS, odds.ODDS_DAYS))
+
+
+@pytest.fixture(autouse=True)
+def closing_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The closing odds as a game that sends them computes them (``odds.SEND_CLOSING``)."""
+    monkeypatch.setattr(odds, "SEND_CLOSING", True)
 
 
 def report(
@@ -167,7 +173,7 @@ def test_a_game_without_battles_gives_no_odds(tmp_path: Path) -> None:
 
 def test_the_reply_is_a_spread_with_every_part(tmp_path: Path) -> None:
     reply = toward(seen(start(tmp_path), report()))
-    assert set(reply) == set(api.OddsReply.__annotations__)
+    assert set(reply) == api.OddsReply.__required_keys__
     shares = reply["shares"]
     assert shares is not None
     assert set(shares) == {"win", "stalemate", "loss"}
@@ -178,7 +184,7 @@ def test_the_reply_is_a_spread_with_every_part(tmp_path: Path) -> None:
     assert reply["taken"] is not None and reply["forced_back"] is not None
     assert reply["back_to"] == "norra_hills"  # the coast borders the hills (no ferry)
     assert [s["strength"] for s in reply["by_strength"]] == [3, 4, 5]
-    assert reply["reports"] == ["r1"]
+    assert reply["reports"] == [map_api.mark_key(CAMPAIGN, entity("norra"), "r1")]
 
 
 def test_the_reply_has_no_single_headline_number(tmp_path: Path) -> None:
@@ -796,7 +802,7 @@ def test_the_seat_fixture_carries_an_odds_reply_in_the_api_shape(tmp_path: Path)
     """Under ``spread``: the client's fixture never carries the word for chances."""
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["spread"]
     assert fixture == toward(seen(start(tmp_path), report()))
-    assert set(fixture) == set(api.OddsReply.__annotations__)
+    assert set(fixture) == api.OddsReply.__required_keys__
     assert set(fixture["terrain"]) == set(api.OddsTerrain.__annotations__)
     assert set(fixture["shares"]) == set(api.OddsShares.__annotations__)
     assert set(fixture["by_strength"][0]) == set(api.OddsAtStrength.__annotations__)

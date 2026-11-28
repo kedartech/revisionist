@@ -8,6 +8,7 @@ Nothing is ever deleted. Entities and assets change ``status``; the log is
 append-only and so is the ontology.
 """
 
+from collections.abc import Mapping
 from datetime import date
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar
@@ -31,7 +32,7 @@ from revisionist.core.ids import (
 )
 from revisionist.core.intent import Verb
 from revisionist.core.realism.effect import FIGURE_CAP, MoveFigure, ShiftDisposition
-from revisionist.core.visibility import Scope
+from revisionist.core.visibility import Scope, Visibility
 
 if TYPE_CHECKING:
     from revisionist.core.goals import WinCondition
@@ -116,6 +117,24 @@ class Relationship(Model):
     leverage_tags: frozenset[str] = frozenset()
     """What a holds over b."""
     scope: Scope
+
+
+def regard_held(
+    relationships: Mapping[RelationshipId, Relationship],
+    a: EntityId,
+    b: EntityId,
+    *,
+    either: bool = False,
+) -> Relationship | None:
+    """The regard ``a`` holds for ``b`` (either way round with ``either``), as whoever holds
+    ``relationships`` knows it: one sealed between them before the one the world declares,
+    which every seat sees unchanged."""
+    found = [
+        r
+        for r in relationships.values()
+        if (r.a, r.b) == (a, b) or (either and (r.a, r.b) == (b, a))
+    ]
+    return min(found, key=lambda r: r.scope.visibility is Visibility.PUBLIC, default=None)
 
 
 class Meter(Model):

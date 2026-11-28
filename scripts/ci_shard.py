@@ -6,7 +6,7 @@ file) so the shards finish at about the same time. A file with no recorded time 
 as the median recorded file, so a new test file joins a shard with no edit here or in
 the workflow.
 
-    python3 scripts/ci_shard.py --total 4 --index 0
+    python3 scripts/ci_shard.py --total 6 --index 0
 
 To refresh the timings from a full run's
 ``pytest --durations=0 --durations-min=0`` output:

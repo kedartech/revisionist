@@ -11,9 +11,10 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.realism import locks
+from revisionist.core.realism import ladder, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import Domain, SeatCard
+from revisionist.core.realism.defiance import DEFIANT_LOYALTY, defiant
 from revisionist.core.realism.effect import (
     REFUSAL_LOYALTY,
     Appointment,
@@ -179,6 +180,10 @@ def outside_the_law(state: State, order: RoutedOrder, part: int) -> str:
     routed = order.parts[part]
     issuer = state.seats[order.issuer].embodies
     if isinstance(routed.effect, Appointment):
+        post = ladder.post_named(state, routed.effect.office)
+        allowed = ladder.may_move(state, issuer, post) if post is not None else None
+        if allowed is not None:  # LDR: the world names who may move this post
+            return "" if allowed else "outside the law: your office cannot move that post"
         card = state.cards.get(routed.effect.person)
         if card is None or issuer not in card.principals:
             return "outside the law: that person does not answer to your office"
@@ -195,7 +200,8 @@ def carry_out(state: State, order: RoutedOrder, part: int) -> tuple[Fidelity | N
     if unlawful:
         return None, unlawful
     inputs = fidelity_inputs(state, routed.executor)
-    if inputs.loyalty <= REFUSAL_LOYALTY:
+    line = DEFIANT_LOYALTY if defiant(state, order.order_id) else REFUSAL_LOYALTY
+    if inputs.loyalty <= line:
         if friction(state, order.order_id, part, "refuse", n=100) < REFUSE_PCT:
             who = _name(state, routed.executor).split()[-1]
             return None, f"loyalty {inputs.loyalty}: {who} will not carry it out"

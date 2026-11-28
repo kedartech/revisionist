@@ -46,14 +46,21 @@ from revisionist.core.ontology import (
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import PlayStyle
 from revisionist.core.settings import Settings
-from revisionist.core.state import State
+from revisionist.core.state import Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import WorldError, check_history, compile_world
 from revisionist.engine import campaign as cmp
 from revisionist.engine.agent import AGENT_MODEL
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import RESOLVER_MODEL, Request, Transport, TransportError, prompt_text
+from revisionist.engine.llm import (
+    RESOLVER_MODEL,
+    Request,
+    Transport,
+    TransportError,
+    prompt_text,
+    quote_player,
+)
 from revisionist.engine.pitch import SettingCard, read_pitch
 from revisionist.engine.store import EventStore, Sealer, StoreError, load_state
 
@@ -99,7 +106,7 @@ def _request(
     place: str, settings: Settings, problems: Sequence[str], effort: int | None = None
 ) -> Request:
     prompt = (
-        f"## Place and date\n{place}\n\n"
+        f"## Place and date\n{quote_player(place)}\n\n"
         "## Settings (fixed by the table; for tone only)\n"
         + settings.model_dump_json()
         + "\n\nDraft the world file."
@@ -117,6 +124,7 @@ def _request(
         schema=DRAFT_SCHEMA,
         max_usd=2.0,
         effort=effort,
+        player_text=True,
     )
 
 
@@ -311,7 +319,10 @@ def _line(state: State, ch: Character) -> str:
 
 
 def _eligible(state: State, entity: EntityId) -> bool:
-    """The character rule (spec §5.5), which applies once the world has contests."""
+    """The character rule (spec §5.5), which applies once the world has contests, unless
+    the world plays by the playable rule (PBR), which the claim reads in its place."""
+    if Rule.PLAYABLE_RULE in state.rules:
+        return True
     return not state.contests or roster.qualifies(state, entity)
 
 
@@ -438,6 +449,10 @@ def claim(store: EventStore, campaign_id: CampaignId, seat: SeatId, name: str) -
             f"{state.entities[ch.entity_id].name} is not ready to be played yet. "
             "Choose them from the cast."
         )
+    if Rule.PLAYABLE_RULE in state.rules:
+        refused = roster.refusal(state, ch.entity_id)
+        if refused is not None:
+            raise StepRefusedError(refused)
     claimed = ev.CharacterClaimed(seat_id=seat, entity_id=ch.entity_id)
     landed: list[tuple[ev.Payload, Scope, SeatId | None]] = [(claimed, PUBLIC, seat)]
     if state.ruleset == "realism":
@@ -528,9 +543,10 @@ def search(
         prompt="## Roster\n"
         + json.dumps(listing)
         + "\n\n## What the player wants to play\n"
-        + wanted,
+        + quote_player(wanted),
         schema=SEARCH_SCHEMA,
         max_usd=0.1,
+        player_text=True,
     )
     named = [c.entity_id for c in _resolve(state, wanted) if c.entity_id in free]
     hits: list[EntityId] = []
@@ -599,9 +615,10 @@ def _record_people(
         prompt=f"## Start\n{_start(store, campaign_id)}\n\n## Already on the roster\n"
         + json.dumps(sorted(state.entities[e].name for e in state.roster))
         + "\n\n## What the player wants to play\n"
-        + wanted,
+        + quote_player(wanted),
         schema=RECORD_SCHEMA,
         max_usd=0.3,
+        player_text=True,
     )
     try:
         reply = transport.call(request)
@@ -726,13 +743,15 @@ def pick(
             call_class="character_pick",
             model=SESSION_ZERO_MODEL,
             system=prompt_text("character_pick"),
-            prompt=f"## Start\n{_start(store, campaign_id)}\n\n## The person\n{wanted}\n\n"
+            prompt=f"## Start\n{_start(store, campaign_id)}\n\n"
+            f"## The person\n{quote_player(wanted)}\n\n"
             "## Already in the world\n"
             + json.dumps(known)
             + "\n\n## On the roster\n"
             + json.dumps(sorted(state.entities[c.entity_id].name for c in state.roster.values())),
             schema=PICK_SCHEMA,
             max_usd=0.5,
+            player_text=True,
         )
     )
     cmp.log_cost(store, campaign_id, "character_pick", [reply.cost("character_pick")], seat)
@@ -792,7 +811,7 @@ def pick(
     first = derived_id(campaign_id, "pick-entity", entity)
     if state.contests:
         added = replay(_events(state, campaign_id, items, first_id=first), initial=state)
-        if not roster.qualifies(added, entity):
+        if not _eligible(added, entity):
             raise _unqualified(added, entity)
     try:
         _log(store, campaign_id, items, first_id=first)
@@ -876,7 +895,11 @@ def propose_goals(
         f"## Start\n{_start(store, campaign_id)}\n\n## What your character knows\n"
         + view.model_dump_json(exclude={"own_pending"})
         + f"\n\n## Route\n{_ROUTE_ASK[route]}"
-        + (f"\n\n## The player's goal\n{text.strip()[:280]}" if route == "own" else "")
+        + (
+            f"\n\n## The player's goal\n{quote_player(text.strip()[:280])}"
+            if route == "own"
+            else ""
+        )
     )
     reply = transport.call(
         Request(
@@ -886,6 +909,7 @@ def propose_goals(
             prompt=prompt,
             schema=GOAL_SCHEMA,
             max_usd=0.2,
+            player_text=True,
         )
     )
     cmp.log_cost(store, campaign_id, "goal", [reply.cost("goal")], seat)

@@ -52,10 +52,21 @@ a step due later from a battle's area is cancelled.
 History steps aside (HSA). A piece on a side of a battle, whether it stood there, stepped
 in or joined later, drops the moves the record still had for it (``Feature.legs``) on the
 first day it is in the battle, before the round; from then on only orders move it.
+
+Kinds in battle (KBA). With ``kinds_in_battle`` on, each piece adds its strength plus its
+kind's attack figure less 3 when its side attacks, or its defence figure less 3 when it
+defends, the figure first changed by the terrain fought on (none on a meeting's border) and
+by what is on the other side (``kinds.figure``); a piece never adds less than nothing. A kind
+that strikes supports its side as an air piece in range does, from as many steps off as it
+strikes, and adds no strength to a fight it stands in, where alone it takes losses. A kind
+that covers cancels the other side's air support within its reach. A kind that may not
+attack never opens a battle: it may step in where an enemy stands, and the enemy may attack
+it from the next day. A kind that does not hold ground takes no territory by standing in it
+(``holds_ground``). The loss still falls on the strongest piece, ties to the lowest id.
 """
 
 import hashlib
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import date, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast
@@ -69,6 +80,7 @@ if TYPE_CHECKING:
     from revisionist.core.events import Payload
     from revisionist.core.realism.effect import Posture, SetEngagement
     from revisionist.core.realism.geography import Feature
+    from revisionist.core.realism.kinds import PieceKind
     from revisionist.core.state import State, View
 
 DRAW_TOP = 2  # [proposed] plan, BTL Defaults: a draw of 0 to 2 a side
@@ -170,6 +182,9 @@ class Ending(StrEnum):
     """No attacker is left, or the attacker broke."""
     LULL = "lull"
     """The attacker stopped pressing for ``LULL_DAYS`` days and went back."""
+    CEASED = "ceased"
+    """The two powers stopped fighting, by an armistice or an end to their war (PEA): each
+    side holds where it stands, and neither has won."""
 
 
 # --- the pure rule ----------------------------------------------------------------
@@ -203,6 +218,11 @@ class Sides(NamedTuple):
     """Whether the attacker presses on the days simulated."""
     lull: int = 0
     """Days in a row the attacker has already not pressed."""
+    edges: tuple[tuple[tuple[str, int], ...], tuple[tuple[str, int], ...]] = ((), ())
+    """Each side's pieces whose kind changes what they add (KBA): by piece id, the kind's
+    figure less 3."""
+    strikers: frozenset[str] = frozenset()
+    """The pieces of a kind that strikes (KBA): they add no strength, and take losses."""
 
 
 class Round(NamedTuple):
@@ -237,10 +257,21 @@ def draws(seed: str, day: int) -> tuple[int, int]:
     return out[0], out[1]
 
 
-def score(side: SideIn, draw: int, defending: bool, defence: int) -> int:
+def score(
+    side: SideIn,
+    draw: int,
+    defending: bool,
+    defence: int,
+    edges: Mapping[str, int] | None = None,
+    strikers: Collection[str] = (),
+) -> int:
     """A side's score for a round: its strength, the defender's terrain and own ground,
-    air support, supply and the draw."""
-    total = sum(f.strength for f in side.fighters) + draw
+    air support, supply and the draw. With ``edges`` (KBA), a piece adds its strength plus
+    its edge, never less than nothing; one of ``strikers`` adds nothing."""
+    edge = edges or {}
+    total = draw + sum(
+        0 if f.fid in strikers else max(0, f.strength + edge.get(f.fid, 0)) for f in side.fighters
+    )
     if defending:
         total += defence + (1 if side.own_ground else 0)
     if side.air:
@@ -295,8 +326,9 @@ def simulate(sides: Sides, seed: str, days: int) -> Played:
             continue
         att, dfn = sides.attacker, sides.defender
         da, dd = draws(seed, d)
-        sa = score(att, da, False, sides.defence)
-        sd = score(dfn, dd, True, sides.defence)
+        ea, ed = dict(sides.edges[0]), dict(sides.edges[1])
+        sa = score(att, da, False, sides.defence, ea, sides.strikers)
+        sd = score(dfn, dd, True, sides.defence, ed, sides.strikers)
         lost_a, lost_d = losses(sa, sd)
         att, ha = _hit(att, lost_a)
         dfn, hd = _hit(dfn, lost_d)
@@ -446,7 +478,7 @@ def meetings(state: "State", movers: Sequence[tuple["Feature", EntityId, EntityI
     order of the lowest piece id moving across each (rule 5); one with an area already in a
     battle, or in a meeting settled before it, is no meeting and its pieces move as moves
     do. Filing order is read nowhere."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     if not on(state):
         return []
@@ -465,7 +497,9 @@ def meetings(state: "State", movers: Sequence[tuple["Feature", EntityId, EntityI
                 (m, o)
                 for m in ms
                 for o in ms
-                if o[1] != m[1] and at_war(state, nation[m[0].feature_id], nation[o[0].feature_id])
+                if o[1] != m[1]
+                and hostile(state, nation[m[0].feature_id], nation[o[0].feature_id])
+                and may_attack(state, m[0])
             ),
             None,
         )
@@ -547,17 +581,19 @@ def _opening(
     before: "State", state: "State", area: EntityId, here: Sequence["Feature"], day: date
 ) -> Battle | None:
     """The battle that opens in ``area`` today, or None when no two powers there are at
-    war. The attacker is the nation of the first piece (in id order) that stepped in today
-    with an enemy there that did not; with none, the first nation (in id order) at war
-    with the area's holder, else the nation of the first piece. The defender is the
-    nation of the first enemy piece that stood there, else of the first enemy piece. Each
-    side takes the pieces of nations at war with the other side and not with it."""
+    war with no armistice between them (PEA). The attacker is the nation of the first piece
+    (in id order) that stepped in today with an enemy there that did not; with none, the
+    first nation (in id order) at war with the area's holder, else the nation of the first
+    piece. The defender is the nation of the first enemy piece that stood there, else of the
+    first enemy piece. Each side takes the pieces of nations at war with the other side and
+    not with it."""
     from revisionist.core.realism import territory
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     nation = {f.feature_id: _nation(state, f) for f in here}
-    if not any(at_war(state, a, b) for a in nation.values() for b in nation.values()):
+    if not any(hostile(state, a, b) for a in nation.values() for b in nation.values()):
         return None
+    can = {f.feature_id: may_attack(state, f) for f in here}
     was = {
         f.feature_id: _area(before, b)
         for f in here
@@ -565,21 +601,26 @@ def _opening(
     }
     entered = [f for f in here if was.get(f.feature_id) != area]
     stood = [f for f in here if was.get(f.feature_id) == area]
-    attacker = next(
-        (
-            nation[f.feature_id]
-            for f in entered
-            if any(at_war(state, nation[f.feature_id], nation[g.feature_id]) for g in stood)
-        ),
-        None,
-    )
+    facing = [
+        f
+        for f in entered
+        if any(hostile(state, nation[f.feature_id], nation[g.feature_id]) for g in stood)
+    ]
+    attacker = next((nation[f.feature_id] for f in facing if can[f.feature_id]), None)
+    if attacker is None and facing:
+        return None  # KBA rule 4: a kind that may not attack steps in and opens no battle
     if attacker is None:
         held = territory.holder(state, area)
-        foes = sorted(
-            n for n in set(nation.values()) if held is not None and at_war(state, n, held)
-        )
-        attacker = foes[0] if foes else nation[here[0].feature_id]
-    enemies = [f for f in here if at_war(state, attacker, nation[f.feature_id])]
+        able = {nation[f.feature_id] for f in here if can[f.feature_id]}
+        foes = sorted(n for n in able if held is not None and hostile(state, n, held))
+        lead = next((f for f in here if can[f.feature_id]), None)
+        if foes:
+            attacker = foes[0]
+        elif lead is not None:
+            attacker = nation[lead.feature_id]
+        else:
+            return None
+    enemies = [f for f in here if hostile(state, attacker, nation[f.feature_id])]
     if not enemies:
         return None
     defender = nation[([f for f in enemies if f in stood] or enemies)[0].feature_id]
@@ -609,9 +650,9 @@ def _opening(
 def _with(state: "State", n: EntityId, own: EntityId, other: EntityId) -> bool:
     """Whether nation ``n`` fights on ``own``'s side against ``other``: it is ``own``, or
     at war with ``other`` and not with ``own``."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
-    return n == own or (at_war(state, n, other) and not at_war(state, n, own))
+    return n == own or (hostile(state, n, other) and not hostile(state, n, own))
 
 
 def _present(state: "State", battle: Battle, side: BattleSide) -> list["Feature"]:
@@ -627,14 +668,17 @@ def _present(state: "State", battle: Battle, side: BattleSide) -> list["Feature"
     return out
 
 
-def _air(state: "State", own: EntityId, area: EntityId) -> bool:
-    """Whether an air piece of ``own``'s, in play, has ``area`` within its kind's range."""
+def _air(state: "State", own: EntityId, area: EntityId, day: date | None = None) -> bool:
+    """Whether an air piece of ``own``'s, in play, has ``area`` within its kind's range, the
+    air grounded neither where it stands nor in ``area`` on ``day`` (the world's today when
+    not given)."""
     from revisionist.core.realism import kinds, territory
     from revisionist.core.realism.geography import FeatureKind, in_play
     from revisionist.core.realism.kinds import Domain
 
     board = state.map
     assert board is not None
+    grounded = _grounded(state, area, day)
     for f in sorted(state.features.values(), key=lambda x: x.feature_id):
         if f.kind is not FeatureKind.PIECE or f.side is None or not in_play(f):
             continue
@@ -644,9 +688,22 @@ def _air(state: "State", own: EntityId, area: EntityId) -> bool:
         if territory.nation(state, f.side) != own or (frm := _area(state, f)) is None:
             continue
         far = territory.steps_from(board, "air", [frm]).get(area)
-        if far is not None and far <= (kind.range_steps or 0):
+        if far is not None and far <= (kind.range_steps or 0) and not grounded(frm):
             return True
     return False
+
+
+def _grounded(state: "State", area: EntityId, day: date | None) -> "Callable[[EntityId], bool]":
+    """Whether the air is grounded, on ``day`` (the world's today when not given), in an
+    area or in ``area``: with ``weather`` off, never."""
+    from revisionist.core.realism import weather
+
+    sky, on = weather.sky(state), day or state.in_world_date
+    if sky is None or on is None:
+        return lambda _: False
+    if sky.grounded(area, on):
+        return lambda _: True
+    return lambda frm: sky.grounded(frm, on)
 
 
 def _supplied(state: "State", pieces: Sequence["Feature"]) -> bool:
@@ -657,17 +714,165 @@ def _supplied(state: "State", pieces: Sequence["Feature"]) -> bool:
     return any(s is None or s.supplied for s in found)
 
 
-def _defence(state: "State", area: EntityId) -> int:
+def _terrain(state: "State", area: EntityId) -> str | None:
+    """The terrain key of ``area``."""
     board = state.map
     assert board is not None
     terrain = {t.area: t.terrain for t in board.territories}
     terrain |= {z.area: z.terrain for z in board.sea_zones}
-    key = terrain.get(area)
+    return terrain.get(area)
+
+
+def _defence(state: "State", area: EntityId) -> int:
+    board = state.map
+    assert board is not None
+    key = _terrain(state, area)
     return next((t.defence for t in board.terrain if t.key == key), 0)
 
 
+# --- kinds in battle (KBA) ----------------------------------------------------------
+
+
+def kinds_count(state: "State") -> bool:
+    """Whether a piece's kind counts in this game's battles: ``kinds_in_battle`` on."""
+    from revisionist.core.state import Rule
+
+    return Rule.KINDS_IN_BATTLE in state.rules
+
+
+def may_attack(state: "State", f: "Feature") -> bool:
+    """Whether ``f`` may open a battle (rule 4): with the switch off, or a kind that may
+    attack, or a piece of no kind."""
+    from revisionist.core.realism import kinds
+
+    kind = kinds.of(state, f)
+    return not kinds_count(state) or kind is None or kind.may_attack
+
+
+def holds_ground(state: "State", f: "Feature") -> bool:
+    """Whether ``f`` takes a territory by standing in it (rule 5): with the switch off, or
+    a kind that holds ground, or a piece of no kind."""
+    from revisionist.core.realism import kinds
+
+    kind = kinds.of(state, f)
+    return not kinds_count(state) or kind is None or kind.holds_ground
+
+
+def _reach(kind: "PieceKind") -> int | None:
+    """The steps from a fight within which a piece of ``kind`` supports it: an air kind's
+    range (none: its own area) or its strike steps, whichever is the longer; another kind's
+    strike steps; None for a kind that gives no support."""
+    from revisionist.core.realism.kinds import Domain
+
+    found = [n for n in (kind.strike_steps,) if n is not None]
+    if kind.domain is Domain.AIR:
+        found.append(kind.range_steps or 0)
+    return max(found) if found else None
+
+
+def _within(
+    state: "State",
+    own: EntityId,
+    area: EntityId,
+    reach: "Callable[[PieceKind], int | None]",
+    day: date,
+) -> list["Feature"]:
+    """The pieces of ``own``'s, in play, in id order, whose kind's ``reach`` takes in
+    ``area`` by air steps from the area each stands in, the air grounded on ``day`` neither
+    there nor in ``area``."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import FeatureKind, in_play
+
+    board = state.map
+    assert board is not None
+    grounded = _grounded(state, area, day)
+    out: list[Feature] = []
+    for f in sorted(state.features.values(), key=lambda x: x.feature_id):
+        if f.kind is not FeatureKind.PIECE or f.side is None or not in_play(f):
+            continue
+        kind = kinds.of(state, f)
+        steps = None if kind is None else reach(kind)
+        if steps is None or territory.nation(state, f.side) != own:
+            continue
+        if (frm := _area(state, f)) is None:
+            continue
+        far = territory.steps_from(board, "air", [frm]).get(area)
+        if far is not None and far <= steps and not grounded(frm):
+            out.append(f)
+    return out
+
+
+def _support(state: "State", own: EntityId, area: EntityId, day: date) -> list["Feature"]:
+    """``own``'s pieces that give air support in ``area`` on ``day`` (rule 2): an air piece
+    within its range, and a striking piece within its strike steps."""
+    return _within(state, own, area, _reach, day)
+
+
+def _covers(state: "State", own: EntityId, area: EntityId, day: date) -> bool:
+    """Whether a covering piece of ``own``'s has ``area`` within its reach on ``day`` (rule
+    3): its range or strike steps, else its own area only."""
+    cover = _within(state, own, area, lambda k: (_reach(k) or 0) if k.covers else None, day)
+    return bool(cover)
+
+
+def _with_kinds(
+    state: "State",
+    battle: Battle,
+    pieces: tuple[Sequence["Feature"], Sequence["Feature"]],
+    sides: Sides,
+    day: date,
+) -> Sides:
+    """With ``kinds_in_battle`` on, ``sides`` as the kinds that fight read them: each
+    fighter's figure less 3 (the attacker's attack, the defender's defence) changed by the
+    terrain and by what the other side brings, its fighters and the pieces that support
+    it; a striking kind marked; each side's air support from its supporting pieces unless
+    the other side covers. With ``weather`` on, a fighter's figure is changed last by the
+    weather of the area its side fights in on ``day``. ``pieces`` are the sides' fighters in
+    ``sides``' order. With the switch off, ``sides`` as they are."""
+    from revisionist.core.realism import kinds, weather
+    from revisionist.core.realism.kinds import Condition, Figure
+
+    if not kinds_count(state):
+        return sides
+    sky = weather.sky(state)
+    ins = (sides.attacker, sides.defender)
+    nations = (battle.attacker.nation, battle.defender.nation)
+    areas = (_side_area(battle, 0), _side_area(battle, 1))
+    support = tuple(_support(state, nations[i], areas[i], day) for i in (0, 1))
+    terrain = None if battle.meeting else _terrain(state, battle.area)
+    out: list[SideIn] = []
+    edges: list[tuple[tuple[str, int], ...]] = []
+    strikers: set[str] = set()
+    for i, which in enumerate((Figure.ATTACK, Figure.DEFENCE)):
+        named = kinds.facing(state, (*pieces[1 - i], *support[1 - i]))
+        holds = {Condition.NO_ENEMY_AIR} if not support[1 - i] else set()
+        if not ins[1 - i].supplied:
+            holds.add(Condition.ENEMY_OUT_OF_SUPPLY)
+        edge: list[tuple[str, int]] = []
+        for f in pieces[i]:
+            kind = kinds.of(state, f)
+            if kind is None:
+                continue
+            shift = () if sky is None else sky.shift(kind, areas[i], day)
+            value = kinds.figure(
+                kind, which, terrain=terrain, facing=named, holds=holds, weather=shift
+            )
+            edge.append((str(f.feature_id), value - kinds.FIGURE))
+            if kind.strike_steps is not None:
+                strikers.add(str(f.feature_id))
+        edges.append(tuple(edge))
+        air = bool(support[i]) and not _covers(state, nations[1 - i], areas[i], day)
+        out.append(ins[i]._replace(air=air))
+    return sides._replace(
+        attacker=out[0],
+        defender=out[1],
+        edges=(edges[0], edges[1]),
+        strikers=frozenset(strikers),
+    )
+
+
 def _side_in(
-    state: "State", battle: Battle, side: BattleSide, pieces: Sequence["Feature"]
+    state: "State", battle: Battle, side: BattleSide, pieces: Sequence["Feature"], day: date
 ) -> SideIn:
     from revisionist.core.realism import territory
 
@@ -677,7 +882,7 @@ def _side_in(
         brought=side.brought,
         lost=side.lost,
         own_ground=not battle.meeting and territory.holder(state, battle.area) == side.nation,
-        air=_air(state, side.nation, where),
+        air=_air(state, side.nation, where, day),
         supplied=_supplied(state, pieces),
     )
 
@@ -772,10 +977,10 @@ def _went_back(state: "State", battle: Battle, piece: "Feature") -> EntityId | N
 
 def _open_to(state: "State", piece: "Feature", to: EntityId) -> bool:
     """Whether an area holds no piece at war with ``piece``'s side that can fight there."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     own = _nation(state, piece)
-    return not any(at_war(state, own, _nation(state, f)) for f in fighting(state).get(to, []))
+    return not any(hostile(state, own, _nation(state, f)) for f in fighting(state).get(to, []))
 
 
 def _sent_back(
@@ -820,6 +1025,7 @@ def _news(state: "State", battle: Battle, day: date, ending: Ending | None) -> "
         Ending.WON: f"Battle at {place} ends: {a} has won",
         Ending.HELD: f"Battle at {place} ends: {d} holds",
         Ending.LULL: f"Battle at {place} ends: {a} draws off",
+        Ending.CEASED: f"Battle at {place} ends: {a} and {d} cease fighting",
     }[ending]
     return ev.NewsReported(
         news=NewsEvent(
@@ -1080,12 +1286,13 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
         return out + _end(state, battle, day, Ending.WON if att else Ending.HELD)
     last = battle.pressed_on or battle.opened - timedelta(days=1)
     sides = Sides(
-        attacker=_side_in(state, battle, battle.attacker, att),
-        defender=_side_in(state, battle, battle.defender, dfn),
+        attacker=_side_in(state, battle, battle.attacker, att, day),
+        defender=_side_in(state, battle, battle.defender, dfn, day),
         defence=_defence(state, battle.area),
         presses=presses(battle.attacker),
         lull=max(0, (day - last).days - 1),
     )
+    sides = _with_kinds(state, battle, (att, dfn), sides, day)
     played = simulate(sides, seed(state, battle.area, day, (f.feature_id for f in (*att, *dfn))), 1)
     was = {str(f.feature_id): f for f in (*att, *dfn)}
     now = dict(was)
@@ -1168,12 +1375,18 @@ def _meeting_day(state: "State", battle: Battle, day: date) -> list["Payload"]:
         return out + _meeting_end(state, battle, day, now, ending)
     last = battle.pressed_on or battle.opened - timedelta(days=1)
     played = simulate(
-        Sides(
-            attacker=_side_in(state, battle, battle.attacker, sides[0]),
-            defender=_side_in(state, battle, battle.defender, sides[1]),
-            defence=0,  # rule 2: no terrain bonus on a border
-            presses=presses(battle.attacker),
-            lull=max(0, (day - last).days - 1),
+        _with_kinds(
+            state,
+            battle,
+            sides,
+            Sides(
+                attacker=_side_in(state, battle, battle.attacker, sides[0], day),
+                defender=_side_in(state, battle, battle.defender, sides[1], day),
+                defence=0,  # rule 2: no terrain bonus on a border
+                presses=presses(battle.attacker),
+                lull=max(0, (day - last).days - 1),
+            ),
+            day,
         ),
         seed(state, battle.area, day, now),
         1,
@@ -1235,7 +1448,7 @@ def _meeting_end(
     steps: list[Payload] = []
     for f in movers:
         moved, stepped = territory.step(state, f, into, day, territory.StepCause.ORDERED)
-        days = territory.step_days(state, moved, moved.path[0]) if moved.path else None
+        days = territory.step_days(state, moved, moved.path[0], day) if moved.path else None
         if left or days is None:
             moved = _still(moved, day)
         else:
@@ -1248,7 +1461,7 @@ def _meeting_end(
     out += steps
     out += _end(state, battle, day, ending)
     entered = [now[f.feature_id] for f in movers]
-    if left and entered:
+    if left and any(may_attack(state, f) for f in entered):
         follow = Battle(
             area=into,
             opened=day,
@@ -1492,6 +1705,8 @@ def won(
         if not isinstance(p, ev.BattleEnded):
             continue
         fought = known.pop(p.area, None)
+        if p.ending is Ending.CEASED:
+            continue
         if fought is not None and fought.meeting:
             out.append(
                 (_side_area(fought, 0 if p.winner == fought.defender.nation else 1), p.winner)
@@ -1537,8 +1752,19 @@ def walk(before: "State", state: "State", day: date, met: Sequence[Meet] = ()) -
                     features[p.feature.feature_id] = p.feature
                 out += _day(state.model_copy(update={"features": features}), battle, day)
                 continue
+        elif _ceased(state, battle):
+            out += _end(state, battle, day, Ending.CEASED)
+            continue
         out += _day(state, battle, day)
     return out
+
+
+def _ceased(state: "State", battle: Battle) -> bool:
+    """Whether an open battle's two powers no longer fight: an armistice between them is
+    in force, or their war has ended (PEA). Each side holds where it stands."""
+    from revisionist.core.realism.war import hostile
+
+    return not hostile(state, battle.attacker.nation, battle.defender.nation)
 
 
 __all__ = [
@@ -1568,9 +1794,12 @@ __all__ = [
     "fall_back",
     "fighting",
     "fighting_area",
+    "holds_ground",
+    "kinds_count",
     "land_contingency",
     "land_posture",
     "losses",
+    "may_attack",
     "meetings",
     "news_id",
     "on",

@@ -1,0 +1,556 @@
+# The 1941 map, second region: Europe and the rest of the Eastern Front, from the Atlantic coast of
+# France and Iberia to the Baltic, the Carpathians and the Balkans. Built by scripts/map_build.py
+# together with the pilot region (see worlds/maps/README.md); the provinces are Natural Earth 1:10m
+# admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and
+# names, which provinces make each territory, every cut line, every terrain and every sea zone line.
+#
+# Build it with the pilot, naming the recipe files (the staging worlds beside them are `.yaml` too):
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml --slug autumn-1941-globe
+# This file carries the map's box; the pilot's file gives none.
+#
+# Taken over from the pilot. East Prussia, occupied Poland (the General Government) and Finland were
+# the pilot's neighbours beyond the frontier; they are defined here, with their provinces, in this
+# region. The pilot's cut lines (the Memel Territory, the 1939 line in Podlaskie and Podkarpackie,
+# Petsamo) stay in its file unchanged and still give their far sides to these three. No province is
+# claimed by both files.
+#
+# Cut lines. The lane has no network and no evidence record for any 1941 border, so every cut is
+# `gap: true`: `named_source` says which border it stands for and which act would source it, and the
+# points are the lane's interpretation, drawn dashed on the proof sheet for Josh to mark. A gap
+# becomes sourced only by an evidence record (edition and locator, the exact claim, how the points were
+# taken, who verified it); that a publication exists does not promote it. No border here was compared
+# by eye with CShapes or historical-basemaps.
+#
+# 1941 borders that follow present-day province lines, so no cut is needed:
+# - Alsace-Lorraine: the departments of Moselle, Bas-Rhin and Haut-Rhin keep the line of 1871 that the
+#   annexation of 1940 restored; the Territoire de Belfort stayed French.
+# - Northern Transylvania outside the three cut counties: Satu Mare, Maramures, Salaj,
+#   Bistrita-Nasaud, Harghita and Covasna went to Hungary whole; Arad, Alba, Sibiu and Brasov stayed
+#   Romanian whole at this map's scale.
+# - Southern Dobruja: the present Romania-Bulgaria border is the line of 1940.
+# - Zakarpattia (Transcarpathia), Hungarian since 1939, is a province of its own.
+#
+# Where a 1941 border runs inside a present-day province and this file carries no cut (each listed
+# for Josh; too small to place without a source, or inside one territory of this map):
+# - The Italian zone in France of 1940 (Menton and a few Alpine communes), inside Alpes-Maritimes
+#   and Savoie, which are Vichy France here.
+# - Hanko, leased to the Soviet Union in 1940, inside Uusimaa, which is Finland here.
+# - Spisz and Orava, given to Slovakia in 1939, inside Lesser Poland, which the Reich border divides.
+# - The partition of Yugoslavia in April 1941, by Slovenian statistical region and Serbian district:
+#   Gorenjska, Koroska, Podravska, Savinjska, Zasavska and Spodnjeposavska go to Bavaria, Austria and
+#   Bohemia (the annexed north); the Ljubljana province and the coast to Northern Italy; Pomurska
+#   (Prekmurje), Medimurje and the three Backa districts to Hungary and Slovakia. The Sava line and
+#   the north of Osrednjeslovenska, Baranja inside Osijek-Baranja, and the Srem edge of
+#   Juzno-Backi are not cut.
+# - Fiume (Rijeka, inside Primorsko-Goranska) and Zara (Zadar, inside Zadarska), Italian before
+#   1941, lie inside the Balkans territory.
+# - Dalmatia, Montenegro, Kosovo and Bulgarian Macedonia lie inside the one Balkans territory.
+# - The western edge of the Pays de Gex and the line through the Jura follow the cut, not the
+#   zone interdite, whose line is not drawn.
+#
+# Lorient. Today's world puts Lorient at 47.7 N, 3.4 W, in the roadstead 1.2 km off the Morbihan
+# shore of the data, so it lies in the Bay of Biscay sea zone, not in Occupied France; it is no site of
+# a territory here. The world file is not edited by this item; 47.75 N, 3.37 W (the town) would put it
+# in Occupied France, listed for Josh and for the item that edits the world's places.
+#
+# Neutrals. Sweden, Switzerland, and Spain and Portugal are territories like any other; `neutral`
+# lists the polity keys that hold each, none of which has a seat. The build ignores the key; the
+# starting holders are set in the world file by a later item, which reads it.
+#
+# Sea zones. Four, drawn for play and not sourced: the North Sea (south to the Strait of Dover), the
+# Kattegat and the western Baltic (the Belts and the Sound, joining the pilot's Baltic at 16 E to the
+# North Sea), the Gulf of Bothnia (north of the pilot's Baltic) and the Bay of Biscay. The Channel,
+# the waters west of Britain and Ireland and the open Atlantic are left for the Atlantic's zones,
+# which join the North Sea and the Bay of Biscay; the Mediterranean is left for its own region.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: europe, name: Europe}
+territories:
+  - key: germany_east
+    name: Berlin and the East
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the North European Plain; no source cited"
+    sites: [berlin]
+    provinces: [
+      DEU-1601, DEU-3487, DEU-3488, DEU-1577, DEU-1600, DEU-1599, POL-3141, POL-3167, POL-3143,
+      POL-3142, POL-3140, POL-3145, POL-3144
+    ]
+  - key: germany_west
+    name: The Ruhr and the West
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Ruhr, the Rhineland and the northern plain; no source cited"
+    provinces: [
+      DEU-1580, DEU-1581, DEU-1579, DEU-1576, DEU-1572, DEU-1575, DEU-1578, DEU-1574, FRA-5328,
+      FRA-5273, FRA-5296
+    ]
+  - key: germany_south
+    name: Bavaria, Austria and Bohemia
+    region: europe
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "upland forest and the Alps; no source cited"
+    provinces: [
+      DEU-1591, DEU-1573, AUT-2330, AUT-2326, AUT-2322, AUT-2320, AUT-2329, AUT-2327, AUT-2325,
+      AUT-2323, AUT-2331, CZE-10368, CZE-1597, CZE-1590, CZE-10369, CZE-1593, CZE-1598, CZE-10372,
+      CZE-10373, CZE-1612, CZE-10370, CZE-10371, CZE-1594, CZE-1596, CZE-1595, SVN-1014, SVN-986,
+      SVN-959, SVN-256, SVN-234, SVN-981, SVN-974, SVN-947, SVN-214, SVN-217, SVN-233, SVN-970,
+      SVN-944, SVN-1019, SVN-259, SVN-258, SVN-251, SVN-237, SVN-1050, SVN-1041, SVN-222, SVN-232,
+      SVN-231, SVN-983, SVN-982, SVN-213, SVN-255, SVN-938, SVN-958, SVN-976, SVN-948, SVN-228,
+      SVN-229, SVN-208, SVN-200, SVN-235, SVN-257, SVN-991, SVN-1005, SVN-215, SVN-985, SVN-942,
+      SVN-1013, SVN-1017, SVN-1020, SVN-1009, SVN-1015, SVN-1016, SVN-995, SVN-963, SVN-210,
+      SVN-199, SVN-960, SVN-252, SVN-219, SVN-198, SVN-268, SVN-1011, SVN-230, SVN-203, SVN-979,
+      SVN-996, SVN-241, SVN-1001, SVN-244, SVN-994, SVN-973, SVN-1002, SVN-223, SVN-1007, SVN-971,
+      SVN-1006, SVN-949, SVN-239, SVN-941, SVN-975, SVN-243, SVN-980, SVN-997, SVN-992, SVN-1021,
+      SVN-226, SVN-1008, SVN-220, SVN-957, SVN-993, SVN-988, SVN-951, SVN-224, SVN-952, SVN-247,
+      SVN-240, SVN-939, SVN-227, SVN-216, SVN-211, SVN-221, SVN-272, SVN-956, SVN-1040, SVN-1042
+    ]
+  - key: east_prussia
+    name: East Prussia
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "lakes and forest; no source cited"
+    provinces: [RUS-2324, POL-3139]
+  - key: occupied_poland
+    name: The General Government
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "plain and the Vistula basin; no source cited"
+    provinces: [POL-3151, POL-3149]
+  - key: denmark
+    name: Denmark
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "low farmland; no source cited"
+    provinces: [DNK-3417, DNK-3416, DNK-3418, DNK-3420, DNK-3419]
+  - key: low_countries
+    name: The Low Countries
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "low farmland and the Ardennes; no source cited"
+    provinces: [
+      NLD-897, NLD-894, NLD-899, NLD-896, NLD-898, NLD-903, NLD-3483, NLD-3485, NLD-3486, NLD-895,
+      NLD-902, NLD-3484, BEL-3479, BEL-2, BEL-3476, BEL-3477, BEL-3481, BEL-3478, BEL-3480, BEL-3,
+      BEL-3474, BEL-3475, BEL-3482, LUX-906, LUX-907, LUX-908
+    ]
+  - key: occupied_france
+    name: Occupied France
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Paris basin and the Atlantic coast; no source cited"
+    provinces: [
+      FRA-5330, FRA-5268, FRA-5263, FRA-5326, FRA-5325, FRA-5348, FRA-5287, FRA-5278, FRA-5353,
+      FRA-5316, FRA-5327, FRA-5292, FRA-5283, FRA-5308, FRA-5322, FRA-5275, FRA-5290, FRA-5343,
+      FRA-5345, FRA-5334, FRA-5324, FRA-5340, FRA-5300, FRA-5323, FRA-5355, FRA-5317, FRA-5321,
+      FRA-5270, FRA-5333, FRA-5306, FRA-5344, FRA-5349, FRA-5357, FRA-5291, FRA-5329, FRA-5282,
+      FRA-5331, FRA-5332, FRA-5301, FRA-5285, FRA-5356, FRA-5289, FRA-5342, FRA-5350, "JEY+00?",
+      "GGY+00?"
+    ]
+  - key: vichy_france
+    name: Vichy France
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Massif Central, the Alps and the Pyrenees; no source cited"
+    provinces: [
+      FRA-5266, FRA-5265, FRA-5304, FRA-5341, FRA-5302, FRA-5298, FRA-5305, FRA-5269, FRA-5337,
+      FRA-5351, FRA-5274, FRA-5293, FRA-5307, FRA-5271, FRA-5297, FRA-5281, FRA-5294, FRA-5303,
+      FRA-5280, FRA-5347, FRA-5346, FRA-5311, FRA-5288, FRA-5272, FRA-5318, FRA-5309, FRA-5284,
+      FRA-5352, FRA-5338, FRA-5267, FRA-5315, FRA-5335, FRA-5299, FRA-5276, FRA-5319, FRA-5320,
+      "MCO+00?"
+    ]
+  - key: norway
+    name: Norway
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "fjords and mountains; no source cited"
+    provinces: [
+      NOR-900, NOR-75, NOR-925, NOR-911, NOR-919, NOR-917, NOR-924, NOR-1062, NOR-921, NOR-918,
+      NOR-923, NOR-922, NOR-912, NOR-916, NOR-914, NOR-913, NOR-915, NOR-910, NOR-920, NOR-901
+    ]
+  - key: sweden_area
+    name: Sweden
+    region: europe
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "forest and lakes; no source cited"
+    neutral: [sweden]
+    provinces: [
+      SWE-190, SWE-192, SWE-189, SWE-181, SWE-188, SWE-3428, SWE-191, SWE-178, SWE-195, SWE-194,
+      SWE-185, SWE-184, SWE-180, SWE-262, SWE-3429, SWE-187, SWE-193, SWE-186, SWE-179, SWE-183,
+      SWE-182
+    ]
+  - key: finland
+    name: Finland
+    region: europe
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "forest and lakes; no source cited"
+    provinces: [
+      FIN-3176, FIN-3180, FIN-3179, FIN-3190, FIN-3188, FIN-3187, FIN-3193, FIN-3191, FIN-3192,
+      FIN-3182, FIN-3181, FIN-3178, FIN-3189, FIN-3177, FIN-3183, FIN-3186, FIN-3185, FIN-3184,
+      ALD-4819, ALD-4812, ALD-4820, ALD-4822, ALD-4810, ALD-4817, ALD-4824, ALD-4814, ALD-4821,
+      ALD-4818, ALD-4823
+    ]
+  - key: hungary_slovakia
+    name: Hungary and Slovakia
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Hungarian plain and the Carpathians; no source cited"
+    provinces: [
+      HUN-3169, HUN-3171, HUN-3173, HUN-3172, HUN-3156, HUN-4904, HUN-3138, HUN-3161, HUN-4916,
+      HUN-3159, HUN-3157, HUN-3155, HUN-3168, HUN-3166, HUN-4921, HUN-3163, HUN-3164, HUN-3175,
+      HUN-3162, HUN-3158, HUN-3165, HUN-4918, HUN-3160, HUN-4907, HUN-3174, HUN-4920, HUN-4922,
+      HUN-4917, HUN-4925, HUN-4915, HUN-4906, HUN-4905, HUN-4903, HUN-4910, HUN-4911, HUN-4909,
+      HUN-4912, HUN-4913, HUN-4914, HUN-4908, HUN-4919, HUN-4924, HUN-4923, SVK-1053, SVK-1058,
+      SVK-1057, SVK-1051, SVK-1056, SVK-1055, SVK-1052, SVK-1054, UKR-293, ROU-301, ROU-298,
+      ROU-295, ROU-300, ROU-306, ROU-307, SRB-274, SRB-273, SRB-1059, HRV-1609, SVN-1044, SVN-196,
+      SVN-201, SVN-928, SVN-197, SVN-264, SVN-271, SVN-1043, SVN-931, SVN-926, SVN-927, SVN-5884,
+      SVN-263, SVN-265, SVN-269, SVN-1047, SVN-929, SVN-202, SVN-1045, SVN-1049, SVN-930, SVN-1048,
+      SVN-270, SVN-1039, SVN-267, SVN-1046, SVN-266
+    ]
+  - key: romania
+    name: Romania and Ploesti
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Danube plain and the Carpathians; no source cited"
+    provinces: [
+      ROU-276, ROU-280, ROU-124, ROU-122, ROU-129, ROU-127, ROU-131, ROU-133, ROU-126, ROU-278,
+      ROU-287, ROU-308, ROU-316, ROU-315, ROU-311, ROU-4847, ROU-130, ROU-4844, ROU-302, ROU-123,
+      ROU-297, ROU-304, ROU-310, ROU-317, ROU-314, ROU-305, ROU-303, ROU-309, ROU-312, ROU-294,
+      ROU-313, ROU-132, ROU-128
+    ]
+  - key: balkans
+    name: The Balkans
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Dinaric Alps and the Balkan range; no source cited"
+    provinces: [
+      HRV-1606, HRV-1608, HRV-1603, HRV-1490, HRV-1587, HRV-1602, HRV-1583, HRV-1493, HRV-1605,
+      HRV-1492, HRV-1610, HRV-1582, HRV-1588, HRV-1586, HRV-1491, HRV-1584, HRV-1607, HRV-1589,
+      HRV-1604, BIH-2228, BIH-4808, BIH-4807, BIH-4802, BIH-2225, BIH-4801, BIH-3153, BIH-4803,
+      BIH-4804, BIH-2224, BIH-2227, BIH-4805, BIH-2226, BIH-2889, BIH-2887, BIH-4806, BIH-2890,
+      BIH-2891, SRB-275, SRB-841, SRB-125, SRB-844, SRB-121, SRB-843, SRB-834, SRB-833, SRB-835,
+      SRB-1505, SRB-281, SRB-838, SRB-1061, SRB-1060, SRB-279, SRB-836, SRB-831, SRB-830, SRB-832,
+      SRB-839, SRB-829, SRB-837, KOS-5889, KOS-5890, KOS-5909, KOS-5908, KOS-5904, KOS-5905,
+      KOS-5915, KOS-5914, KOS-5893, KOS-5901, KOS-5897, KOS-5892, KOS-5887, KOS-5902, KOS-5907,
+      KOS-5886, KOS-5891, KOS-5896, KOS-5888, KOS-5894, KOS-5899, KOS-5911, KOS-5910, KOS-5913,
+      KOS-5906, KOS-5900, KOS-5898, KOS-5903, KOS-5912, KOS-5895, MNE-1506, MNE-1501, MNE-1509,
+      MNE-1503, MNE-1516, MNE-1510, MNE-1520, MNE-1515, MNE-1514, MNE-1507, MNE-1508, MNE-1517,
+      MNE-1496, MNE-1497, MNE-1499, MNE-1518, MNE-1513, MNE-1500, MNE-1519, MNE-1512, MNE-1511,
+      MKD-4845, MKD-2951, MKD-2952, MKD-2955, MKD-2962, MKD-2895, MKD-2898, MKD-2899, MKD-2894,
+      MKD-2999, MKD-3000, MKD-2994, MKD-2993, MKD-2996, MKD-2998, MKD-2936, MKD-2947, MKD-2903,
+      MKD-2896, MKD-2920, MKD-2926, MKD-2948, MKD-2908, MKD-2963, MKD-2957, MKD-2958, MKD-2960,
+      MKD-2959, MKD-2906, MKD-4846, MKD-2910, MKD-2943, MKD-3005, MKD-3006, MKD-3004, MKD-3007,
+      MKD-2918, MKD-2961, MKD-2944, MKD-2956, MKD-2909, MKD-2935, MKD-5883, MKD-2921, MKD-2913,
+      MKD-2923, MKD-2950, MKD-2928, MKD-2941, MKD-2945, MKD-2922, MKD-2907, MKD-2946, MKD-2953,
+      MKD-2929, MKD-2942, MKD-2897, MKD-2937, MKD-2912, MKD-2938, MKD-2904, MKD-2925, MKD-2919,
+      MKD-2917, MKD-2954, MKD-2902, MKD-2916, MKD-2901, MKD-2931, MKD-2914, MKD-2930, MKD-2940,
+      MKD-2933, MKD-2934, MKD-2911, MKD-2939, MKD-2924, MKD-2915, MKD-2927, MKD-3003, MKD-2997,
+      MKD-2905, MKD-2995, MKD-2932, BGR-2254, BGR-2255, BGR-2232, BGR-2253, BGR-2245, BGR-2244,
+      BGR-2250, BGR-2252, BGR-3002, BGR-2261, BGR-2262, BGR-2259, BGR-2251, BGR-2248, BGR-2249,
+      BGR-2237, BGR-2236, BGR-2260, BGR-2235, BGR-2233, BGR-2231, BGR-2258, BGR-2256, BGR-2257,
+      BGR-2246, BGR-2234, BGR-2247, BGR-2243, ALB-1526, ALB-1502, ALB-1521, ALB-1524, ALB-1525,
+      ALB-1504, ALB-1498, ALB-1495, ALB-1529, ALB-1494, ALB-1528, ALB-1523
+    ]
+  - key: italy_north
+    name: Northern Italy
+    region: europe
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Po valley under the Alps; no source cited"
+    provinces: [
+      ITA-5442, ITA-5437, ITA-5451, ITA-5452, ITA-5444, ITA-5459, ITA-5369, ITA-5441, ITA-5434,
+      ITA-5366, ITA-5467, ITA-5455, ITA-5457, ITA-5458, ITA-5461, ITA-5463, ITA-5462, ITA-5363,
+      ITA-5364, ITA-5365, ITA-5379, ITA-5380, ITA-5381, ITA-5383, ITA-5382, ITA-5370, ITA-5367,
+      ITA-5368, ITA-5440, ITA-5443, ITA-5445, ITA-5447, ITA-5446, ITA-5450, ITA-5453, ITA-5454,
+      ITA-5448, ITA-5388, ITA-5387, ITA-5386, ITA-5436, ITA-5449, ITA-5438, ITA-5439, ITA-5460,
+      ITA-5465, ITA-5464, ITA-5466, ITA-5361, ITA-5360, ITA-5359, ITA-5358, ITA-5362, ITA-5384,
+      ITA-5456, ITA-5435, ITA-5385, SMR-4886, SMR-4887, SMR-4888, SMR-4889, SMR-4890, SMR-4891,
+      SMR-4884, SMR-4885, SMR-4883, HRV-1592, SVN-1033, SVN-1023, SVN-1029, SVN-1018, SVN-1028,
+      SVN-1024, SVN-260, SVN-261, SVN-1032, SVN-1030, SVN-1034, SVN-1026, SVN-1031, SVN-987,
+      SVN-212, SVN-969, SVN-945, SVN-207, SVN-245, SVN-965, SVN-209, SVN-954, SVN-1027, SVN-206,
+      SVN-967, SVN-966, SVN-1003, SVN-225, SVN-968, SVN-1004, SVN-250, SVN-236, SVN-940, SVN-204,
+      SVN-964, SVN-961, SVN-943, SVN-1000, SVN-937, SVN-978, SVN-977, SVN-205, SVN-955, SVN-962,
+      SVN-5885, SVN-953, SVN-946, SVN-972, SVN-253, SVN-1010, SVN-1022, SVN-1025, SVN-1012,
+      SVN-1035, SVN-254, SVN-242, SVN-999, SVN-238, SVN-950, SVN-990, SVN-984, SVN-249, SVN-248,
+      SVN-218, SVN-989
+    ]
+  - key: italy_south
+    name: Rome and the South
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Apennines; no source cited"
+    sites: [rome, taranto]
+    provinces: [
+      ITA-5428, ITA-5427, ITA-5429, ITA-5430, ITA-5431, ITA-5419, ITA-5418, ITA-5421, ITA-5401,
+      ITA-5404, ITA-5405, ITA-5403, ITA-5406, ITA-5407, ITA-5408, ITA-5389, ITA-5391, ITA-5392,
+      ITA-5393, ITA-5395, ITA-5394, ITA-5390, ITA-5400, ITA-5397, ITA-5396, ITA-5426, ITA-5422,
+      ITA-5423, ITA-5409, ITA-5411, ITA-5410, ITA-5417, ITA-5416, ITA-5415, ITA-5414, ITA-5413,
+      ITA-5371, ITA-5374, ITA-5376, ITA-5375, ITA-5373, ITA-5372, ITA-5378, ITA-5377, ITA-5412,
+      ITA-5398, ITA-5424, ITA-5433, ITA-5432, ITA-5425, ITA-5399, ITA-5420, ITA-5402, "VAT+00?"
+    ]
+  - key: iberia
+    name: Spain and Portugal
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Meseta and its ranges; no source cited"
+    neutral: [spain, portugal]
+    provinces: [
+      ESP-5837, ESP-5823, ESP-5825, ESP-5831, ESP-5820, ESP-5807, ESP-5812, ESP-5838, ESP-5811,
+      ESP-5841, ESP-5852, ESP-5840, ESP-5824, ESP-5809, ESP-5846, ESP-5814, ESP-5849, ESP-5803,
+      ESP-5836, ESP-5804, ESP-5821, ESP-5834, ESP-5844, ESP-5827, ESP-5832, ESP-5805, ESP-5813,
+      ESP-5851, ESP-5808, ESP-5853, ESP-5828, ESP-5801, ESP-5802, ESP-5847, ESP-5818, ESP-5848,
+      ESP-5830, ESP-5845, ESP-5810, ESP-5806, ESP-5839, ESP-5816, ESP-5817, ESP-5822, ESP-5826,
+      ESP-5833, ESP-5843, ESP-5850, PRT-744, PRT-747, PRT-741, PRT-751, PRT-753, PRT-750, PRT-756,
+      PRT-749, PRT-745, PRT-743, PRT-5498, PRT-746, PRT-748, PRT-740, PRT-752, PRT-739, PRT-754,
+      PRT-755, AND-4878, AND-4879, AND-4880, AND-4877, AND-4882, AND-4881, AND-4876, ESP-5815,
+      ESP-5835
+    ]
+  - key: switzerland_area
+    name: Switzerland
+    region: europe
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Alps and the Jura; no source cited"
+    neutral: [switzerland]
+    provinces: [
+      CHE-165, CHE-168, CHE-170, CHE-171, CHE-174, CHE-176, CHE-162, CHE-3425, CHE-3423, CHE-167,
+      CHE-3426, CHE-160, CHE-159, CHE-3422, CHE-161, CHE-3424, CHE-163, CHE-177, CHE-175, CHE-173,
+      CHE-169, CHE-164, CHE-3421, CHE-3427, CHE-166, CHE-3473, LIE-4893, LIE-4896, LIE-4892,
+      LIE-4894, LIE-4901, LIE-4902, LIE-4900, LIE-4899, LIE-4898, LIE-4895, LIE-4897
+    ]
+cuts:
+  # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
+  # One line per border, written once and named by its anchor; each cut divides one province by it.
+  - name: the demarcation line of 1940 (Pyrénées-Atlantiques)
+    province: FRA-5336
+    line: &demarcation [[-1.30, 42.95], [-1.20, 43.20], [-0.70, 43.50], [-0.35, 43.75], [-0.25, 44.05],
+          [-0.20, 44.50], [-0.04, 44.82], [0.12, 45.00], [0.30, 45.30], [0.38, 45.65], [0.55, 45.95],
+          [0.70, 46.30], [0.80, 46.60], [0.85, 47.00], [1.10, 47.30], [1.38, 47.31], [1.70, 47.31],
+          [2.07, 47.22], [2.40, 47.18], [2.75, 47.00], [2.95, 46.80], [3.30, 46.62], [3.70, 46.50],
+          [4.05, 46.50], [4.40, 46.65], [4.85, 46.78], [5.15, 46.75], [5.55, 46.75], [5.85, 46.52],
+          [5.88, 46.30], [5.92, 46.14], [6.05, 46.18]]
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Landes)
+    province: FRA-5313
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Gironde)
+    province: FRA-5295
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Dordogne)
+    province: FRA-5286
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Charente)
+    province: FRA-5277
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Vienne)
+    province: FRA-5354
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Indre-et-Loire)
+    province: FRA-5310
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Loir-et-Cher)
+    province: FRA-5314
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Cher)
+    province: FRA-5279
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Allier)
+    province: FRA-5264
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Saône-et-Loire)
+    province: FRA-5339
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Jura)
+    province: FRA-5312
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the demarcation line of 1940 (Ain)
+    province: FRA-5262
+    line: *demarcation
+    left: occupied_france
+    right: vichy_france
+    gap: true
+    named_source: >-
+      the demarcation line between the occupied zone and the free zone under the armistice of 22 Jun
+      1940 (article 2 and its annexed map); points interpreted, no evidence record
+  - name: the Reich's eastern border of 1939 (Lesser Poland)
+    province: POL-3170
+    line: &reich_border [[19.55, 49.45], [19.68, 49.70], [19.70, 49.95], [19.72, 50.15], [19.80, 50.35],
+          [19.60, 50.55], [19.35, 50.68], [18.90, 50.90], [19.05, 51.10], [19.30, 51.22],
+          [19.55, 51.52], [19.88, 51.62], [19.95, 51.85], [19.78, 52.05], [19.98, 52.28],
+          [20.20, 52.40], [20.70, 52.43], [21.05, 52.52], [21.46, 52.60], [21.86, 52.70],
+          [22.25, 52.82], [22.60, 52.85]]
+    left: germany_east
+    right: occupied_poland
+    gap: true
+    named_source: >-
+      the boundary between the lands annexed to the Reich by the decrees of 8 Oct 1939 and the
+      General Government (decree of 12 Oct 1939); points interpreted, no evidence record
+  - name: the Reich's eastern border of 1939 (Silesia)
+    province: POL-3146
+    line: *reich_border
+    left: germany_east
+    right: occupied_poland
+    gap: true
+    named_source: >-
+      the boundary between the lands annexed to the Reich by the decrees of 8 Oct 1939 and the
+      General Government (decree of 12 Oct 1939); points interpreted, no evidence record
+  - name: the Reich's eastern border of 1939 (Lodz)
+    province: POL-3147
+    line: *reich_border
+    left: germany_east
+    right: occupied_poland
+    gap: true
+    named_source: >-
+      the boundary between the lands annexed to the Reich by the decrees of 8 Oct 1939 and the
+      General Government (decree of 12 Oct 1939); points interpreted, no evidence record
+  - name: the Reich's eastern border of 1939 (Masovia)
+    province: POL-3148
+    line: *reich_border
+    left: east_prussia
+    right: occupied_poland
+    gap: true
+    named_source: >-
+      the boundary between the lands annexed to the Reich by the decrees of 8 Oct 1939 and the
+      General Government (decree of 12 Oct 1939); points interpreted, no evidence record
+  - name: the Vienna Award line of 1940 (Bihor)
+    province: ROU-277
+    line: &vienna_award [[21.30, 46.78], [21.75, 46.70], [22.30, 46.85], [22.75, 46.85], [23.10, 46.72],
+          [23.45, 46.68], [23.80, 46.66], [24.20, 46.52], [24.50, 46.44], [24.85, 46.33],
+          [25.10, 46.30], [25.50, 46.30]]
+    left: hungary_slovakia
+    right: romania
+    gap: true
+    named_source: >-
+      the line of the Second Vienna Award of 30 Aug 1940 between Hungary and Romania; points
+      interpreted, no evidence record
+  - name: the Vienna Award line of 1940 (Cluj)
+    province: ROU-296
+    line: *vienna_award
+    left: hungary_slovakia
+    right: romania
+    gap: true
+    named_source: >-
+      the line of the Second Vienna Award of 30 Aug 1940 between Hungary and Romania; points
+      interpreted, no evidence record
+  - name: the Vienna Award line of 1940 (Mures)
+    province: ROU-299
+    line: *vienna_award
+    left: hungary_slovakia
+    right: romania
+    gap: true
+    named_source: >-
+      the line of the Second Vienna Award of 30 Aug 1940 between Hungary and Romania; points
+      interpreted, no evidence record
+sea_zones:
+  - key: north_sea
+    name: The North Sea
+    region: europe
+    terrain: sea
+    polygon: [[1.5, 51.0], [9.0, 51.0], [9.0, 56.0], [10.6, 57.72], [12.2, 58.0], [12.2, 61.0],
+              [-1.0, 61.0], [-3.4, 58.7], [-3.4, 56.0], [-2.0, 53.5]]
+  - key: danish_straits
+    name: The Kattegat and the Western Baltic
+    region: europe
+    terrain: sea
+    polygon: [[9.0, 53.0], [16.0, 53.0], [16.0, 57.5], [13.0, 58.5], [12.2, 58.0], [10.6, 57.72],
+              [9.0, 56.0]]
+  - key: gulf_of_bothnia
+    name: The Gulf of Bothnia
+    region: europe
+    terrain: sea
+    polygon: [[16.0, 60.9], [26.0, 60.9], [26.0, 66.5], [16.0, 66.5]]
+  - key: bay_of_biscay
+    name: The Bay of Biscay
+    region: europe
+    terrain: sea
+    polygon: [[-10.0, 43.0], [0.0, 43.0], [0.0, 48.3], [-10.0, 48.3]]
+crossings: []

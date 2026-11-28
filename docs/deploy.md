@@ -59,6 +59,11 @@ REVISIONIST_BACKUP_DEST=<rsync target, e.g. user@nas:/backups/revisionist, or rc
 | `REVISIONIST_SCHEDULER_TRANSPORT` | what `revisionist scheduler run` ticks on: `claude` (the default, the Claude CLI on this login) or `openrouter` (free models only). The `--transport` flag wins over it. One value per instance, in that instance's env file (§11) |
 | `REVISIONIST_OPENROUTER_KEY` | the OpenRouter key of an `openrouter` instance, read by `web serve --transport openrouter` and `scheduler run --transport openrouter`; never printed |
 | `REVISIONIST_DISCORD_*` | the Discord bot and DM delivery; see §9 |
+| `REVISIONIST_PUBLIC_NAMES` | the names `web serve` is reached by, comma separated (`host` or `host:port`); a request to any other name is refused with 421, and a write's `Origin` must be one of them (§12) |
+| `REVISIONIST_REPORTS_DIR` | optional folder where each player report is also written as `report-<n>.md`, its words in plain (§12) |
+| `REVISIONIST_REPORTS_DIGEST_TO` | optional address for `revisionist reports digest`, one message a day with counts only (§12) |
+| `REVISIONIST_ASSETLINKS_FILE` | path to the Android app's `assetlinks.json`, served at `/.well-known/assetlinks.json` (§12) |
+| `REVISIONIST_TRUST_PROXY` | `1` only when a proxy that writes `X-Forwarded-For` sits in front of `web serve` (§12) |
 | `REVISIONIST_MODEL_<CALL>` | optional per-call model for the Claude CLI, e.g. `REVISIONIST_MODEL_RESOLVER=claude-haiku-5-5`; must start with `claude-`, otherwise it is ignored with a warning. Call classes: `resolver`, `narrator`, `structure`, `brief`, `deputy`, `session_zero`, `character_search`, `character_record`, `character_pick`, `goal`, `history_brief` |
 
 To run a CLI command with a file loaded, use a subshell, so its variables do not stay in your shell and break the test suite: `(set -a; . ~/.config/revisionist/revisionist.env; set +a; revisionist db verify)`. Load `revisionist-admin.env` the same way, and only for backup, restore and admin work.
@@ -70,11 +75,11 @@ Playtest operations run in Discord (`/host ...`); the shell is for migrate, veri
 ```
 git clone <the repo> ~/src/revisionist
 cd ~/src/revisionist
-uv tool install --editable '.[postgres,discord]'   # puts `revisionist` in ~/.local/bin
+uv sync --frozen --extra postgres --extra discord --extra seal   # installs the locked versions; `revisionist` is at .venv/bin/revisionist, link it into ~/.local/bin
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # "applied 0001_init, 0002_schedule, 0003_discord"
 ```
 
-`--editable` keeps `revisionist new salt-strait` finding the bundled `worlds/`. Rerunning `revisionist db migrate` is safe ("up to date"). After pulling new code, run it again before the next tick.
+The install follows `uv.lock`, the versions the CI audit checks, not the `>=` ranges in `pyproject.toml`, which would resolve to unaudited versions. Running from the checkout keeps `revisionist new salt-strait` finding the bundled `worlds/`. Rerunning `revisionist db migrate` is safe ("up to date"). After pulling new code, run it again before the next tick.
 
 Moving a SQLite campaign across, if you have one:
 
@@ -193,7 +198,7 @@ With the token in `revisionist.env`, the scheduler (§5) delivers by DM too: it 
 
 ```
 cd ~/src/revisionist && git pull
-uv tool install --editable '.[postgres,discord]' --force
+uv sync --frozen --extra postgres --extra discord --extra seal
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # "applied 0003_discord"
 (
   set -a; . ~/.config/revisionist/revisionist.env; set +a
@@ -244,7 +249,7 @@ Create one text channel named `#chronicle` and give the bot **View Channel** and
 ### 9.8 Sealing campaigns at rest (Layer 9b)
 
 ```
-uv tool install --editable '.[postgres,discord,seal]' --force
+uv sync --frozen --extra postgres --extra discord --extra seal
 revisionist admin new-master-key ~/.config/revisionist/master.key     # mode 0600, never overwritten
 echo "REVISIONIST_MASTER_KEY_FILE=$HOME/.config/revisionist/master.key" >> ~/.config/revisionist/revisionist.env
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # applies 0007_seal_keys
@@ -269,7 +274,7 @@ From then on every **new** campaign is sealed: its events and snapshots are AES-
 
 ### 9.10 A historical campaign (Layer 10 item 1)
 
-No migration: Session Zero, goals and the season end live in the event log. Update the tool (`uv tool install --editable '.[postgres,discord,seal]' --force`) and restart the bot so the new slash commands sync.
+No migration: Session Zero, goals and the season end live in the event log. Update the tool (`uv sync --frozen --extra postgres --extra discord --extra seal`) and restart the bot so the new slash commands sync.
 
 ```
 (
@@ -317,7 +322,7 @@ The project was called Wyrd Protocol through Layer 9a. Everything it installed c
    mv ~/.local/share/wyrd ~/.local/share/revisionist
    ```
    Check by eye that the DSNs now name the `revisionist` database and roles, and that the briefings and backup paths point at `~/.local/share/revisionist`.
-4. Swap the tool: `uv tool uninstall wyrd-protocol`, then from the checkout `uv tool install --editable '.[postgres,discord]'`.
+4. Swap the tool: `uv tool uninstall wyrd-protocol`, then from the checkout `uv sync --frozen --extra postgres --extra discord --extra seal`.
 5. `(set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)`. It applies `0004_rename`, which renames the trigger function `wyrd_append_only` to `revisionist_append_only`.
 6. Install and enable the new units and scripts as in §5 and §9.3.
 7. Rename the existing dumps so the restore drill finds them: `cd ~/.local/share/revisionist/backups && for f in wyrd-*.dump; do mv "$f" "revisionist-${f#wyrd-}"; done`. Rename the off-box copies the same way, or leave them and remember the old prefix.
@@ -366,3 +371,21 @@ A wake that is already open keeps the deadline it was opened with: the host's wa
 4. `revisionist scheduler resume --campaign <id>`. This also clears the failure count.
 
 Do not resume a row whose open wake still shows the old deadline: the first poll after the resume would close that wake at once, with the aide playing the absent seat.
+
+## 12. The web server: names, reports, asset links and a proxy
+
+Built in the third run: the request guard and sessions (RQG, SES), reports that are delivered (RPS), the Android path (TWA) and the limits (LIM).
+
+`revisionist web serve` has no unit in `deploy/`; start it with its env file loaded the same way as §2. With HTTPS in front, add `--secure-cookie`: the cookie gets `Secure` and every reply `Strict-Transport-Security`; bound beyond this machine without it, `web serve` prints one warning line at start. Four settings matter once it is reached from outside this machine:
+
+```
+REVISIONIST_PUBLIC_NAMES=<the host name players use, e.g. game.example.org>
+REVISIONIST_REPORTS_DIR=/home/<you>/.local/share/revisionist/reports
+REVISIONIST_ASSETLINKS_FILE=/home/<you>/.config/revisionist/assetlinks.json
+# REVISIONIST_TRUST_PROXY=1   only behind a proxy that writes X-Forwarded-For
+```
+
+- **The names it is served under.** With `REVISIONIST_PUBLIC_NAMES` set, a request whose `Host` is not listed is refused with 421, and a write is taken only with an `Origin` (or, with none, a `Referer`) on a listed name. Unset, a write whose `Host` is not an IP address, `localhost` or a `.ts.net` name is refused with 421 (`deploy/SECURITY.md`).
+- **The reports folder.** Players file a bug, an idea or something confusing from the room (migration 0015). Each report is stored in `player_reports`, its words sealed to the seat. With `REVISIONIST_REPORTS_DIR` set, each is also written there as `report-<n>.md` (folder 700, file 600) with its kind, game, office, wake, log position, state hash and words in plain, so keep the folder out of anything shared or synced. Read and answer them with `revisionist reports list`, `show`, `mark` and `export` (Postgres only; `docs/entry-points.md` section 2). `revisionist reports digest` sends yesterday's counts by kind and game, never a report's words, to `REVISIONIST_REPORTS_DIGEST_TO` through the notice sender (`REVISIONIST_NOTICE_SMTP`, else `REVISIONIST_NOTICE_OUTBOX`); nothing runs it on a timer yet, so run it daily from cron or a user timer.
+- **The asset-links file.** The Android app (`deploy/android/README.md`) is the web app wrapped as a Trusted Web Activity, and Android opens it full screen only when the site vouches for the app. Write the `assetlinks.json` its recipe gives (the package id and the signing key's fingerprint) outside the repository, set `REVISIONIST_ASSETLINKS_FILE` to its path, and restart `web serve`; it is then served at `https://<host>/.well-known/assetlinks.json`, and that address answers 404 while the setting is unset or the file cannot be read. The file holds no secret; the signing key never goes near the server or the backups.
+- **A proxy in front.** Sign-ups, sign-ins and recoveries are limited per address (`engine/web/limits.py`). Behind a proxy every request arrives from the proxy's address, so every player would share one limit: set `REVISIONIST_TRUST_PROXY=1` and the server counts by the last address in `X-Forwarded-For`, the one the proxy wrote. Never set it when nothing in front writes that header, since a caller could then write it himself and pick his own address.

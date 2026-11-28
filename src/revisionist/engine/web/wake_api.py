@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from revisionist.core.ids import CampaignId, EntityId, SeatId
-from revisionist.core.ontology import Phase
-from revisionist.core.state import State
+from revisionist.core.ontology import Controller, Phase
+from revisionist.core.state import State, controller_after
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, runner
 from revisionist.engine import scheduler as sch
@@ -69,10 +69,31 @@ def start_play(
     wk.offer_all(store, campaign_id, None if tools.offline else tools.transport_factory())
 
 
-def wake_header(state: State, seat: SeatId, *, host: bool) -> WakeHeader:
-    """The wake as ``seat`` sees it. ``host``: the account is the host. Counts only."""
+def seats(state: State) -> int:
+    """How many seats the wake counts: every leader a player could hold (on the roster,
+    with a card), up to the game's human seats, whether a person or the code plays it."""
+    leaders = sum(1 for p in state.roster if p in state.cards)
+    return max(1, min(leaders, state.settings.max_human_seats))
+
+
+def done(state: State) -> int:
+    """How many seats have pressed Done in the open wake. A seat sealed by its player's
+    leave counts as not done, as a seat the code plays does."""
     wake = state.wake
-    humans = len(cmp.human_seats(state))
+    if wake is None or wake.closed:
+        return 0
+    return sum(
+        1
+        for s in wake.committed
+        if s in state.seats and controller_after(state, state.seats[s].embodies) is Controller.HUMAN
+    )
+
+
+def wake_header(state: State, seat: SeatId, *, host: bool) -> WakeHeader:
+    """The wake as ``seat`` sees it. ``host``: the account is the host. Counts only, and
+    the same counts whoever plays the other seats."""
+    wake = state.wake
+    humans = seats(state)
     if wake is None or wake.closed:
         return WakeHeader(
             wake=0 if wake is None else wake.number,
@@ -86,7 +107,7 @@ def wake_header(state: State, seat: SeatId, *, host: bool) -> WakeHeader:
     return WakeHeader(
         wake=wake.number,
         deadline=wake.deadline.isoformat(),
-        committed=len(wake.committed),
+        committed=done(state),
         humans=humans,
         you_committed=seat in wake.committed,
         is_host=host,
@@ -151,9 +172,7 @@ def commit(
     state = load_state(store, campaign_id)
     if wk.wake_due(state, now):
         return _play(store, campaign_id, _open_number(state), now, tools)
-    wake = state.wake
-    assert wake is not None
-    waiting = len(cmp.human_seats(state)) - len(wake.committed)
+    waiting = seats(state) - done(state)
     return Reply(
         reply=f"Your orders are sealed. Waiting for {waiting} other player(s).", refused=False
     )
@@ -309,9 +328,11 @@ __all__ = [
     "advance",
     "close",
     "commit",
+    "done",
     "handover",
     "handover_list",
     "leave",
+    "seats",
     "set_wake_hours",
     "start_play",
     "wake_header",

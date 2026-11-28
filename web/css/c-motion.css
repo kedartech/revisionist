@@ -1,0 +1,65 @@
+/* The room's motion (web/js/motion.js, docs/web-design/motion.md): each motion shows a change
+   once and is timed by the module; reduced motion leaves the end state (c-base.css stops every
+   stylesheet motion, the module plays nothing). */
+
+/* a five-step meter that moved: the step it left, outlined for a moment, by place and outline */
+.rl-motion-left { outline: 2px solid var(--fg-strong); outline-offset: 1px; }
+
+/* a sheet sliding in or out never widens the page: the map's frame clips it while a sheet is
+   there; a closed sheet sliding out is a picture where it stood, holding no tap */
+.rl-mapfirst.sheeted, .rl-mapfirst:has(> .rl-over-ghost) { overflow: clip; }
+.rl-over-ghost { position: absolute; z-index: 47; display: flex; flex-direction: column; overflow: hidden; pointer-events: none; background: var(--surface); color: var(--fg-strong); border: 1px solid var(--rule-strong); border-radius: var(--radius); }
+
+/* a battle's round grows from its foot; a nation's bar runs from its start */
+.rl-bt-round .rl-mark-fill { transform-box: fill-box; transform-origin: 50% 100%; }
+.rl-nb-fill { transform-box: fill-box; transform-origin: 0 50%; }
+
+/* The wake's playback as a clock of world days: the day as it runs, a piece on its way, a
+   refused step, a day's fighting and its losses. Colours come from tokens.css: amber for what
+   is live, red for what is hostile or lost, neutral for the rest. Reduced motion shows every
+   frame still, with no clock. */
+
+.rl-plb-day {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--fg-strong);
+  font: 13px/1.4 var(--font-chrome);
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-plb-clock { display: block; width: 100%; height: 4px; }
+.rl-plb-clock-track { fill: var(--rule-strong); }
+.rl-plb-clock-fill { fill: var(--warn); }
+
+/* a piece on its way, and one whose step was refused */
+.rl-plb-map .rl-tm-mark.rl-plb-moving { color: var(--warn); }
+.rl-plb-map .rl-tm-mark.rl-plb-moving circle,
+.rl-plb-map .rl-tm-mark.rl-plb-moving rect:not(.rl-tm-hit) { stroke: var(--warn); }
+.rl-plb-map .rl-tm-mark.rl-plb-refused circle,
+.rl-plb-map .rl-tm-mark.rl-plb-refused rect:not(.rl-tm-hit) { stroke: var(--danger); stroke-dasharray: 3 2; }
+
+/* a day's fighting at its area */
+.rl-plb-map .rl-area.rl-plb-battle { stroke: var(--danger); stroke-width: 3px; vector-effect: non-scaling-stroke; fill: var(--danger-soft); }
+
+.rl-plb-pips { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-left: var(--space-2); vertical-align: middle; }
+.rl-plb-pip { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.rl-plb-pip.rl-plb-lost { background: var(--danger); }
+.rl-plb-pip.rl-plb-foe { border: 1px solid var(--fg-muted); }
+.rl-plb-pip.rl-plb-lost + .rl-plb-pip.rl-plb-foe { margin-left: var(--space-2); }
+
+.rl-plb-step[data-kind="halt"] .rl-plb-cap { color: var(--danger); }
+
+@media (max-width: 600px) {
+  .rl-plb-day { font-size: 12px; padding: var(--space-1) var(--space-2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-plb-day { display: none; }
+  .rl-motion-left { outline: none; }
+  .rl-over-ghost { display: none; }
+}

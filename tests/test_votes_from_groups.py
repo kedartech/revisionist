@@ -364,6 +364,24 @@ def _usa(w: World) -> None:
     w["entities"].append({"key": "usa", "kind": "polity", "name": "Usonia"})
     help_ = {"key": "gallup_help_britain", "owner": "usa", "name": "Help", "value": 50}
     w["quantities"].append({**help_, "unit": "percent", "source": "toy"})
+    w["pipelines"] = [
+        {
+            "key": "proclamation",
+            "name": "A proclamation",
+            "source": "toy",
+            "steps": [{"person": "ilse", "kind": "decision", "days": 1}],
+        }
+    ]
+    card = next(c for c in w["cards"] if c["person"] == "ilse")
+    card["pipelines"] = ["proclamation"]
+    card["levers"] = [
+        {
+            "name": "declare_war",
+            "pipeline": "proclamation",
+            "resolver": "war",
+            "params": [{"name": "target", "kind": "enum", "choices": ["usa"]}],
+        }
+    ]
 
 
 def _declaration() -> Order:
@@ -388,3 +406,28 @@ def test_a_declaration_moves_the_groups_that_name_it_once(tmp_path: Path) -> Non
     moved = groups.react(g.state, g.state, declared, START)
     assert [(m.polity, m.group, m.change) for m in moved] == [(NORRA, "greens", 2)]
     assert moved[0].cause is Cause(Happening.WAR_DECLARED.value)
+
+
+# --- PRR rule 1: an offer's points count on its own measure only -------------------------
+
+
+def _greens_count(state: State, measure: str) -> int:
+    (_, yeas, _) = next(
+        c
+        for c in votes.bloc_counts(state, NORRA, ASSEMBLY, measure, "assembly", OrderId("seed"))
+        if c[0] == "greens"
+    )
+    return yeas
+
+
+def test_an_offer_counts_on_its_own_measure_and_no_other(tmp_path: Path) -> None:
+    from tests import test_offers as to
+
+    g = to.game(tmp_path)
+    to.bill(g)
+    assert _greens_count(g.state, to.MEASURE) == 25  # at its baseline: the world's row
+    assert _greens_count(g.state, "levy_act") == 40  # its own row
+    to.offer(g, to.ILSE)
+    g.walk(to.day(1), to.day(1))
+    assert _greens_count(g.state, to.MEASURE) == 26
+    assert _greens_count(g.state, "levy_act") == 40

@@ -1,0 +1,122 @@
+# The scoped check's staging world for the 1941 map's eighth region (India, Central Asia and Siberia):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/inner-asia.world.yaml
+# It extends the Africa region's staging world, which extends the Americas', the Pacific's, the
+# Mediterranean's, the Atlantic's, Europe's and the pilot's, so the check reads all eight: the map block
+# here is the newest, the territories, sea zones, adjacency and sites in scope are the eight files'
+# lists joined. Its blocks are the build's world fragment (worlds/maps/autumn-1941-globe.world.yaml) as
+# built, this region's territories and every adjacency pair that names one of them; the region adds no
+# sea zone. The sites in scope are the region's 29 new places, entered here and in
+# inner-asia.places.yaml, which `places_of` names in place of the world file (the world file is not
+# edited by this item). Rebuild the map, then copy the fragment's blocks into the eight staging worlds;
+# the test pins the hash.
+extends: africa.world.yaml
+places_of: inner-asia.places.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 07142a76288bad221c021cf8e43c0b38ca56fc21d50b7a2089d1ef72532bb86d, box: [-126, -60, 234, 84]}
+regions:
+  - {key: inner_asia, name: India, Central Asia and Siberia}
+territories:
+  - {key: middle_volga, name: The Middle Volga, region: inner_asia, terrain: plain, sites: [kuibyshev, kazan, astrakhan]}
+  - {key: urals, name: The Urals, region: inner_asia, terrain: mountain, sites: [sverdlovsk, magnitogorsk]}
+  - {key: western_siberia, name: Western Siberia, region: inner_asia, terrain: marsh, sites: [novosibirsk, stalinsk]}
+  - {key: kazakhstan, name: Kazakhstan, region: inner_asia, terrain: plain, sites: [alma_ata, karaganda]}
+  - {key: eastern_siberia, name: Eastern Siberia, region: inner_asia, terrain: forest, sites: [krasnoyarsk, irkutsk]}
+  - {key: turkestan, name: Turkestan, region: inner_asia, terrain: mountain, sites: [tashkent, krasnovodsk]}
+  - {key: afghanistan, name: Afghanistan, region: inner_asia, terrain: mountain, sites: [kabul]}
+  - {key: indus_northwest, name: The Indus and the North-West, region: inner_asia, terrain: plain, sites: [karachi, lahore, rawalpindi]}
+  - {key: ganges_bengal, name: The Ganges Plain and Bengal, region: inner_asia, terrain: plain, sites: [new_delhi, calcutta]}
+  - {key: southern_india, name: Southern India and Ceylon, region: inner_asia, terrain: plain, sites: [bombay, madras, trincomalee, colombo]}
+  - {key: portuguese_india, name: Goa, region: inner_asia, terrain: plain, sites: [nova_goa]}
+  - {key: tibet_nepal, name: 'Tibet, Nepal and Bhutan', region: inner_asia, terrain: mountain, sites: [lhasa]}
+  - {key: sinkiang, name: Sinkiang, region: inner_asia, terrain: mountain, sites: [urumchi, hami]}
+  - {key: mongolia, name: Mongolia and Tannu Tuva, region: inner_asia, terrain: plain, sites: [ulan_bator, kyzyl]}
+adjacency:
+  - [afghanistan, indus_northwest]
+  - [afghanistan, iran]
+  - [afghanistan, sinkiang]
+  - [afghanistan, turkestan]
+  - [andaman_sea, ganges_bengal]
+  - [arabian_sea, indus_northwest]
+  - [arabian_sea, portuguese_india]
+  - [arabian_sea, southern_india]
+  - [arctic_off_siberia, eastern_siberia]
+  - [arctic_off_siberia, urals]
+  - [arctic_off_siberia, western_siberia]
+  - [bay_of_bengal, ganges_bengal]
+  - [bay_of_bengal, southern_india]
+  - [burma, ganges_bengal]
+  - [burma, tibet_nepal]
+  - [caspian_sea, kazakhstan]
+  - [caspian_sea, middle_volga]
+  - [caspian_sea, turkestan]
+  - [caucasus, middle_volga]
+  - [donbas, middle_volga]
+  - [eastern_indian_ocean, southern_india]
+  - [eastern_siberia, mongolia]
+  - [eastern_siberia, north_pacific]
+  - [eastern_siberia, soviet_far_east]
+  - [eastern_siberia, western_siberia]
+  - [ganges_bengal, indus_northwest]
+  - [ganges_bengal, southern_india]
+  - [ganges_bengal, tibet_nepal]
+  - [indus_northwest, iran]
+  - [indus_northwest, sinkiang]
+  - [indus_northwest, southern_india]
+  - [indus_northwest, tibet_nepal]
+  - [iran, turkestan]
+  - [kazakhstan, middle_volga]
+  - [kazakhstan, sinkiang]
+  - [kazakhstan, stalingrad]
+  - [kazakhstan, turkestan]
+  - [kazakhstan, urals]
+  - [kazakhstan, western_siberia]
+  - [manchuria, mongolia]
+  - [middle_volga, stalingrad]
+  - [middle_volga, the_north]
+  - [middle_volga, upper_volga]
+  - [middle_volga, urals]
+  - [mongolia, north_china]
+  - [mongolia, northwest_china]
+  - [mongolia, sinkiang]
+  - [mongolia, soviet_far_east]
+  - [mongolia, western_siberia]
+  - [northwest_china, sinkiang]
+  - [northwest_china, tibet_nepal]
+  - [portuguese_india, southern_india]
+  - [sinkiang, tibet_nepal]
+  - [sinkiang, turkestan]
+  - [sinkiang, western_siberia]
+  - [southern_india, western_indian_ocean]
+  - [szechwan, tibet_nepal]
+  - [the_north, urals]
+  - [urals, western_siberia]
+  - [urals, white_sea]
+entities:
+  - {key: kuibyshev, kind: location, name: Kuibyshev, at: [53.2, 50.14]}
+  - {key: kazan, kind: location, name: Kazan, at: [55.8, 49.11]}
+  - {key: astrakhan, kind: location, name: Astrakhan, at: [46.35, 48.03]}
+  - {key: sverdlovsk, kind: location, name: Sverdlovsk, at: [56.84, 60.61]}
+  - {key: magnitogorsk, kind: location, name: Magnitogorsk, at: [53.38, 59.03]}
+  - {key: novosibirsk, kind: location, name: Novosibirsk, at: [55.05, 82.95]}
+  - {key: stalinsk, kind: location, name: Stalinsk, at: [53.77, 87.13]}
+  - {key: alma_ata, kind: location, name: Alma-Ata, at: [43.23, 76.95]}
+  - {key: karaganda, kind: location, name: Karaganda, at: [49.8, 73.11]}
+  - {key: krasnoyarsk, kind: location, name: Krasnoyarsk, at: [56.01, 92.87]}
+  - {key: irkutsk, kind: location, name: Irkutsk, at: [52.29, 104.28]}
+  - {key: tashkent, kind: location, name: Tashkent, at: [41.31, 69.28]}
+  - {key: krasnovodsk, kind: location, name: Krasnovodsk, at: [40.02, 52.97]}
+  - {key: kabul, kind: location, name: Kabul, at: [34.53, 69.18]}
+  - {key: karachi, kind: location, name: Karachi, at: [24.86, 67.01]}
+  - {key: lahore, kind: location, name: Lahore, at: [31.55, 74.34]}
+  - {key: rawalpindi, kind: location, name: Rawalpindi, at: [33.6, 73.03]}
+  - {key: new_delhi, kind: location, name: New Delhi, at: [28.61, 77.21]}
+  - {key: calcutta, kind: location, name: Calcutta, at: [22.57, 88.37]}
+  - {key: bombay, kind: location, name: Bombay, at: [19.08, 72.88]}
+  - {key: madras, kind: location, name: Madras, at: [13.08, 80.28]}
+  - {key: trincomalee, kind: location, name: Trincomalee, at: [8.57, 81.23]}
+  - {key: colombo, kind: location, name: Colombo, at: [6.93, 79.9]}
+  - {key: nova_goa, kind: location, name: Nova Goa, at: [15.5, 73.83]}
+  - {key: lhasa, kind: location, name: Lhasa, at: [29.65, 91.12]}
+  - {key: urumchi, kind: location, name: Urumchi, at: [43.82, 87.61]}
+  - {key: hami, kind: location, name: Hami, at: [42.82, 93.52]}
+  - {key: ulan_bator, kind: location, name: Ulan Bator, at: [47.92, 106.92]}
+  - {key: kyzyl, kind: location, name: Kyzyl, at: [51.72, 94.45]}

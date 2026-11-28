@@ -375,16 +375,21 @@ def moved(
     return state.economy.model_copy(update={"yields": out, **update})
 
 
-def seen_by(state: "State", seat: SeatId) -> Economy:
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> Economy:
     """What ``seat`` sees of the economy: its own nation's pools, the moved yields and
     pending parts of the territories its nation holds, and the trade lines it is a party
-    to. Nothing for a seat of no nation."""
+    to. Nothing for a seat of no nation. With ``post`` (a commander held to his post,
+    PVW): of the pools its nation's fuel stock only, which his forces' steps spend; the
+    war-economy figure stays public."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
     own = polity_of(state, me.embodies) if me is not None else None
     if own is None:
         return Economy()
+    if post:
+        found = state.economy.pools.get(own)
+        return Economy(pools={} if found is None else {own: Pools(fuel=found.fuel)})
     return Economy(
         pools={k: v for k, v in state.economy.pools.items() if k == own},
         yields={k: v for k, v in state.economy.yields.items() if holder(state, k) == own},

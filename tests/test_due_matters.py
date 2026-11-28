@@ -131,6 +131,7 @@ def test_a_capital_warning_needs_the_seats_own_paper(tmp_path: Path) -> None:
 def test_every_kind_reads_only_state_and_seat(tmp_path: Path) -> None:
     state = marked(tmp_path).state
     assert list(agenda_api.DUE_KINDS) == [
+        "post",
         "request",
         "offer",
         "decision",
@@ -138,6 +139,10 @@ def test_every_kind_reads_only_state_and_seat(tmp_path: Path) -> None:
         "battle",
         "vote",
         "ask",
+        "incident",
+        "promise",
+        "office",
+        "sitting",
     ]
     for kind in agenda_api.DUE_KINDS.values():
         assert kind(state, TOMAS) == kind(state, TOMAS)

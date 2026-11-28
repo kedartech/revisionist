@@ -12,6 +12,7 @@ import hashlib
 import re
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import date
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
 from revisionist.core import events as ev
@@ -20,7 +21,7 @@ from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import detect, kinds, territory
+from revisionist.core.realism import battle, detect, kinds, territory
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import BodyField, DocumentView
@@ -38,16 +39,19 @@ from revisionist.core.realism.pipelines import destination, place_named
 from revisionist.core.realism.resolvers import intel
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
+from revisionist.engine import campaign as cmp
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
 from revisionist.engine.web import (
     agreements_api,
     battles_api,
     conferences_api,
+    dossiers,
     economy_api,
     home_api,
     locks_api,
     map_api,
+    stakes,
 )
 from revisionist.engine.web.destinations import (
     FORCE,
@@ -59,7 +63,7 @@ from revisionist.engine.web.destinations import (
     place_choices,
     reported,
 )
-from revisionist.engine.web.people import seat_people
+from revisionist.engine.web.people import posts_block, seat_people
 from revisionist.engine.web.realism_api import (
     BodyLine,
     Clock,
@@ -86,12 +90,14 @@ from revisionist.engine.web.realism_api import (
     PieceArea,
     PieceCourse,
     PieceWait,
+    PublicWar,
     SeatMap,
     Situation,
     SituationFigure,
     SituationReading,
     SituationSource,
     StepLine,
+    WarNation,
     WorldDevelopment,
 )
 from revisionist.engine.web.threats import seat_threats
@@ -528,9 +534,13 @@ def _course(
     state: State, view: View, keys: Mapping[EntityId, str], f: Feature, domain: kinds.Domain
 ) -> PieceCourse | None:
     if f.path:
+        due = f.step_due
+        begun = map_api.step_began(state, f, f.path[0], due, f.as_of) if due else None
         return PieceCourse(
             path=[_area(state, view, keys, a, domain) for a in f.path],
             step_due=_iso(f.step_due),
+            step_began=_iso(begun[0]) if begun is not None else None,
+            step_days=begun[1] if begun is not None else None,
             arrives=_iso(f.arrives),
         )
     if f.bound_for is None:
@@ -538,6 +548,8 @@ def _course(
     return PieceCourse(
         path=[_area(state, view, keys, f.bound_for, domain)],
         step_due=_iso(f.arrives),
+        step_began=None,
+        step_days=None,
         arrives=_iso(f.arrives),
     )
 
@@ -594,9 +606,23 @@ class _Sent:
                 under_way=_course(self.state, self.view, self.place_keys, f, domain),
             )
             if self.seen is not None:
-                piece["moves"] = map_api.lit(self.seen, f, self._area_namer(domain), self.reaches)
+                there = self._there(f)
+                piece["moves"] = map_api.lit(
+                    self.seen, f, self._area_namer(domain), self.reaches, there
+                )
+                found = map_api.piece_view(self.state, self.seen, self.view, f)
+                if found is not None:
+                    piece["figures"] = found
             out.append((f, piece))
         return out
+
+    def _there(self, f: Feature) -> Callable[[EntityId, date], map_api.Standing] | None:
+        """The piece's figures in an area on a day, with ``kinds_in_battle`` on (KVW)."""
+        kind = kinds.of(self.state, f)
+        seen = self.seen
+        if seen is None or kind is None or not battle.kinds_count(self.state):
+            return None
+        return lambda at, on: map_api.standing(seen, self.view, f, kind, at, on)
 
 
 def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
@@ -670,11 +696,12 @@ def _ring(
     return [a.key for a in shapes if a.area in reach]
 
 
-def map_reports(view: View) -> list[MapReport]:
+def map_reports(view: View, pictures: bool = False) -> list[MapReport]:
     """Each report of an enemy piece that has reached the seat's nation, by its core key
     (``protect_marks`` keys it again before it leaves). A report a named person made is
     sent only with its paper; a contact no one is named for comes with none. Read from
-    the view alone: a wrong report is sent as a right one."""
+    the view alone: a wrong report is sent as a right one. With ``pictures``, a report
+    that names a kind with a picture carries the picture's key."""
     nation = map_api.viewing_nation(view)
     board = view.map
     shapes: list[territory.Territory | territory.SeaZone] = (
@@ -705,6 +732,8 @@ def map_reports(view: View) -> list[MapReport]:
                 ring=_ring(view, r, shapes),
             )
         )
+        if pictures and kind is not None and kind.picture is not None:
+            out[-1]["picture"] = kind.picture.value
     return out
 
 
@@ -791,9 +820,28 @@ def seat_map(
     capitals = _capitals(view, people) if people is not None else []
     out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
     if reporting:
-        out["reports"] = map_reports(view)
+        out["reports"] = map_reports(view, pictures=state is not None and battle.kinds_count(state))
     map_api.protect_marks(out, view)
-    return map_api.add_board(out, state, view) if state is not None else out
+    if state is None:
+        return out
+    out = map_api.add_board(out, state, view)
+    if territory.on(state):
+        found = map_api.weather_block(state, today, _own_kinds(state, view))
+        if found is not None:
+            out["weather"] = found
+    return out
+
+
+def _own_kinds(state: State, view: View) -> list[kinds.PieceKind]:
+    """The kinds of the seat's own side's pieces in play, in the world file's order."""
+    own = own_sides(view)
+    held = {
+        kind.key
+        for f in state.features.values()
+        if f.side in own and in_play(f) and (kind := kinds.of(state, f)) is not None
+    }
+    pieces = state.kinds.pieces if state.kinds is not None else {}
+    return [k for key, k in pieces.items() if key in held]
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:
@@ -1113,6 +1161,37 @@ def world_news(view: View) -> list[WorldDevelopment]:
     ]
 
 
+def public_wars(view: View) -> list[PublicWar]:
+    """Every war as the public record has it, oldest first: the same for every seat."""
+
+    def side(polity: EntityId) -> WarNation:
+        e = view.entities.get(polity)
+        return WarNation(key=polity, name=e.name if e is not None else "")
+
+    return [
+        PublicWar(a=side(w.a), b=side(w.b), since=w.since.isoformat())
+        for w in sorted(view.wars.values(), key=lambda w: (w.since, w.war_id))
+    ]
+
+
+@lru_cache(maxsize=16)
+def _nation_keys(world: str) -> tuple[str, ...]:
+    decl = cmp.load_world(cmp.world_path(world))
+    return tuple(e.key for e in decl.entities if e.kind is EntityKind.POLITY)
+
+
+def nation_keys(state: State, world: str | None) -> dict[str, str]:
+    """Each nation's key in the world file ``world``, by the game's id for it; ``{}``
+    with no world or when its file is gone or no longer loads."""
+    if world is None:
+        return {}
+    try:
+        keys = _nation_keys(world)
+    except (OSError, ValueError):
+        return {}
+    return {object_id(state.campaign_id, "entity", k): k for k in keys}
+
+
 def seat_realism(
     state: State,
     seat: SeatId,
@@ -1126,8 +1205,9 @@ def seat_realism(
     events: Iterable[Event] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people, the world's developments, the war economy, the seat's battles, its
-    groups at home, its agreements and its conferences. ``place_keys``
+    threats, people, the world's developments, the world's key and its nations' keys, the
+    public wars, the war economy, the seat's battles, its groups at home, its agreements,
+    its conferences, and its own aim's ladder while it may set one. ``place_keys``
     (``destinations.place_keys``) opens movement forms to every place; ``withdrawable``
     (``withdraw.withdrawable``) are the orders the seat may take back; ``held_battles``
     the area keys of battles it has a decision held for the next wake; ``ended_battles``
@@ -1153,26 +1233,45 @@ def seat_realism(
     wake = next_wake(state, today)
     # the horizon is not a thing anyone is waiting on: the client says nothing is due
     waiting_on = None if wake.reason.what == "horizon" else wake.reason.label
-    people = seat_people(state, seat, view)
-    return {
+    portraits = {
+        person: d["portrait"]
+        for person, d in dossiers.for_people(state, log).items()
+        if d["portrait"]
+    }
+    people = seat_people(state, seat, view, portraits)
+    world = dossiers.world_key(log)
+    shown = seat_map(view, forces, state.pipelines, people, state, place_keys or {}, withdrawable)
+    out = {
         "documents": documents(view, read, flagged),
         "desk": _place_areas(state, desk(view, known)),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(
-            view, forces, state.pipelines, people, state, place_keys or {}, withdrawable
-        ),
+        "map": shown,
         "threats": seat_threats(state, seat, view),
         "people": people,
         "world": world_news(view),
+        "world_key": world,
+        "nation_keys": nation_keys(state, world),
+        "wars": public_wars(view),
         "economy": economy_api.block(state, view),
         "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
-        "home": home_api.block(state, view, log),
+        "home": home_api.block(state, view, log, shown.get("areas", ()) if shown else ()),
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
         **_locks(state, seat),
+        **_posts(state, seat),
+        **_own_aim(state, seat),
     }
+    out["capitals"] = home_api.capitals(state, view, out, log)
+    return out
+
+
+def _posts(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``posts`` block (PPR); no key at all with ``posts`` off, so a game
+    without the rule is sent what it was before."""
+    found = posts_block(state, seat)
+    return {} if found is None else {"posts": found}
 
 
 def _locks(state: State, seat: SeatId) -> dict[str, Any]:
@@ -1180,6 +1279,13 @@ def _locks(state: State, seat: SeatId) -> dict[str, Any]:
     without the rule is sent what it was before."""
     found = locks_api.block(state, seat)
     return {} if found is None else {"locks": found}
+
+
+def _own_aim(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``own_aim`` block (OWR), while it may still set one; no key at all
+    otherwise, so a game without own aims is sent what it was before."""
+    found = stakes.own_aim_block(state, seat)
+    return {} if found is None else {"own_aim": found}
 
 
 __all__ = [
@@ -1191,8 +1297,10 @@ __all__ = [
     "documents",
     "flagged_ids",
     "lever_label",
+    "nation_keys",
     "orders",
     "proposal",
+    "public_wars",
     "read_ids",
     "seat_map",
     "seat_realism",
